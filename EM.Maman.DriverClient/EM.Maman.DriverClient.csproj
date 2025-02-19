@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows7.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MaterialDesignThemes" Version="5.2.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EM.Maman.BL\EM.Maman.BL.csproj" />
+    <ProjectReference Include="..\EM.Maman.Common\EM.Maman.Common.csproj" />
+    <ProjectReference Include="..\EM.Maman.DAL\EM.Maman.DAL.csproj" />
+    <ProjectReference Include="..\EM.Maman.Models\EM.Maman.Models.csproj" />
+    <ProjectReference Include="..\EM.Maman.Services\EM.Maman.Services.csproj" />
+  </ItemGroup>
+
+</Project>
