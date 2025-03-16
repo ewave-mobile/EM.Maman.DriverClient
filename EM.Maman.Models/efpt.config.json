@@ -15,15 +15,27 @@
    "T4TemplatePath": null,
    "Tables": [
       {
+         "Name": "[dbo].[Alerts]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Cells]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[CellTypes]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Configurations]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[Fingers]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[Locations]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[LocationTypes]",
+         "Name": "[dbo].[PalletInCell]",
          "ObjectType": 0
       },
       {
@@ -32,6 +44,10 @@
       },
       {
          "Name": "[dbo].[Pallets]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[PendingOperation]",
          "ObjectType": 0
       },
       {
@@ -55,6 +71,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[TaskTypes]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[TraceLogs]",
          "ObjectType": 0
       },
@@ -68,6 +88,10 @@
       },
       {
          "Name": "[dbo].[Trolleys]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[UploadTasks]",
          "ObjectType": 0
       },
       {

@@ -1,4 +1,7 @@
-﻿using System.Text;
+﻿using EM.Maman.DriverClient.ViewModels;
+using EM.Maman.Models.Interfaces.Services;
+using EM.Maman.Services.PlcServices;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -19,6 +22,8 @@ namespace EM.Maman.DriverClient
         public MainWindow()
         {
             InitializeComponent();
+            IOpcService opcService = new OpcUaService();
+            this.DataContext = new MainViewModel(opcService);
         }
     }
 }

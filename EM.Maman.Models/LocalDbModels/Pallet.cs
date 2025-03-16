@@ -13,9 +13,9 @@ public partial class Pallet
 
     public string Description { get; set; }
 
-    public string MamanCode { get; set; }
+    public string UldCode { get; set; }
 
-    public string StorageCode { get; set; }
+    public string AwbCode { get; set; }
 
     public DateTime? ReceivedDate { get; set; }
 
@@ -31,5 +31,29 @@ public partial class Pallet
 
     public long? LocationId { get; set; }
 
-    public int? StorageType { get; set; }
+    public bool? IsSecure { get; set; }
+
+    public long? CargoTypeId { get; set; }
+
+    public string ImportManifest { get; set; }
+
+    public string ImportUnit { get; set; }
+
+    public string ImportAppearance { get; set; }
+
+    public string ExportSwbPrefix { get; set; }
+
+    public string ExportAwbNumber { get; set; }
+
+    public string ExportAwbAppearance { get; set; }
+
+    public string ExportAwbStorage { get; set; }
+
+    public string ExportBarcode { get; set; }
+
+    public string UldType { get; set; }
+
+    public string UldNumber { get; set; }
+
+    public string UldAirline { get; set; }
 }

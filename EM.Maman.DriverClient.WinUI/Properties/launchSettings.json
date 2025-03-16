@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "EM.Maman.DriverClient.WinUI (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "EM.Maman.DriverClient.WinUI (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

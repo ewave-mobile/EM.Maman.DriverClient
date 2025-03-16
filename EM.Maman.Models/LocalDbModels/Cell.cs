@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace EM.Maman.Models.LocalDbModels;
 
-public partial class Location
+public partial class Cell
 {
     public long Id { get; set; }
 
@@ -15,15 +15,19 @@ public partial class Location
 
     public int? Level { get; set; }
 
-    public int? StorageTypeId { get; set; }
+    public bool? IsSecuredStorage { get; set; }
 
     public int? HeightLevel { get; set; }
 
-    public int? Capacity { get; set; }
+    public int? Order { get; set; }
 
     public int? RefrigerationTypeId { get; set; }
 
-    public bool? IsActive { get; set; }
+    public bool? IsBlocked { get; set; }
 
     public int? Side { get; set; }
+
+    public int? IsBlockedReasonId { get; set; }
+
+    public DateTime? LastModified { get; set; }
 }

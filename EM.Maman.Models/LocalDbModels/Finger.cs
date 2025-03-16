@@ -9,11 +9,13 @@ public partial class Finger
 {
     public long Id { get; set; }
 
-    public long? LocationId { get; set; }
+    public int? Position { get; set; }
 
     public string Description { get; set; }
 
     public string DisplayName { get; set; }
 
     public string DisplayColor { get; set; }
+
+    public int? Side { get; set; }
 }

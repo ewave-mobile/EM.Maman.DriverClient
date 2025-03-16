@@ -1,0 +1,54 @@
+﻿<Window x:Class="EM.Maman.DriverClient.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:EM.Maman.DriverClient"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        mc:Ignorable="d"
+        Title="LoginWindow" Height="{StaticResource WindowHeight}" Width="{StaticResource WindowWidth}"
+        WindowState="Normal"
+        WindowStyle="SingleBorderWindow"
+        DataContext="{Binding RelativeSource={RelativeSource Self}}"
+        >
+    <Window.Background>
+        <ImageBrush ImageSource="/Images/mamanBackground.jpeg" Stretch="UniformToFill"/>
+    </Window.Background>
+    <Grid>
+        <StackPanel Background="White" Margin="1008,0,58,0" VerticalAlignment="Center" Width="600" Height="500" >
+            <!-- Logo -->
+            <Image Source="/images/MamanLogo.png" Width="168" Height="141"  Margin="0,55,0,10" Stretch="Fill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+            <!-- Welcome Text -->
+            <TextBlock Text="שמחים לראות אותך פה איתנו" 
+                       HorizontalAlignment="Center" TextAlignment="Right" 
+                       FontSize="28" Margin="0,10,0,10"/>
+
+            <!-- Instruction Text -->
+            <TextBlock Text="כאן מזינים מספר עובד כדי להתחבר"  
+                       HorizontalAlignment="Center" TextAlignment="Right" 
+                       FontSize="24" Margin="0,10,0,10"/>
+
+            <!-- Employee ID Label -->
+            <TextBlock Text=":מספר עובד" 
+                       HorizontalAlignment="Center" TextAlignment="Right" 
+                       FontSize="18" Margin="290,10,10,20" />
+
+            <!-- Input and Button Row -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" FlowDirection="RightToLeft" VerticalAlignment="Center">
+                <TextBox x:Name="EmployeeIdTextBox" Height="40" Width="300" 
+                         Margin="0,0,10,0" FontSize="22" BorderBrush="Gray" 
+                         materialDesign:TextFieldAssist.UnderlineBrush="#329DFF"/>
+                <Button Width="50" Height="40" Background="#329DFF" Click="Button_Click">
+                    <materialDesign:PackIcon Kind="ArrowLeft" Width="24" Height="24" 
+                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Button>
+            </StackPanel>
+
+        </StackPanel>
+        <StackPanel Orientation="Vertical" Height="80" Width="300" VerticalAlignment="Bottom"  >
+            <Image Source="/images/ewaveMobileLogo.png" Width="168" Height="28"  Stretch="Fill" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+            <TextBlock Text="{Binding Version}" HorizontalAlignment="Center" TextAlignment="Right" FontSize="18" Margin="0,10,0,10" VerticalAlignment="Bottom" Foreground="White" />
+        </StackPanel>
+    </Grid>
+</Window>

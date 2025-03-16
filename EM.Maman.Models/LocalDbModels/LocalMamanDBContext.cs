@@ -17,15 +17,23 @@ public partial class LocalMamanDBContext : DbContext
     {
     }
 
+    public virtual DbSet<Alert> Alerts { get; set; }
+
+    public virtual DbSet<Cell> Cells { get; set; }
+
+    public virtual DbSet<CellType> CellTypes { get; set; }
+
+    public virtual DbSet<Configuration> Configurations { get; set; }
+
     public virtual DbSet<Finger> Fingers { get; set; }
-
-    public virtual DbSet<Location> Locations { get; set; }
-
-    public virtual DbSet<LocationType> LocationTypes { get; set; }
 
     public virtual DbSet<Pallet> Pallets { get; set; }
 
+    public virtual DbSet<PalletInCell> PalletInCells { get; set; }
+
     public virtual DbSet<PalletMovementLog> PalletMovementLogs { get; set; }
+
+    public virtual DbSet<PendingOperation> PendingOperations { get; set; }
 
     public virtual DbSet<RefrigerationType> RefrigerationTypes { get; set; }
 
@@ -37,6 +45,8 @@ public partial class LocalMamanDBContext : DbContext
 
     public virtual DbSet<TaskLog> TaskLogs { get; set; }
 
+    public virtual DbSet<TaskType> TaskTypes { get; set; }
+
     public virtual DbSet<TraceLog> TraceLogs { get; set; }
 
     public virtual DbSet<Trolley> Trolleys { get; set; }
@@ -44,6 +54,8 @@ public partial class LocalMamanDBContext : DbContext
     public virtual DbSet<TrolleyLoadingLocation> TrolleyLoadingLocations { get; set; }
 
     public virtual DbSet<TrolleyMovementLog> TrolleyMovementLogs { get; set; }
+
+    public virtual DbSet<UploadTask> UploadTasks { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
 
@@ -53,6 +65,42 @@ public partial class LocalMamanDBContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Alert>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__tmp_ms_x__3214EC07C13F34DE");
+
+            entity.Property(e => e.Color).HasMaxLength(50);
+            entity.Property(e => e.ConfirmedDate).HasColumnType("datetime");
+            entity.Property(e => e.Content).HasMaxLength(200);
+            entity.Property(e => e.DownloadDate).HasColumnType("datetime");
+            entity.Property(e => e.Title).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<Cell>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Cells__3214EC074D1016A6");
+
+            entity.Property(e => e.DisplayName).HasMaxLength(50);
+            entity.Property(e => e.HeightLevel).HasDefaultValueSql("((0))");
+            entity.Property(e => e.IsBlocked).HasDefaultValueSql("((1))");
+            entity.Property(e => e.IsSecuredStorage).HasDefaultValueSql("((0))");
+            entity.Property(e => e.LastModified).HasColumnType("datetime");
+        });
+
+        modelBuilder.Entity<CellType>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__CellType__3214EC07AACF101F");
+
+            entity.Property(e => e.Description).HasMaxLength(200);
+            entity.Property(e => e.DisplayColor).HasMaxLength(50);
+            entity.Property(e => e.DisplayName).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<Configuration>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Configur__3214EC079B1E2953");
+        });
+
         modelBuilder.Entity<Finger>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__tmp_ms_x__3214EC07767BB490");
@@ -62,37 +110,39 @@ public partial class LocalMamanDBContext : DbContext
             entity.Property(e => e.DisplayName).HasMaxLength(50);
         });
 
-        modelBuilder.Entity<Location>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__Location__3214EC0732F7F4E1");
-
-            entity.Property(e => e.Capacity).HasColumnName("capacity");
-            entity.Property(e => e.DisplayName).HasMaxLength(50);
-            entity.Property(e => e.HeightLevel).HasDefaultValueSql("((0))");
-            entity.Property(e => e.IsActive).HasDefaultValueSql("((1))");
-        });
-
-        modelBuilder.Entity<LocationType>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__Location__3214EC07240A40C1");
-
-            entity.Property(e => e.Description).HasMaxLength(200);
-            entity.Property(e => e.DisplayName).HasMaxLength(50);
-            entity.Property(e => e.Displaycolor).HasMaxLength(50);
-        });
-
         modelBuilder.Entity<Pallet>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Pallets__3214EC075B4002B5");
 
+            entity.Property(e => e.AwbCode).HasMaxLength(50);
             entity.Property(e => e.CheckedOutDate).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(200);
             entity.Property(e => e.DisplayName).HasMaxLength(200);
+            entity.Property(e => e.ExportAwbAppearance).HasMaxLength(50);
+            entity.Property(e => e.ExportAwbNumber).HasMaxLength(50);
+            entity.Property(e => e.ExportAwbStorage).HasMaxLength(50);
+            entity.Property(e => e.ExportBarcode).HasMaxLength(50);
+            entity.Property(e => e.ExportSwbPrefix).HasMaxLength(50);
+            entity.Property(e => e.ImportAppearance).HasMaxLength(50);
+            entity.Property(e => e.ImportManifest).HasMaxLength(50);
+            entity.Property(e => e.ImportUnit).HasMaxLength(50);
             entity.Property(e => e.IsCheckedOut).HasDefaultValueSql("((0))");
+            entity.Property(e => e.IsSecure).HasDefaultValueSql("((0))");
             entity.Property(e => e.LastModifiedDate).HasColumnType("datetime");
-            entity.Property(e => e.MamanCode).HasMaxLength(50);
             entity.Property(e => e.ReceivedDate).HasColumnType("datetime");
-            entity.Property(e => e.StorageCode).HasMaxLength(50);
+            entity.Property(e => e.UldAirline).HasMaxLength(50);
+            entity.Property(e => e.UldCode).HasMaxLength(50);
+            entity.Property(e => e.UldNumber).HasMaxLength(50);
+            entity.Property(e => e.UldType).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<PalletInCell>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__PalletIn__3214EC0738C95D89");
+
+            entity.ToTable("PalletInCell");
+
+            entity.Property(e => e.StorageDate).HasColumnType("datetime");
         });
 
         modelBuilder.Entity<PalletMovementLog>(entity =>
@@ -103,6 +153,22 @@ public partial class LocalMamanDBContext : DbContext
                 .HasColumnType("datetime")
                 .HasColumnName("createDate");
             entity.Property(e => e.Description).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<PendingOperation>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__PendingO__3214EC0756C73109");
+
+            entity.ToTable("PendingOperation");
+
+            entity.Property(e => e.CommandType).HasMaxLength(50);
+            entity.Property(e => e.CompletedAt).HasColumnType("datetime");
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+            entity.Property(e => e.ErrorMessage).HasMaxLength(50);
+            entity.Property(e => e.Parameters)
+                .HasMaxLength(50)
+                .HasColumnName("Parameters ");
+            entity.Property(e => e.Status).HasMaxLength(50);
         });
 
         modelBuilder.Entity<RefrigerationType>(entity =>
@@ -129,12 +195,14 @@ public partial class LocalMamanDBContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__Tasks__3214EC0749F74CCB");
 
+            entity.Property(e => e.Code).HasMaxLength(50);
             entity.Property(e => e.Description).HasMaxLength(200);
             entity.Property(e => e.DownloadDate).HasColumnType("datetime");
             entity.Property(e => e.ExecutedDate).HasColumnType("datetime");
             entity.Property(e => e.IsExecuted).HasDefaultValueSql("((0))");
             entity.Property(e => e.IsUploaded).HasDefaultValueSql("((0))");
             entity.Property(e => e.Name).HasMaxLength(50);
+            entity.Property(e => e.PalletId).HasMaxLength(50);
             entity.Property(e => e.UploadDate).HasColumnType("datetime");
         });
 
@@ -151,6 +219,14 @@ public partial class LocalMamanDBContext : DbContext
 
             entity.Property(e => e.CreateDate).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<TaskType>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__TaskType__3214EC077981986E");
+
+            entity.Property(e => e.Description).HasMaxLength(200);
+            entity.Property(e => e.DisplayName).HasMaxLength(50);
         });
 
         modelBuilder.Entity<TraceLog>(entity =>
@@ -188,6 +264,13 @@ public partial class LocalMamanDBContext : DbContext
 
             entity.Property(e => e.EndDate).HasColumnType("datetime");
             entity.Property(e => e.StartDate).HasColumnType("datetime");
+        });
+
+        modelBuilder.Entity<UploadTask>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__tmp_ms_x__3214EC0781E6720C");
+
+            entity.Property(e => e.UploadType).HasMaxLength(50);
         });
 
         modelBuilder.Entity<User>(entity =>

@@ -24,4 +24,14 @@ public partial class Task
     public DateTime? UploadDate { get; set; }
 
     public long? TaskTypeId { get; set; }
+
+    public long? CellEndLocationId { get; set; }
+
+    public long? CurrentTrolleyLocationId { get; set; }
+
+    public long? FingerLocationId { get; set; }
+
+    public string PalletId { get; set; }
+
+    public string Code { get; set; }
 }

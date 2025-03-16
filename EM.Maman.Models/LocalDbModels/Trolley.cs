@@ -15,5 +15,5 @@ public partial class Trolley
 
     public int? Capacity { get; set; }
 
-    public long? CurrentLocationId { get; set; }
+    public int? Position { get; set; }
 }

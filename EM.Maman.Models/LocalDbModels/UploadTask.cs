@@ -5,15 +5,9 @@ using System.Collections.Generic;
 
 namespace EM.Maman.Models.LocalDbModels;
 
-public partial class LocationType
+public partial class UploadTask
 {
     public long Id { get; set; }
 
-    public int? Code { get; set; }
-
-    public string DisplayName { get; set; }
-
-    public string Description { get; set; }
-
-    public string Displaycolor { get; set; }
+    public string UploadType { get; set; }
 }
