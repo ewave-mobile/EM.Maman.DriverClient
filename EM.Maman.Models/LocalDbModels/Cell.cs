@@ -30,4 +30,6 @@ public partial class Cell
     public int? IsBlockedReasonId { get; set; }
 
     public DateTime? LastModified { get; set; }
+
+    public virtual Level HeightLevelNavigation { get; set; }
 }

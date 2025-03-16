@@ -27,6 +27,8 @@ public partial class LocalMamanDBContext : DbContext
 
     public virtual DbSet<Finger> Fingers { get; set; }
 
+    public virtual DbSet<Level> Levels { get; set; }
+
     public virtual DbSet<Pallet> Pallets { get; set; }
 
     public virtual DbSet<PalletInCell> PalletInCells { get; set; }
@@ -85,6 +87,11 @@ public partial class LocalMamanDBContext : DbContext
             entity.Property(e => e.IsBlocked).HasDefaultValueSql("((1))");
             entity.Property(e => e.IsSecuredStorage).HasDefaultValueSql("((0))");
             entity.Property(e => e.LastModified).HasColumnType("datetime");
+
+            entity.HasOne(d => d.HeightLevelNavigation).WithMany(p => p.Cells)
+                .HasPrincipalKey(p => p.Number)
+                .HasForeignKey(d => d.HeightLevel)
+                .HasConstraintName("FK_Cells_Levels");
         });
 
         modelBuilder.Entity<CellType>(entity =>
@@ -107,6 +114,15 @@ public partial class LocalMamanDBContext : DbContext
 
             entity.Property(e => e.Description).HasMaxLength(200);
             entity.Property(e => e.DisplayColor).HasMaxLength(50);
+            entity.Property(e => e.DisplayName).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<Level>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Levels__3214EC0796D8C15E");
+
+            entity.HasIndex(e => e.Number, "UQ_Levels_Number").IsUnique();
+
             entity.Property(e => e.DisplayName).HasMaxLength(50);
         });
 

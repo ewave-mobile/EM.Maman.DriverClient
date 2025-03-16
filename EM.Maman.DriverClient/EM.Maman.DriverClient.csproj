@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="appsettings.json" />
     <None Remove="Images\ewaveMobileLogo.png" />
     <None Remove="Images\mamanBackground.jpeg" />
     <None Remove="Images\MamanLogo.png" />
@@ -16,17 +17,17 @@
 
   <ItemGroup>
     <PackageReference Include="MaterialDesignThemes" Version="5.2.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.1">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.3">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="9.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="9.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.3" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,6 +39,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Resource Include="Images\ewaveMobileLogo.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Resource>

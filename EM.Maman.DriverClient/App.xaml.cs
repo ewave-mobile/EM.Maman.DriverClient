@@ -2,11 +2,13 @@
 using System.IO;
 using System.Windows;
 using EM.Maman.BL;
+using EM.Maman.BL.Managers;
 using EM.Maman.DAL;
 using EM.Maman.DAL.Repositories;
 using EM.Maman.DriverClient.Services;
 using EM.Maman.DriverClient.ViewModels;
 using EM.Maman.Models.Interfaces;
+using EM.Maman.Models.Interfaces.Managers;
 using EM.Maman.Models.Interfaces.Repositories;
 using EM.Maman.Models.Interfaces.Services;
 using EM.Maman.Models.LocalDbModels;
@@ -102,7 +104,7 @@ namespace EM.Maman.DriverClient
             // Register Business Layer Services
           //  services.AddScoped<ITrolleyManager, TrolleyManager>();
           //  services.AddScoped<ITaskManager, TaskManager>();
-       //     services.AddScoped<IUserManager, UserManager>();
+           services.AddScoped<IUserManager, UserManager>();
 
             // Register Data Access Layer
             services.AddScoped<IUnitOfWork, UnitOfWork>();
