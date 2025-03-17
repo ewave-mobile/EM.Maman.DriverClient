@@ -14,6 +14,9 @@ namespace EM.Maman.Models.DisplayModels
     {
         private Level _level;
         private bool _isCurrentLevel;
+        private bool _hasItems;
+        private bool _hasTrolley;
+        private bool _hasSecondTrolley;
         private ObservableCollection<CompositeRow> _rows;
 
         public Level Level
@@ -38,6 +41,9 @@ namespace EM.Maman.Models.DisplayModels
                 {
                     _rows = value;
                     OnPropertyChanged();
+
+                    // Whenever rows change, update our HasItems property
+                    HasItems = Rows != null && Rows.Any();
                 }
             }
         }
@@ -50,6 +56,45 @@ namespace EM.Maman.Models.DisplayModels
                 if (_isCurrentLevel != value)
                 {
                     _isCurrentLevel = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool HasItems
+        {
+            get => _hasItems;
+            set
+            {
+                if (_hasItems != value)
+                {
+                    _hasItems = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool HasTrolley
+        {
+            get => _hasTrolley;
+            set
+            {
+                if (_hasTrolley != value)
+                {
+                    _hasTrolley = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool HasSecondTrolley
+        {
+            get => _hasSecondTrolley;
+            set
+            {
+                if (_hasSecondTrolley != value)
+                {
+                    _hasSecondTrolley = value;
                     OnPropertyChanged();
                 }
             }

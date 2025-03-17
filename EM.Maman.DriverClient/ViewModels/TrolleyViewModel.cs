@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
 
 namespace EM.Maman.DriverClient.ViewModels
 {
@@ -14,9 +15,15 @@ namespace EM.Maman.DriverClient.ViewModels
         private const int MaxPositionsPerLevel = 24;
         private ObservableCollection<CompositeRow> _rows;
         private ObservableCollection<CompositeLevel> _levels;
+        private ObservableCollection<LevelTab> _levelTabs;
         private int _highestActiveRow;
         private int _currentLevelNumber;
+        private int _selectedLevelNumber; // Level being viewed
         private int _currentPosition;
+        private bool _autoSyncToTrolleyLevel = true;
+        private RelayCommand _selectLevelCommand;
+
+        #region Properties
 
         public ObservableCollection<CompositeRow> Rows
         {
@@ -44,6 +51,19 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
+        public ObservableCollection<LevelTab> LevelTabs
+        {
+            get => _levelTabs;
+            set
+            {
+                if (_levelTabs != value)
+                {
+                    _levelTabs = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public int HighestActiveRow
         {
             get => _highestActiveRow;
@@ -65,8 +85,30 @@ namespace EM.Maman.DriverClient.ViewModels
                 if (_currentLevelNumber != value)
                 {
                     _currentLevelNumber = value;
-                    UpdateCurrentLevel();
                     OnPropertyChanged();
+
+                    // If auto-sync is enabled, also update the selected level
+                    if (_autoSyncToTrolleyLevel)
+                    {
+                        SelectedLevelNumber = value;
+                    }
+
+                    UpdateCurrentLevel();
+                }
+            }
+        }
+
+        public int SelectedLevelNumber
+        {
+            get => _selectedLevelNumber;
+            set
+            {
+                if (_selectedLevelNumber != value)
+                {
+                    _selectedLevelNumber = value;
+                    OnPropertyChanged();
+                    UpdateLevelTabs();
+                    UpdateRowsForSelectedLevel();
                 }
             }
         }
@@ -84,18 +126,44 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
+        public bool AutoSyncToTrolleyLevel
+        {
+            get => _autoSyncToTrolleyLevel;
+            set
+            {
+                if (_autoSyncToTrolleyLevel != value)
+                {
+                    _autoSyncToTrolleyLevel = value;
+                    OnPropertyChanged();
+
+                    // If enabling auto-sync, immediately sync to current trolley level
+                    if (value)
+                    {
+                        SelectedLevelNumber = CurrentLevelNumber;
+                    }
+                }
+            }
+        }
+
+        public ICommand SelectLevelCommand => _selectLevelCommand ??= new RelayCommand(SelectLevel);
+
+        #endregion
+
         public TrolleyViewModel()
         {
             Rows = new ObservableCollection<CompositeRow>();
             Levels = new ObservableCollection<CompositeLevel>();
+            LevelTabs = new ObservableCollection<LevelTab>();
 
             // Load test data
             LoadTestData();
+
+            // Initialize tabs
+            InitializeLevelTabs();
         }
 
         private void LoadTestData()
         {
-            // Load levels, cells, and fingers
             var levels = LoadLevelsFromDb();
             var allCells = LoadCellsFromDb();
             var allFingers = LoadFingersFromDb();
@@ -106,7 +174,10 @@ namespace EM.Maman.DriverClient.ViewModels
                 var compositeLevel = new CompositeLevel
                 {
                     Level = level,
-                    Rows = new ObservableCollection<CompositeRow>()
+                    Rows = new ObservableCollection<CompositeRow>(),
+                    IsCurrentLevel = false,
+                    HasTrolley = level.Number == 1 || level.Number == 2, // Example values
+                    HasSecondTrolley = level.Number == 0 // Example value
                 };
 
                 // Filter cells and fingers for this level
@@ -150,6 +221,7 @@ namespace EM.Maman.DriverClient.ViewModels
             if (Levels.Any())
             {
                 CurrentLevelNumber = Levels[0].Level.Number;
+                SelectedLevelNumber = CurrentLevelNumber; // Initially the same
                 CurrentPosition = 0;
             }
 
@@ -161,6 +233,21 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
+        private void InitializeLevelTabs()
+        {
+            LevelTabs.Clear();
+
+            // Add tabs for each level (0-3)
+            foreach (var level in Levels.OrderBy(l => l.Level.Number))
+            {
+                var tab = new LevelTab(level.Level, level.Level.Number == SelectedLevelNumber)
+                {
+                    DisplayName = $"Level {level.Level.Number}"
+                };
+                LevelTabs.Add(tab);
+            }
+        }
+
         private void UpdateCurrentLevel()
         {
             // Update the IsCurrentLevel property for all levels
@@ -168,12 +255,24 @@ namespace EM.Maman.DriverClient.ViewModels
             {
                 level.IsCurrentLevel = level.Level.Number == CurrentLevelNumber;
             }
+        }
 
-            // Update Rows collection for backward compatibility
-            var currentLevel = Levels.FirstOrDefault(l => l.Level.Number == CurrentLevelNumber);
-            if (currentLevel != null)
+        private void UpdateLevelTabs()
+        {
+            foreach (var tab in LevelTabs)
             {
-                Rows = currentLevel.Rows;
+                tab.IsSelected = tab.Level.Number == SelectedLevelNumber;
+            }
+        }
+
+        private void UpdateRowsForSelectedLevel()
+        {
+            // Find the level that matches the selected level number
+            var selectedLevel = Levels.FirstOrDefault(l => l.Level.Number == SelectedLevelNumber);
+            if (selectedLevel != null)
+            {
+                // Update Rows collection
+                Rows = selectedLevel.Rows;
                 HighestActiveRow = Rows.Any() ? Rows.Max(r => r.Position) : 0;
             }
         }
@@ -182,21 +281,39 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             CurrentLevelNumber = levelNumber;
             CurrentPosition = position;
+
+            // If auto-sync is enabled, automatically switch to showing the trolley's level
+            if (AutoSyncToTrolleyLevel)
+            {
+                SelectedLevelNumber = levelNumber;
+            }
+        }
+
+        private void SelectLevel(object parameter)
+        {
+            if (parameter is int levelNumber)
+            {
+                SelectedLevelNumber = levelNumber;
+
+                // Temporarily disable auto-sync when user explicitly selects a level
+                if (levelNumber != CurrentLevelNumber)
+                {
+                    AutoSyncToTrolleyLevel = false;
+                }
+            }
         }
 
         #region Test Data Loaders
 
         private IEnumerable<Level> LoadLevelsFromDb()
         {
-            // This would come from your database in a real implementation
+            // Simplified to just 4 levels (0-3)
             return new List<Level>
             {
-                new Level { Id = 1, Number = 102, DisplayName = "102" },
-                new Level { Id = 2, Number = 105, DisplayName = "105" },
-                new Level { Id = 3, Number = 108, DisplayName = "108" },
-                new Level { Id = 4, Number = 115, DisplayName = "115" },
-                new Level { Id = 5, Number = 119, DisplayName = "119" },
-                new Level { Id = 6, Number = 122, DisplayName = "122" }
+                new Level { Id = 1, Number = 1, DisplayName = "Level 0" },
+                new Level { Id = 2, Number = 2, DisplayName = "Level 1" },
+                new Level { Id = 3, Number = 3, DisplayName = "Level 2" },
+                new Level { Id = 4, Number = 4, DisplayName = "Level 3" }
             };
         }
 
@@ -204,62 +321,55 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             var cells = new List<Cell>();
 
-            // Level 102 cells
-            for (int i = 0; i < 10; i++)
+            // Level 0 cells
+            for (int i = 0; i < 23; i++)
             {
-                cells.Add(new Cell { Id = i + 1000, Position = i, HeightLevel = 102, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 1100, Position = i, HeightLevel = 102, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 1200, Position = i, HeightLevel = 102, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 1300, Position = i, HeightLevel = 102, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 1000, Position = i, HeightLevel = 1, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 1100, Position = i, HeightLevel = 1, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 1200, Position = i, HeightLevel = 1, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 1300, Position = i, HeightLevel = 1, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
             }
 
-            // Level 105 cells
-            cells.Add(new Cell { Id = 2001, Position = 5, HeightLevel = 105, Side = 1, Order = 0, DisplayName = "89" });
-            cells.Add(new Cell { Id = 2002, Position = 5, HeightLevel = 105, Side = 1, Order = 1, DisplayName = "89" });
-            cells.Add(new Cell { Id = 2003, Position = 6, HeightLevel = 105, Side = 1, Order = 0, DisplayName = "67" });
-            cells.Add(new Cell { Id = 2004, Position = 6, HeightLevel = 105, Side = 1, Order = 1, DisplayName = "67" });
-            cells.Add(new Cell { Id = 2005, Position = 7, HeightLevel = 105, Side = 1, Order = 0, DisplayName = "12.3" });
-            cells.Add(new Cell { Id = 2006, Position = 7, HeightLevel = 105, Side = 1, Order = 1, DisplayName = "12.3" });
+            // Level 1 cells
+            for (int i = 0; i < 23; i++)
+            {
+                cells.Add(new Cell { Id = i + 2000, Position = i, HeightLevel = 2, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 2100, Position = i, HeightLevel = 2, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 2200, Position = i, HeightLevel = 2, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 2300, Position = i, HeightLevel = 2, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
+            }
 
-            cells.Add(new Cell { Id = 2007, Position = 5, HeightLevel = 105, Side = 2, Order = 0, DisplayName = "89" });
-            cells.Add(new Cell { Id = 2008, Position = 5, HeightLevel = 105, Side = 2, Order = 1, DisplayName = "89" });
-            cells.Add(new Cell { Id = 2009, Position = 6, HeightLevel = 105, Side = 2, Order = 0, DisplayName = "67" });
-            cells.Add(new Cell { Id = 2010, Position = 6, HeightLevel = 105, Side = 2, Order = 1, DisplayName = "67" });
-            cells.Add(new Cell { Id = 2011, Position = 7, HeightLevel = 105, Side = 2, Order = 0, DisplayName = "12.3" });
-            cells.Add(new Cell { Id = 2012, Position = 7, HeightLevel = 105, Side = 2, Order = 1, DisplayName = "12.3" });
+            // Level 2 cells
+            for (int i = 0; i < 23; i++)
+            {
+                cells.Add(new Cell { Id = i + 3000, Position = i, HeightLevel = 3, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 3100, Position = i, HeightLevel = 3, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 3200, Position = i, HeightLevel = 3, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 3300, Position = i, HeightLevel = 3, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
+            }
 
-            // Level 108 cells
-            cells.Add(new Cell { Id = 3001, Position = 8, HeightLevel = 108, Side = 1, Order = 0, DisplayName = "12" });
-            cells.Add(new Cell { Id = 3002, Position = 8, HeightLevel = 108, Side = 1, Order = 1, DisplayName = "12" });
-            cells.Add(new Cell { Id = 3003, Position = 9, HeightLevel = 108, Side = 1, Order = 0, DisplayName = "22" });
-            cells.Add(new Cell { Id = 3004, Position = 9, HeightLevel = 108, Side = 1, Order = 1, DisplayName = "22" });
-            cells.Add(new Cell { Id = 3005, Position = 8, HeightLevel = 108, Side = 2, Order = 0, DisplayName = "12" });
-            cells.Add(new Cell { Id = 3006, Position = 8, HeightLevel = 108, Side = 2, Order = 1, DisplayName = "12" });
-            cells.Add(new Cell { Id = 3007, Position = 9, HeightLevel = 108, Side = 2, Order = 0, DisplayName = "22" });
-            cells.Add(new Cell { Id = 3008, Position = 9, HeightLevel = 108, Side = 2, Order = 1, DisplayName = "22" });
-
-            // Level 119 cells
-            cells.Add(new Cell { Id = 4001, Position = 21, HeightLevel = 119, Side = 1, Order = 0, DisplayName = "678/90" });
-            cells.Add(new Cell { Id = 4002, Position = 21, HeightLevel = 119, Side = 1, Order = 1, DisplayName = "678/90" });
-            cells.Add(new Cell { Id = 4003, Position = 22, HeightLevel = 119, Side = 1, Order = 0, DisplayName = "87" });
-            cells.Add(new Cell { Id = 4004, Position = 22, HeightLevel = 119, Side = 1, Order = 1, DisplayName = "87" });
-            cells.Add(new Cell { Id = 4005, Position = 21, HeightLevel = 119, Side = 2, Order = 0, DisplayName = "678/90" });
-            cells.Add(new Cell { Id = 4006, Position = 21, HeightLevel = 119, Side = 2, Order = 1, DisplayName = "678/90" });
-            cells.Add(new Cell { Id = 4007, Position = 22, HeightLevel = 119, Side = 2, Order = 0, DisplayName = "87" });
-            cells.Add(new Cell { Id = 4008, Position = 22, HeightLevel = 119, Side = 2, Order = 1, DisplayName = "87" });
+            // Level 3 cells
+            for (int i = 0; i < 23; i++)
+            {
+                cells.Add(new Cell { Id = i + 4000, Position = i, HeightLevel = 4, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 4100, Position = i, HeightLevel = 4, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 4200, Position = i, HeightLevel = 4, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 4300, Position = i, HeightLevel = 4, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
+            }
 
             return cells;
         }
+
 
         private IEnumerable<Finger> LoadFingersFromDb()
         {
             // Position is calculated as (level*100 + position)
             return new List<Finger>
             {
-                new Finger{ Id = 1, Side = 0, Position = 10500, Description = "Finger 105-00", DisplayName = "2", DisplayColor = "Grey" },
-                new Finger{ Id = 2, Side = 1, Position = 10810, Description = "Finger 108-10", DisplayName = "3", DisplayColor = "Grey" },
-                new Finger{ Id = 3, Side = 0, Position = 11912, Description = "Finger 119-12", DisplayName = "4", DisplayColor = "Grey" },
-                new Finger{ Id = 4, Side = 1, Position = 11700, Description = "Finger 117-00", DisplayName = "2", DisplayColor = "Grey" }
+                new Finger{ Id = 1, Side = 0, Position = 100, Description = "Finger 1-00", DisplayName = "F1", DisplayColor = "Grey" },
+                new Finger{ Id = 2, Side = 1, Position = 210, Description = "Finger 2-10", DisplayName = "F2", DisplayColor = "Grey" },
+                new Finger{ Id = 3, Side = 0, Position = 312, Description = "Finger 3-12", DisplayName = "F3", DisplayColor = "Grey" },
+                new Finger{ Id = 4, Side = 1, Position = 0, Description = "Finger 0-00", DisplayName = "F0", DisplayColor = "Grey" }
             };
         }
 

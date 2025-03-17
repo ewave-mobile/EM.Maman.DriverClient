@@ -27,13 +27,26 @@ namespace EM.Maman.DriverClient.ViewModels
                 if (_positionPV != value)
                 {
                     _positionPV = value;
-                    // Update the trolley's position to the modulo of PositionPV.
+
+                    // Extract level and position
+                    int pvLevel = value / 100;
+                    int pvPosition = value % 100;
+
+                    // Update the trolley's position
                     if (CurrentTrolley != null)
                     {
-                        CurrentTrolley.Position = _positionPV % 100;
+                        CurrentTrolley.Position = pvPosition;
                         OnPropertyChanged(nameof(CurrentTrolley));
                     }
+
+                    // THIS IS THE KEY ADDITION - update the TrolleyViewModel with level info
+                    if (TrolleyVM != null)
+                    {
+                        TrolleyVM.UpdateTrolleyPosition(pvLevel, pvPosition);
+                    }
+
                     OnPropertyChanged(nameof(PositionPV));
+                    OnPropertyChanged(nameof(PvLevel));
                     OnPropertyChanged(nameof(PvLocation));
                 }
             }
@@ -196,6 +209,19 @@ namespace EM.Maman.DriverClient.ViewModels
                 {
                     PlcRegisterValue = result;
                 }
+            }
+
+            // For Position_PV updates
+            if (e.RegisterName.Contains("Position_PV") || e.RegisterName.Contains("position_pv"))
+            {
+                _dispatcherService.Invoke(() =>
+                {
+                    if (int.TryParse(e.NewValue.ToString(), out var newPv))
+                    {
+                        // This will now trigger the enhanced PositionPV setter
+                        PositionPV = newPv;
+                    }
+                });
             }
         }
 
