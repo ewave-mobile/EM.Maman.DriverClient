@@ -40,5 +40,12 @@ namespace EM.Maman.DAL.Repositories
             // Assuming you have relationships defined
             throw new NotImplementedException();
         }
+        public async Task<IEnumerable<PalletInCell>> GetPalletsWithCellsAsync()
+        {
+            return await Context.PalletInCells
+                .Include(pic => pic.PalletId)
+                .Include(pic => pic.CellId)
+                .ToListAsync();
+        }
     }
 }

@@ -296,7 +296,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Button  Width="80" Height="60" Margin="5,0" 
+                                <Button  Width="80" Height="60" Margin="0" 
 Background="{Binding IsSelected, Converter={StaticResource BoolToTabColorConverter}}"
 Command="{Binding DataContext.TrolleyVM.SelectLevelCommand, RelativeSource={RelativeSource AncestorType=Window}}"
 CommandParameter="{Binding Level.Number}">

@@ -13,5 +13,6 @@ namespace EM.Maman.Models.Interfaces.Repositories
         Task<IEnumerable<Cell>> GetCellsBySideAsync(int side);
         Task<IEnumerable<Cell>> GetActiveOnlyCellsAsync();
         Task<Cell> GetCellWithPalletAsync(int cellId);
+        Task<IEnumerable<PalletInCell>> GetPalletsWithCellsAsync();
     }
 }
