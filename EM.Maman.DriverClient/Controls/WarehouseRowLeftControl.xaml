@@ -1,0 +1,61 @@
+﻿<UserControl x:Class="EM.Maman.DriverClient.Controls.WarehouseRowLeftControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:EM.Maman.DriverClient.Controls"
+             xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters"
+             mc:Ignorable="d" 
+             d:DesignHeight="19" d:DesignWidth="200">
+
+    <UserControl.Resources>
+        <converters:RowVisibilityConverter x:Key="RowVisibilityConverter"/>
+        <converters:NullToHiddenConverter x:Key="NullToHiddenConverter"/>
+        <converters:NullToCollapseConverter x:Key="NullToCollapseConverter"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="100"/>
+            <!-- Left Finger -->
+            <ColumnDefinition Width="Auto"/>
+            <!-- Left Outer Cell -->
+            <ColumnDefinition Width="Auto"/>
+            <!-- Left Inner Cell -->
+            <ColumnDefinition Width="Auto"/>
+            <!-- Position Indicator -->
+        </Grid.ColumnDefinitions>
+
+        <!-- Visibility check for the entire row -->
+        <Grid.Visibility>
+            <MultiBinding Converter="{StaticResource RowVisibilityConverter}">
+                <Binding Path="RowData.Position" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                <Binding Path="HighestActiveRow" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+            </MultiBinding>
+        </Grid.Visibility>
+
+        <!-- Left Finger -->
+        <local:FingerControl Grid.Column="0" Width="100"
+                      Finger="{Binding RowData.LeftFinger, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                      IsSideRight="False"
+                      Visibility="{Binding RowData.LeftFinger, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
+
+        <!-- Left Outer Cell -->
+        <local:CellControl Grid.Column="1" 
+                          CellInfo="{Binding RowData.LeftOuterCell, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                          Visibility="{Binding RowData.LeftOuterCell, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
+
+        <!-- Left Inner Cell -->
+        <local:CellControl Grid.Column="2" 
+                          CellInfo="{Binding RowData.LeftInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                          Visibility="{Binding RowData.LeftInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
+
+        <!-- Position Indicator -->
+        <Border Grid.Column="3" 
+                BorderBrush="#E1E1E1" BorderThickness="1" 
+                Height="18" Width="18" Margin="2,1,2,2">
+            <TextBlock Text="{Binding RowData.Position, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                     FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+    </Grid>
+</UserControl>

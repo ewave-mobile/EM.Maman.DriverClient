@@ -17,16 +17,24 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <!-- Position indicator for left side -->
+            <ColumnDefinition Width="auto"/>
             <!-- Left Finger -->
             <ColumnDefinition Width="Auto"/>
-            <!-- Left Cells -->
+            <!-- Left Outer Cell -->
+            <ColumnDefinition Width="Auto"/>
+            <!-- Left Inner Cell -->
             <ColumnDefinition Width="*"/>
             <!-- Trolley Indicator -->
             <ColumnDefinition Width="Auto"/>
-            <!-- Right Cells -->
+            <!-- Right Outer Cell -->
+            <ColumnDefinition Width="Auto"/>
+            <!-- Right Inner Cell -->
             <ColumnDefinition Width="Auto"/>
             <!-- Right Finger -->
+            <ColumnDefinition Width="*"/>
+            <!-- Position indicator for right side -->
         </Grid.ColumnDefinitions>
 
         <!-- Visibility check for the entire row -->
@@ -37,30 +45,38 @@
             </MultiBinding>
         </Grid.Visibility>
 
-        <!-- Left Finger -->
-        <local:FingerControl Grid.Column="0" 
-                            Finger="{Binding RowData.LeftFinger, RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                            IsSideRight="False"
-                            Visibility="{Binding RowData.LeftFinger, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
+        <!-- Left Finger - Now in its own column -->
+        <local:FingerControl Grid.Column="0" Width="100"
+                      Finger="{Binding RowData.LeftFinger, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                      IsSideRight="False"
+                      Visibility="{Binding RowData.LeftFinger, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
 
-        <!-- Left Cells Container -->
-        <StackPanel Grid.Column="1" Orientation="Horizontal" 
-                   Visibility="{Binding RowData.LeftInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}">
-            <!-- Fix: Replacing TextBlock with Border + TextBlock -->
-            <Border BorderBrush="#E1E1E1" BorderThickness="1" Height="18" Width="18" Margin="2,1,10,2">
-                <TextBlock Text="{Binding RowData.Position, RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                         FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
 
-            <local:CellControl CellInfo="{Binding RowData.LeftOuterCell, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
-            <local:CellControl CellInfo="{Binding RowData.LeftInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
-        </StackPanel>
+      
+
+      
+        <!-- Left Outer Cell -->
+        <local:CellControl Grid.Column="1" 
+                          CellInfo="{Binding RowData.LeftOuterCell, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                          Visibility="{Binding RowData.LeftOuterCell, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
+
+        <!-- Left Inner Cell -->
+        <local:CellControl Grid.Column="2" 
+                          CellInfo="{Binding RowData.LeftInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                          Visibility="{Binding RowData.LeftInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
+        <!-- Position Indicator - Left side -->
+        <Border Grid.Column="3" 
+          BorderBrush="#E1E1E1" BorderThickness="1" 
+          Height="18" Width="18" Margin="2,1,2,2">
+            <TextBlock Text="{Binding RowData.Position, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+               FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
 
         <!-- Trolley Indicator -->
-        <Border Grid.Column="2" 
+        <Border Grid.Column="4" 
                Height="19" BorderBrush="#E9E9E9" BorderThickness="2" 
                CornerRadius="0" Padding="2" Background="#E9E9E9" 
-               Margin="20,2,20,2" Width="150">
+               Margin="10,2,10,2" Width="250" HorizontalAlignment="Center" > 
             <Border.Visibility>
                 <MultiBinding Converter="{StaticResource EqualityToVisibilityConverter}">
                     <Binding Path="RowData.Position" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
@@ -70,24 +86,31 @@
             <TextBlock Text="{Binding CurrentTrolleyName, RelativeSource={RelativeSource AncestorType=UserControl}}" 
                      FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
         </Border>
+        <!-- Position Indicator - Right side -->
+        <Border Grid.Column="5" 
+          BorderBrush="#E1E1E1" BorderThickness="1" 
+          Height="18" Width="18" Margin="2,1,2,2">
+            <TextBlock Text="{Binding RowData.Position, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+               FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
 
-        <!-- Right Cells Container -->
-        <StackPanel Grid.Column="3" Orientation="Horizontal" 
-                   Visibility="{Binding RowData.RightInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}">
-            <!-- Fix: Replacing TextBlock with Border + TextBlock -->
-            <Border BorderBrush="#E1E1E1" BorderThickness="1" Height="18" Width="18" Margin="2,1,10,2">
-                <TextBlock Text="{Binding RowData.Position, RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                         FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
+        <!-- Right Outer Cell -->
+        <local:CellControl Grid.Column="6" 
+                          CellInfo="{Binding RowData.RightOuterCell, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                          Visibility="{Binding RowData.RightOuterCell, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
 
-            <local:CellControl CellInfo="{Binding RowData.RightOuterCell, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
-            <local:CellControl CellInfo="{Binding RowData.RightInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
-        </StackPanel>
+        <!-- Right Inner Cell -->
+        <local:CellControl Grid.Column="7" 
+                          CellInfo="{Binding RowData.RightInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                          Visibility="{Binding RowData.RightInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
 
-        <!-- Right Finger -->
-        <local:FingerControl Grid.Column="4" 
-                            Finger="{Binding RowData.RightFinger, RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                            IsSideRight="True"
-                            Visibility="{Binding RowData.RightFinger, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
+       
+      
+        <!-- Right Finger - Now in its own column -->
+        <local:FingerControl Grid.Column="8"  Width="100"
+                     Finger="{Binding RowData.RightFinger, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                     IsSideRight="True"
+                     Visibility="{Binding RowData.RightFinger, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
+
     </Grid>
 </UserControl>
