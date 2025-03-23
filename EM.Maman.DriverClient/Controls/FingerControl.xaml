@@ -7,6 +7,11 @@
              xmlns:local="clr-namespace:EM.Maman.DriverClient.Controls"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <converters:BoolToFingerMarginConverter x:Key="BoolToFingerMarginConverter"/>
+        <converters:BoolToFlowDirectionConverter x:Key="BoolToFlowDirectionConverter"/>
+        <converters:BoolToAlignmentConverter x:Key="BoolToAlignmentConverter"/>
+    </UserControl.Resources>
     <StackPanel Height="19" Orientation="Horizontal" 
                 Margin="{Binding IsSideRight, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToFingerMarginConverter}}" 
                 FlowDirection="{Binding IsSideRight, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToFlowDirectionConverter}}" 

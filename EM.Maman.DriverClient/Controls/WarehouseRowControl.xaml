@@ -5,12 +5,13 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:EM.Maman.DriverClient.Controls"
              xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters"
+             xmlns:convert="clr-namespace:EM.Maman.DriverClient.Converters"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <UserControl.Resources>
-
         <converters:RowVisibilityConverter x:Key="RowVisibilityConverter"/>
         <converters:NullToHiddenConverter x:Key="NullToHiddenConverter"/>
+        <converters:NullToCollapseConverter x:Key="NullToCollapseConverter"/>
         <converters:EqualityToVisibilityConverter x:Key="EqualityToVisibilityConverter"/>
     </UserControl.Resources>
 
@@ -40,16 +41,16 @@
         <local:FingerControl Grid.Column="0" 
                             Finger="{Binding RowData.LeftFinger, RelativeSource={RelativeSource AncestorType=UserControl}}" 
                             IsSideRight="False"
-                            Visibility="{Binding RowData.LeftFinger, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToHiddenConverter}}"/>
+                            Visibility="{Binding RowData.LeftFinger, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
 
         <!-- Left Cells Container -->
         <StackPanel Grid.Column="1" Orientation="Horizontal" 
-                   Visibility="{Binding RowData.LeftInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToHiddenConverter}}">
-            <TextBlock Text="{Binding RowData.Position, RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                     Width="18" Height="18" 
-                     BorderBrush="#E1E1E1" BorderThickness="1"
-                     FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" 
-                     Margin="2,1,10,2"/>
+                   Visibility="{Binding RowData.LeftInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}">
+            <!-- Fix: Replacing TextBlock with Border + TextBlock -->
+            <Border BorderBrush="#E1E1E1" BorderThickness="1" Height="18" Width="18" Margin="2,1,10,2">
+                <TextBlock Text="{Binding RowData.Position, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                         FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
 
             <local:CellControl CellInfo="{Binding RowData.LeftOuterCell, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
             <local:CellControl CellInfo="{Binding RowData.LeftInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
@@ -72,12 +73,12 @@
 
         <!-- Right Cells Container -->
         <StackPanel Grid.Column="3" Orientation="Horizontal" 
-                   Visibility="{Binding RowData.RightInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToHiddenConverter}}">
-            <TextBlock Text="{Binding RowData.Position, RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                     Width="18" Height="18" 
-                     BorderBrush="#E1E1E1" BorderThickness="1"
-                     FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" 
-                     Margin="2,1,10,2"/>
+                   Visibility="{Binding RowData.RightInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}">
+            <!-- Fix: Replacing TextBlock with Border + TextBlock -->
+            <Border BorderBrush="#E1E1E1" BorderThickness="1" Height="18" Width="18" Margin="2,1,10,2">
+                <TextBlock Text="{Binding RowData.Position, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                         FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
 
             <local:CellControl CellInfo="{Binding RowData.RightOuterCell, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
             <local:CellControl CellInfo="{Binding RowData.RightInnerCell, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
@@ -87,6 +88,6 @@
         <local:FingerControl Grid.Column="4" 
                             Finger="{Binding RowData.RightFinger, RelativeSource={RelativeSource AncestorType=UserControl}}" 
                             IsSideRight="True"
-                            Visibility="{Binding RowData.RightFinger, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToHiddenConverter}}"/>
+                            Visibility="{Binding RowData.RightFinger, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
     </Grid>
 </UserControl>

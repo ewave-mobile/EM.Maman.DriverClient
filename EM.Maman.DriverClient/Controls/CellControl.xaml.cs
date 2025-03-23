@@ -1,4 +1,5 @@
-﻿using System;
+﻿using EM.Maman.Models.LocalDbModels;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,6 +21,15 @@ namespace EM.Maman.DriverClient.Controls
     /// </summary>
     public partial class CellControl : UserControl
     {
+        public static readonly DependencyProperty CellInfoProperty =
+            DependencyProperty.Register("CellInfo", typeof(Cell), typeof(CellControl), new PropertyMetadata(null));
+
+        public Cell CellInfo
+        {
+            get { return (Cell)GetValue(CellInfoProperty); }
+            set { SetValue(CellInfoProperty, value); }
+        }
+
         public CellControl()
         {
             InitializeComponent();

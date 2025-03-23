@@ -9,121 +9,58 @@
         xmlns:localModels="clr-namespace:EM.Maman.Models.LocalDbModels;assembly=EM.Maman.Models"
         xmlns:displaymodels="clr-namespace:EM.Maman.Models.DisplayModels;assembly=EM.Maman.Models"
         xmlns:viewmodels="clr-namespace:EM.Maman.DriverClient.ViewModels" 
-        xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters"
+        xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters" xmlns:controls="clr-namespace:EM.Maman.DriverClient.Controls"
         d:DataContext="{d:DesignInstance Type=viewmodels:MainViewModel}"
         mc:Ignorable="d"
         Title="MainWindow" Height="{StaticResource WindowHeight}" Width="{StaticResource WindowWidth}" Background="White">
     <Window.Resources>
-        <converters:NullToHiddenConverter x:Key="NullToHiddenConverter"/>
-        <converters:NullToCollapseConverter x:Key="NullToCollapseConverter"/>
-        <converters:NumberFormatConverter x:Key="NumberFormatConverter"/>
-        <converters:RowPositionToOffsetConverter x:Key="RowPositionToOffsetConverter"/>
-        <converters:EqualityToVisibilityConverter x:Key="EqualityToVisibilityConverter"/>
-        <converters:RowVisibilityConverter x:Key="RowVisibilityConverter"/>
-        <converters:BoolToHighlightConverter x:Key="BoolToHighlightConverter"/>
-        <converters:BoolToTabColorConverter x:Key="BoolToTabColorConverter"/>
-        <converters:BoolToTextColorConverter x:Key="BoolToTextColorConverter"/>
-        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-        <converters:LevelVisualStateConverter x:Key="LevelVisualStateConverter"/>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/EM.Maman.DriverClient;component/Styles/WarehouseStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <converters:BoolToTabColorConverter x:Key="BoolToTabColorConverter"/>
+            <converters:BoolToTextColorConverter x:Key="BoolToTextColorConverter"/>
+        </ResourceDictionary>
     </Window.Resources>
+
     <Grid Background="White">
         <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft" Height="950" VerticalAlignment="Top">
             <StackPanel Orientation="Horizontal" Width="1150">
                 <ScrollViewer Height="auto" Width="200">
-                    
+                    <!-- Content for side panel -->
                 </ScrollViewer>
+
                 <StackPanel Width="700" Height="auto" Orientation="Vertical">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="auto"/>
+                            <!-- Controls -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Warehouse Grid -->
                         </Grid.RowDefinitions>
-                        <StackPanel Grid.Row="0"
-                                    Grid.ColumnSpan="3"
-                                    
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    Margin="10" FlowDirection="LeftToRight">
-                            <!-- Example arrow buttons -->
+
+                        <!-- Control buttons -->
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" 
+                                  VerticalAlignment="Center" Margin="10" FlowDirection="LeftToRight">
+                            <!-- Arrow buttons -->
                             <Button Width="20" Height="20" BorderBrush="#CDCDCD" BorderThickness="1"
-                                    Background="White" Margin="5" HorizontalAlignment="Center"
-                                    Padding="0" VerticalAlignment="Center" Command="{Binding MoveTrolleyUpCommand}" >
+                                  Background="White" Margin="5" HorizontalAlignment="Center"
+                                  Padding="0" VerticalAlignment="Center" Command="{Binding MoveTrolleyUpCommand}">
                                 <materialDesign:PackIcon Kind="ArrowLeft" Width="16" Height="16" Padding="0"
-                                         HorizontalAlignment="Center" VerticalAlignment="Center" 
-                                         Foreground="#5F6368" />
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                                       Foreground="#5F6368" />
                             </Button>
                             <Button Width="20" Height="20" BorderBrush="#CDCDCD" BorderThickness="1"
-                                    Background="White" Margin="5,5,30,5" Padding="0"  Command="{Binding MoveTrolleyDownCommand}">
+                                  Background="White" Margin="5,5,30,5" Padding="0" Command="{Binding MoveTrolleyDownCommand}">
                                 <materialDesign:PackIcon Kind="ArrowRight" Width="16" Height="16" 
-                                         HorizontalAlignment="Center" VerticalAlignment="Center" 
-                                         Foreground="#5F6368" />
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                                       Foreground="#5F6368" />
                             </Button>
-                            <Button Width="20" Height="20" BorderBrush="#CDCDCD" BorderThickness="1" Background="White" Margin="5" HorizontalAlignment="Center" Padding="0" VerticalAlignment="Center" >
-                                <materialDesign:PackIcon Kind="ArrowLeft" Width="16" Height="16" Padding="0"
-              HorizontalAlignment="Center" VerticalAlignment="Center" 
-              Foreground="#5F6368" />
-                            </Button>
-                            <Button Width="20" Height="20" BorderBrush="#CDCDCD" BorderThickness="1" Background="White" Margin="5" Padding="0">
-                                <materialDesign:PackIcon Kind="ArrowRight" Width="16" Height="16" 
-              HorizontalAlignment="Center" VerticalAlignment="Center" 
-              Foreground="#5F6368" />
-                            </Button>
-                            <!-- Add more if needed (<<, >>, etc.) -->
+                            <!-- More buttons as needed -->
                         </StackPanel>
-                        <!--<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="10">
-                            <Button Content="Move Up" Command="{Binding MoveTrolleyUpCommand}" Margin="5" Padding="5"/>
-                            <Button Content="Move Down" Command="{Binding MoveTrolleyDownCommand}" Margin="5" Padding="5"/>
-                        </StackPanel>-->
-                        <Grid Grid.Row="1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="auto" />
-                                <!-- Left Fingers -->
-                                <ColumnDefinition Width="auto" />
-                                <!-- Left Cells -->
-                                <ColumnDefinition Width="*" />
-                                <!-- Trolley Indicator -->
-                                <ColumnDefinition Width="auto" />
-                                <!-- Right Cells -->
-                                <ColumnDefinition Width="auto" />
-                                <!-- Right Fingers -->
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="auto"/>
-                            </Grid.RowDefinitions>
-                            <!-- Left Fingers Table -->
-                        <ItemsControl Grid.Column="0" ItemsSource="{Binding TrolleyVM.Rows}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Vertical"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="{x:Type displaymodels:CompositeRow}">
-                                        <ContentControl >
-                                            <ContentControl.Visibility>
-                                                <MultiBinding Converter="{StaticResource RowVisibilityConverter}">
-                                                    <!-- Bind to the row's own Position -->
-                                                    <Binding Path="Position"/>
-                                                    <!-- Bind to the highest active row from your TrolleyVM -->
-                                                    <Binding Path="DataContext.TrolleyVM.HighestActiveRow" RelativeSource="{RelativeSource AncestorType=Window}"/>
-                                                </MultiBinding>
-                                            </ContentControl.Visibility>
-                                            <StackPanel Height="19" Orientation="Horizontal" Margin="2,2,10,2" FlowDirection="LeftToRight" HorizontalAlignment="Left"
-                                                    Visibility="{Binding LeftFinger, Converter={StaticResource NullToHiddenConverter}}"   >
-                                                <Border BorderBrush="#E9E9E9" BorderThickness="1" CornerRadius="3" Padding="2" Background="#E9E9E9" Width="50" >
-                                                <TextBlock Text="F" FontSize="10" HorizontalAlignment="Center"/>
-                                            </Border>
-                                            <TextBlock Text="{Binding LeftFinger.DisplayName}" FontSize="10" Margin="2"/>
-                                        </StackPanel>
-                                    </ContentControl>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
 
-                        <!-- Left Cells Table -->
-                            <Border  Grid.Column="1" BorderBrush="#E1E1E1" BorderThickness="1" CornerRadius="3" >
-                        <ItemsControl ItemsSource="{Binding TrolleyVM.Rows}">
+                        <!-- Warehouse Grid -->
+                        <ItemsControl Grid.Row="1" ItemsSource="{Binding TrolleyVM.Rows}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <StackPanel Orientation="Vertical"/>
@@ -131,186 +68,44 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="{x:Type displaymodels:CompositeRow}">
-                                            <StackPanel Height="19" Margin="2" FlowDirection="LeftToRight"
-                                                        Visibility="{Binding RightInnerCell, Converter={StaticResource NullToCollapseConverter}}" >
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="auto"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                                    <Border BorderBrush="#E1E1E1" BorderThickness="1" Height="18" Width="18" Margin="2,1,10,2">
-                                                        <TextBlock Grid.Column="0" Text="{Binding Position}" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                    </Border>
-                                                    <ContentControl Grid.Column="1" Content="{Binding LeftOuterCell}">
-                                                        <ContentControl.Visibility>
-                                                            <MultiBinding Converter="{StaticResource RowVisibilityConverter}">
-                                                                <!-- Bind to the row's own Position -->
-                                                                <Binding Path="Position"/>
-                                                                <!-- Bind to the highest active row from your TrolleyVM -->
-                                                                <Binding Path="DataContext.TrolleyVM.HighestActiveRow" RelativeSource="{RelativeSource AncestorType=Window}"/>
-                                                            </MultiBinding>
-                                                        </ContentControl.Visibility>
-                                                        <ContentControl.ContentTemplate>
-                                                    <DataTemplate DataType="{x:Type localModels:Cell}">
-                                                                <Border BorderBrush="#E9E9E9" BorderThickness="1" CornerRadius="0" Padding="2" Background="#E9E9E9" Width="50" Margin="4,2,4,2">
-                                                        <TextBlock Text="{Binding DisplayName}" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                                </Border>
-                                                            </DataTemplate>
-                                                </ContentControl.ContentTemplate>
-                                                        
-                                            </ContentControl>
-                                            <ContentControl Grid.Column="2" Content="{Binding LeftInnerCell}">
-                                                        <ContentControl.Visibility>
-                                                            <MultiBinding Converter="{StaticResource RowVisibilityConverter}">
-                                                                <!-- Bind to the row's own Position -->
-                                                                <Binding Path="Position"/>
-                                                                <!-- Bind to the highest active row from your TrolleyVM -->
-                                                                <Binding Path="DataContext.TrolleyVM.HighestActiveRow" RelativeSource="{RelativeSource AncestorType=Window}"/>
-                                                            </MultiBinding>
-                                                        </ContentControl.Visibility>
-                                                        <ContentControl.ContentTemplate>
-                                                    <DataTemplate DataType="{x:Type localModels:Cell}">
-                                                                <Border  BorderBrush="#E9E9E9" BorderThickness="1" CornerRadius="0" Padding="2" Background="#E9E9E9" Width="50" Margin="4,2,10,2">
-                                                                    <TextBlock Text="{Binding DisplayName}" FontSize="9" HorizontalAlignment="Center"  VerticalAlignment="Center"/>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                </ContentControl.ContentTemplate>
-                                            </ContentControl>
-                                        </Grid>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                            </Border>
-                            <!-- Middle: Trolley Indicator Table -->
-                        <ItemsControl Grid.Column="2" ItemsSource="{Binding TrolleyVM.Rows}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Vertical"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="{x:Type displaymodels:CompositeRow}">
-                                    <!-- Show the row only if this row's position equals the current trolley position -->
-                                    <ContentControl>
-                                        <ContentControl.Visibility>
-                                            <MultiBinding Converter="{StaticResource EqualityToVisibilityConverter}">
-                                                <Binding Path="Position"/>
-                                                <Binding Path="DataContext.CurrentTrolley.Position" RelativeSource="{RelativeSource AncestorType=Window}"/>
-                                            </MultiBinding>
-                                        </ContentControl.Visibility>
-                                            <Border  Height="19" BorderBrush="#E9E9E9" BorderThickness="2" CornerRadius="0" Padding="2" Background="#E9E9E9" Margin="20,2,20,2" Width="150">
-                                            <TextBlock Text="{Binding DataContext.CurrentTrolley.DisplayName, RelativeSource={RelativeSource AncestorType=Window}}" 
-               FontSize="10" FontWeight="Bold"  HorizontalAlignment="Center"/>
-                                        </Border>
-                                    </ContentControl>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-
-                        <!-- Right Cells Table -->
-                            <Border  Grid.Column="3" BorderBrush="#E1E1E1" BorderThickness="1" CornerRadius="3" >
-                                <ItemsControl  ItemsSource="{Binding TrolleyVM.Rows}" AlternationCount="50">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Vertical"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type displaymodels:CompositeRow}">
-                                            <StackPanel  Height="19" Margin="2" Visibility="{Binding LeftInnerCell, Converter={StaticResource NullToCollapseConverter}}">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-
-                                                    <Border BorderBrush="#E1E1E1" BorderThickness="1" Height="18" Width="18" Margin="2,1,10,2">
-                                                        <TextBlock Grid.Column="0" Text="{Binding Position}" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                    </Border>
-                                                    <ContentControl Grid.Column="1" Content="{Binding RightOuterCell}">
-                                                        
-                                                        <ContentControl.ContentTemplate>
-                                                            <DataTemplate DataType="{x:Type localModels:Cell}">
-                                                                <Border BorderBrush="#E9E9E9" BorderThickness="1" CornerRadius="0" Padding="2" Background="#E9E9E9" Width="50" Margin="4,2,4,2">
-                                                                    <TextBlock Text="{Binding DisplayName}" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ContentControl.ContentTemplate>
-                                                    </ContentControl>
-                                                    <ContentControl Grid.Column="2" Content="{Binding RightInnerCell}">
-                                                        <ContentControl.ContentTemplate>
-                                                            <DataTemplate DataType="{x:Type localModels:Cell}">
-                                                                <Border  BorderBrush="#E9E9E9" BorderThickness="1" CornerRadius="0" Padding="2" Background="#E9E9E9" Width="50" Margin="4,2,10,2">
-                                                                    <TextBlock Text="{Binding DisplayName}" FontSize="9" HorizontalAlignment="Center"  VerticalAlignment="Center"/>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ContentControl.ContentTemplate>
-                                                    </ContentControl>
-                                                </Grid>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </Border>
-                            <!-- Right Fingers Table -->
-                        <ItemsControl Grid.Column="4" ItemsSource="{Binding TrolleyVM.Rows}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Vertical"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="{x:Type displaymodels:CompositeRow}">
-                                        <ContentControl >
-                                            <ContentControl.Visibility>
-                                                <MultiBinding Converter="{StaticResource RowVisibilityConverter}">
-                                                    <!-- Bind to the row's own Position -->
-                                                    <Binding Path="Position"/>
-                                                    <!-- Bind to the highest active row from your TrolleyVM -->
-                                                    <Binding Path="DataContext.TrolleyVM.HighestActiveRow" RelativeSource="{RelativeSource AncestorType=Window}"/>
-                                                </MultiBinding>
-                                            </ContentControl.Visibility>
-                                            <StackPanel Visibility="{Binding RightFinger, Converter={StaticResource NullToHiddenConverter}}" 
-                                                        Height="19" Orientation="Horizontal" Margin="10,2,2,2" FlowDirection="RightToLeft" HorizontalAlignment="Right">
-                                                <Border BorderBrush="#E9E9E9" BorderThickness="1" CornerRadius="3" Padding="2" Background="#E9E9E9" Width="50">
-                                                    <TextBlock Text="F" FontSize="10" HorizontalAlignment="Center"/>
-                                                </Border>
-                                                <TextBlock Text="{Binding RightFinger.DisplayName}" FontSize="10" Margin="2"/>
-                                            </StackPanel>
-                                        </ContentControl>
+                                    <controls:WarehouseRowControl 
+                                        RowData="{Binding}" 
+                                        HighestActiveRow="{Binding DataContext.TrolleyVM.HighestActiveRow, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CurrentTrolleyPosition="{Binding DataContext.CurrentTrolley.Position, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CurrentTrolleyName="{Binding DataContext.CurrentTrolley.DisplayName, RelativeSource={RelativeSource AncestorType=Window}}"/>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </Grid>
-                        <!-- Level Selection Tabs -->
-                        
-                    </Grid>
-                    <ItemsControl VerticalAlignment="bottom"  Grid.Row="1" ItemsSource="{Binding TrolleyVM.LevelTabs}" Margin="0,30,0,0">
+
+                    <!-- Level Tabs -->
+                    <ItemsControl VerticalAlignment="Bottom" Grid.Row="1" 
+                                ItemsSource="{Binding TrolleyVM.LevelTabs}" Margin="0,30,0,0">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <StackPanel  Orientation="Horizontal" HorizontalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Button  Width="80" Height="60" Margin="0" 
-Background="{Binding IsSelected, Converter={StaticResource BoolToTabColorConverter}}"
-Command="{Binding DataContext.TrolleyVM.SelectLevelCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-CommandParameter="{Binding Level.Number}">
+                                <Button Style="{StaticResource LevelTabButtonStyle}"
+                                      Background="{Binding IsSelected, Converter={StaticResource BoolToTabColorConverter}}"
+                                      Command="{Binding DataContext.TrolleyVM.SelectLevelCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      CommandParameter="{Binding Level.Number}">
                                     <StackPanel>
-                                        <TextBlock Text="{Binding DisplayName}" FontSize="16" FontWeight="SemiBold" 
-           Foreground="{Binding IsSelected, Converter={StaticResource BoolToTextColorConverter}}"
-           HorizontalAlignment="Center"/>
+                                        <TextBlock Style="{StaticResource LevelTabTitleStyle}" 
+                                                 Text="{Binding DisplayName}" 
+                                                 Foreground="{Binding IsSelected, Converter={StaticResource BoolToTextColorConverter}}"/>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,0">
-                                            <TextBlock Text="{Binding ItemCount}" FontSize="12" 
-               Foreground="{Binding IsSelected, Converter={StaticResource BoolToTextColorConverter}}"/>
-                                            <TextBlock Text=" | " FontSize="12" 
-               Foreground="{Binding IsSelected, Converter={StaticResource BoolToTextColorConverter}}"/>
-                                            <TextBlock Text="{Binding EmptyCount}" FontSize="12" 
-               Foreground="{Binding IsSelected, Converter={StaticResource BoolToTextColorConverter}}"/>
+                                            <TextBlock Style="{StaticResource LevelTabCountStyle}" 
+                                                     Text="{Binding ItemCount}" 
+                                                     Foreground="{Binding IsSelected, Converter={StaticResource BoolToTextColorConverter}}"/>
+                                            <TextBlock Style="{StaticResource LevelTabCountStyle}" 
+                                                     Text=" | " 
+                                                     Foreground="{Binding IsSelected, Converter={StaticResource BoolToTextColorConverter}}"/>
+                                            <TextBlock Style="{StaticResource LevelTabCountStyle}" 
+                                                     Text="{Binding EmptyCount}" 
+                                                     Foreground="{Binding IsSelected, Converter={StaticResource BoolToTextColorConverter}}"/>
                                         </StackPanel>
                                     </StackPanel>
                                 </Button>
@@ -319,12 +114,10 @@ CommandParameter="{Binding Level.Number}">
                     </ItemsControl>
                 </StackPanel>
             </StackPanel>
-            <StackPanel Orientation="Vertical">
 
+            <StackPanel Orientation="Vertical">
+                <!-- Right side panel content -->
             </StackPanel>
-        </StackPanel>
-        <StackPanel>
-            
         </StackPanel>
     </Grid>
 </Window>
