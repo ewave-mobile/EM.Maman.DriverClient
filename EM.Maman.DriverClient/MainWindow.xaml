@@ -24,6 +24,7 @@
             <converters:RowVisibilityConverter x:Key="RowVisibilityConverter"/>
             <converters:NullToHiddenConverter x:Key="NullToHiddenConverter"/>
             <converters:EqualityToVisibilityConverter x:Key="EqualityToVisibilityConverter"/>
+            <converters:HasPalletToCellColorConverter x:Key="HasPalletToCellColorConverter"/>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -156,7 +157,9 @@
                                                             </Style.Triggers>
                                                         </Style>
                                                     </Grid.Style>
-                                                    <controls:CellControl CellInfo="{Binding LeftOuterCell}"/>
+                                                    <controls:CellControl CellInfo="{Binding LeftOuterCell}"
+                        PalletInfo="{Binding LeftOuterPallet}"
+                        HasPallet="{Binding HasLeftOuterPallet}"/>
                                                 </Grid>
 
                                                 <!-- Left Inner Cell with visibility style -->
@@ -171,7 +174,9 @@
                                                             </Style.Triggers>
                                                         </Style>
                                                     </Grid.Style>
-                                                    <controls:CellControl CellInfo="{Binding LeftInnerCell}"/>
+                                                    <controls:CellControl CellInfo="{Binding LeftInnerCell}"
+                        PalletInfo="{Binding LeftInnerPallet}"
+                        HasPallet="{Binding HasLeftInnerPallet}"/>
                                                 </Grid>
 
                                                 <!-- Position Indicator -->
@@ -259,7 +264,9 @@
                                                             </Style.Triggers>
                                                         </Style>
                                                     </Grid.Style>
-                                                    <controls:CellControl CellInfo="{Binding RightOuterCell}"/>
+                                                    <controls:CellControl CellInfo="{Binding RightOuterCell}"
+                        PalletInfo="{Binding RightOuterPallet}"
+                        HasPallet="{Binding HasRightOuterPallet}"/>
                                                 </Grid>
 
                                                 <!-- Right Inner Cell with visibility style -->
@@ -274,7 +281,9 @@
                                                             </Style.Triggers>
                                                         </Style>
                                                     </Grid.Style>
-                                                    <controls:CellControl CellInfo="{Binding RightInnerCell}"/>
+                                                    <controls:CellControl CellInfo="{Binding RightInnerCell}"
+                        PalletInfo="{Binding RightInnerPallet}"
+                        HasPallet="{Binding HasRightInnerPallet}"/>
                                                 </Grid>
                                             </Grid>
                                         </DataTemplate>

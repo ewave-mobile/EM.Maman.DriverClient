@@ -1,4 +1,5 @@
-﻿using EM.Maman.Models.LocalDbModels;
+﻿using EM.Maman.Models.CustomModels;
+using EM.Maman.Models.LocalDbModels;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,5 +15,7 @@ namespace EM.Maman.Models.Interfaces.Repositories
         Task<IEnumerable<Cell>> GetActiveOnlyCellsAsync();
         Task<Cell> GetCellWithPalletAsync(int cellId);
         Task<IEnumerable<PalletInCell>> GetPalletsWithCellsAsync();
+
+        Task<IEnumerable<CellWithPalletInfo>> GetCellsWithPalletsAsync();
     }
 }

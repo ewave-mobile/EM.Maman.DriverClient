@@ -4,10 +4,31 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:EM.Maman.DriverClient.Controls"
+             xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
-    <Border BorderBrush="#E9E9E9" BorderThickness="1" CornerRadius="0" Padding="2" Background="#E9E9E9" Width="50" Margin="4,2,4,2">
-        <TextBlock Text="{Binding CellInfo.DisplayName, RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                   FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" />
+    <UserControl.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+
+        <!-- New converter for cell background color -->
+        <converters:HasPalletToCellColorConverter x:Key="HasPalletToCellColorConverter"/>
+    </UserControl.Resources>
+
+    <Border BorderBrush="#E9E9E9" BorderThickness="1" CornerRadius="0" Padding="2" 
+            Background="{Binding HasPallet, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource HasPalletToCellColorConverter}}" 
+            Width="50" Margin="4,2,4,2">
+        <Grid>
+            <!-- Cell ID (original display) -->
+            <!--<TextBlock Text="{Binding CellInfo.DisplayName, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                       FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" />-->
+
+            <!-- Pallet Info (shown when pallet is present) -->
+            <StackPanel VerticalAlignment="Center" Visibility="{Binding HasPallet, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock Text="{Binding PalletInfo.DisplayName, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                           FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" Foreground="White" VerticalAlignment="Center"/>
+                <!--<TextBlock Text="{Binding CellInfo.DisplayName, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                           FontSize="7" HorizontalAlignment="Center" Foreground="#DDDDDD"/>-->
+            </StackPanel>
+        </Grid>
     </Border>
 </UserControl>

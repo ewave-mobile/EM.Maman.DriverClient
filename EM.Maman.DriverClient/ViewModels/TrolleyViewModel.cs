@@ -1,4 +1,5 @@
-﻿using EM.Maman.Models.DisplayModels;
+﻿using EM.Maman.Models.CustomModels;
+using EM.Maman.Models.DisplayModels;
 using EM.Maman.Models.LocalDbModels;
 using System;
 using System.Collections.Generic;
@@ -167,6 +168,10 @@ namespace EM.Maman.DriverClient.ViewModels
             var levels = LoadLevelsFromDb();
             var allCells = LoadCellsFromDb();
             var allFingers = LoadFingersFromDb();
+            var cellsWithPallets = LoadCellsWithPalletsFromDb();
+
+            // Create a dictionary for quick lookup of pallet info by cell ID
+            var palletsByCellId = cellsWithPallets.ToDictionary(cwp => cwp.Cell.Id, cwp => cwp.Pallet);
 
             // Organize data by levels
             foreach (var level in levels)
@@ -198,7 +203,7 @@ namespace EM.Maman.DriverClient.ViewModels
                     if (leftOuter != null || leftInner != null || leftFinger != null ||
                         rightOuter != null || rightInner != null || rightFinger != null)
                     {
-                        compositeLevel.Rows.Add(new CompositeRow
+                        var row = new CompositeRow
                         {
                             Position = pos,
                             LeftFinger = leftFinger,
@@ -206,8 +211,15 @@ namespace EM.Maman.DriverClient.ViewModels
                             LeftInnerCell = leftInner,
                             RightOuterCell = rightOuter,
                             RightInnerCell = rightInner,
-                            RightFinger = rightFinger
-                        });
+                            RightFinger = rightFinger,
+                            // Store pallet information
+                            LeftOuterPallet = leftOuter != null && palletsByCellId.ContainsKey(leftOuter.Id) ? palletsByCellId[leftOuter.Id] : null,
+                            LeftInnerPallet = leftInner != null && palletsByCellId.ContainsKey(leftInner.Id) ? palletsByCellId[leftInner.Id] : null,
+                            RightOuterPallet = rightOuter != null && palletsByCellId.ContainsKey(rightOuter.Id) ? palletsByCellId[rightOuter.Id] : null,
+                            RightInnerPallet = rightInner != null && palletsByCellId.ContainsKey(rightInner.Id) ? palletsByCellId[rightInner.Id] : null
+                        };
+
+                        compositeLevel.Rows.Add(row);
                     }
                 }
 
@@ -232,7 +244,43 @@ namespace EM.Maman.DriverClient.ViewModels
                 HighestActiveRow = Rows.Max(r => r.Position);
             }
         }
+        private IEnumerable<CellWithPalletInfo> LoadCellsWithPalletsFromDb()
+        {
+            // This is a test data method that would normally get data from the repository
 
+            // Create some test pallets
+            var testPallets = new List<Pallet>
+    {
+        new Pallet { Id = 1, DisplayName = "PLT-A001", UldType = "AKE", UldCode = "AKE1234AX", IsSecure = true },
+        new Pallet { Id = 2, DisplayName = "PLT-B002", UldType = "PAG", UldCode = "PAG5678BX", IsSecure = false },
+        new Pallet { Id = 3, DisplayName = "PLT-C003", UldType = "AKE", UldCode = "AKE9012CX", IsSecure = false },
+        new Pallet { Id = 4, DisplayName = "PLT-D004", UldType = "PAJ", UldCode = "PAJ3456DX", IsSecure = true },
+        new Pallet { Id = 5, DisplayName = "PLT-E005", UldType = "AKE", UldCode = "AKE7890EX", IsSecure = false },
+        new Pallet { Id = 6, DisplayName = "PLT-F006", UldType = "PAG", UldCode = "PAG1234FX", IsSecure = false },
+        new Pallet { Id = 7, DisplayName = "PLT-G007", UldType = "PMC", UldCode = "PMC5678GX", IsSecure = true },
+        new Pallet { Id = 8, DisplayName = "PLT-H008", UldType = "AKE", UldCode = "AKE9012HX", IsSecure = false }
+    };
+
+            // Create cell associations - these IDs should match some of the cells we're creating elsewhere
+            var cellWithPalletInfoList = new List<CellWithPalletInfo>
+    {
+        // Level 1 pallets
+        new CellWithPalletInfo { Cell = new Cell { Id = 1000, Position = 0, HeightLevel = 1, Side = 1, Order = 0 }, Pallet = testPallets[0] },
+        new CellWithPalletInfo { Cell = new Cell { Id = 1200, Position = 0, HeightLevel = 1, Side = 2, Order = 0 }, Pallet = testPallets[1] },
+        new CellWithPalletInfo { Cell = new Cell { Id = 1005, Position = 5, HeightLevel = 1, Side = 1, Order = 0 }, Pallet = testPallets[2] },
+        
+        // Level 2 pallets
+        new CellWithPalletInfo { Cell = new Cell { Id = 2003, Position = 3, HeightLevel = 2, Side = 1, Order = 0 }, Pallet = testPallets[3] },
+        new CellWithPalletInfo { Cell = new Cell { Id = 2103, Position = 3, HeightLevel = 2, Side = 1, Order = 1 }, Pallet = testPallets[4] },
+        new CellWithPalletInfo { Cell = new Cell { Id = 2210, Position = 10, HeightLevel = 2, Side = 2, Order = 0 }, Pallet = testPallets[5] },
+        
+        // Level 3 pallets
+        new CellWithPalletInfo { Cell = new Cell { Id = 3008, Position = 8, HeightLevel = 3, Side = 1, Order = 0 }, Pallet = testPallets[6] },
+        new CellWithPalletInfo { Cell = new Cell { Id = 3215, Position = 15, HeightLevel = 3, Side = 2, Order = 0 }, Pallet = testPallets[7] }
+    };
+
+            return cellWithPalletInfoList;
+        }
         private void InitializeLevelTabs()
         {
             LevelTabs.Clear();
@@ -369,7 +417,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 new Finger{ Id = 1, Side = 0, Position = 100, Description = "Finger 1-00", DisplayName = "F1", DisplayColor = "Grey" },
                 new Finger{ Id = 2, Side = 1, Position = 210, Description = "Finger 2-10", DisplayName = "F2", DisplayColor = "Grey" },
                 new Finger{ Id = 3, Side = 0, Position = 312, Description = "Finger 3-12", DisplayName = "F3", DisplayColor = "Grey" },
-                new Finger{ Id = 4, Side = 1, Position = 0, Description = "Finger 0-00", DisplayName = "F0", DisplayColor = "Grey" }
+                new Finger{ Id = 4, Side = 1, Position = 1, Description = "Finger 0-00", DisplayName = "F0", DisplayColor = "Grey" }
             };
         }
 
