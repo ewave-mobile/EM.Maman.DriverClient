@@ -185,21 +185,23 @@ namespace EM.Maman.DriverClient.ViewModels
                     HasSecondTrolley = level.Number == 0 // Example value
                 };
 
-                // Filter cells and fingers for this level
+                // Filter cells for this level
                 var levelCells = allCells.Where(c => c.HeightLevel == level.Number).ToList();
-                var levelFingers = allFingers.Where(f => f.Position / 100 == level.Number).ToList();
 
                 // Create rows for this level
                 for (int pos = 0; pos < MaxPositionsPerLevel; pos++)
                 {
+                    // For fingers, we include them in every level at the same position
+                    // This will make them visible on all levels but with different visual appearance
+                    var leftFinger = allFingers.FirstOrDefault(f => f.Side == 0 && f.Position % 100 == pos);
+                    var rightFinger = allFingers.FirstOrDefault(f => f.Side == 1 && f.Position % 100 == pos);
+
                     var leftOuter = levelCells.FirstOrDefault(c => c.Side == 2 && c.Order == 1 && c.Position == pos);
                     var leftInner = levelCells.FirstOrDefault(c => c.Side == 2 && c.Order == 0 && c.Position == pos);
-                    var leftFinger = levelFingers.FirstOrDefault(f => f.Side == 0 && f.Position % 100 == pos);
-
                     var rightOuter = levelCells.FirstOrDefault(c => c.Side == 1 && c.Order == 1 && c.Position == pos);
                     var rightInner = levelCells.FirstOrDefault(c => c.Side == 1 && c.Order == 0 && c.Position == pos);
-                    var rightFinger = levelFingers.FirstOrDefault(f => f.Side == 1 && f.Position % 100 == pos);
 
+                    // Only create a row if there's something to show
                     if (leftOuter != null || leftInner != null || leftFinger != null ||
                         rightOuter != null || rightInner != null || rightFinger != null)
                     {
@@ -412,13 +414,24 @@ namespace EM.Maman.DriverClient.ViewModels
         private IEnumerable<Finger> LoadFingersFromDb()
         {
             // Position is calculated as (level*100 + position)
+            // The important point is that the position % 100 gives the row number
             return new List<Finger>
-            {
-                new Finger{ Id = 1, Side = 0, Position = 100, Description = "Finger 1-00", DisplayName = "F1", DisplayColor = "Grey" },
-                new Finger{ Id = 2, Side = 1, Position = 210, Description = "Finger 2-10", DisplayName = "F2", DisplayColor = "Grey" },
-                new Finger{ Id = 3, Side = 0, Position = 312, Description = "Finger 3-12", DisplayName = "F3", DisplayColor = "Grey" },
-                new Finger{ Id = 4, Side = 1, Position = 1, Description = "Finger 0-00", DisplayName = "F0", DisplayColor = "Grey" }
-            };
+    {
+        // Position numbering format: Level*100 + RowPosition
+        // For example, 102 means Level 1, Row 2
+        
+        // Left side fingers (Side = 0)
+        new Finger{ Id = 1, Side = 0, Position = 102, Description = "Finger L1-02", DisplayName = "L02", DisplayColor = "Grey" },
+        new Finger{ Id = 3, Side = 0, Position = 105, Description = "Finger L1-05", DisplayName = "L05", DisplayColor = "Grey" },
+        new Finger{ Id = 5, Side = 0, Position = 112, Description = "Finger L1-12", DisplayName = "L12", DisplayColor = "Grey" },
+        new Finger{ Id = 7, Side = 0, Position = 118, Description = "Finger L1-18", DisplayName = "L18", DisplayColor = "Grey" },
+        
+        // Right side fingers (Side = 1)
+        new Finger{ Id = 2, Side = 1, Position = 103, Description = "Finger R1-03", DisplayName = "R03", DisplayColor = "Grey" },
+        new Finger{ Id = 4, Side = 1, Position = 108, Description = "Finger R1-08", DisplayName = "R08", DisplayColor = "Grey" },
+        new Finger{ Id = 6, Side = 1, Position = 115, Description = "Finger R1-15", DisplayName = "R15", DisplayColor = "Grey" },
+        new Finger{ Id = 8, Side = 1, Position = 120, Description = "Finger R1-20", DisplayName = "R20", DisplayColor = "Grey" }
+    };
         }
 
         #endregion

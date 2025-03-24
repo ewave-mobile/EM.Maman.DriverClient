@@ -35,7 +35,7 @@
                     <!-- Content for side panel -->
                 </ScrollViewer>
 
-                <StackPanel Width="700" Height="auto" Orientation="Vertical">
+                <StackPanel Width="700" Height="auto" Orientation="Vertical" FlowDirection="LeftToRight">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -95,7 +95,7 @@
                             <ItemsControl Grid.Column="0" ItemsSource="{Binding TrolleyVM.Rows}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Vertical"/>
+                                        <StackPanel Orientation="Vertical"  />
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
@@ -113,10 +113,11 @@
                                                 </Style>
                                             </Grid.Style>
 
-                                            <controls:FingerControl 
-                        Finger="{Binding LeftFinger}" 
-                        IsSideRight="False"
-                        Width="100" Margin="0,1"/>
+                                            <controls:FingerControl FlowDirection="RightToLeft"
+                    Finger="{Binding LeftFinger}" 
+                    IsSideRight="True"
+                    CurrentLevel="{Binding DataContext.TrolleyVM.SelectedLevelNumber, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Width="100" Margin="0,1"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -313,10 +314,11 @@
                                                 </Style>
                                             </Grid.Style>
 
-                                            <controls:FingerControl 
-                        Finger="{Binding RightFinger}" 
-                        IsSideRight="True"
-                        Width="100" Margin="0,1"/>
+                                            <controls:FingerControl  FlowDirection="RightToLeft"
+                    Finger="{Binding RightFinger}" 
+                    IsSideRight="False"
+                    CurrentLevel="{Binding DataContext.TrolleyVM.SelectedLevelNumber, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Width="100" Margin="0,1"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>

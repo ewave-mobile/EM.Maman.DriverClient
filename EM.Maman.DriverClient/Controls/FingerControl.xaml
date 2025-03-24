@@ -11,14 +11,30 @@
         <converters:BoolToFingerMarginConverter x:Key="BoolToFingerMarginConverter"/>
         <converters:BoolToFlowDirectionConverter x:Key="BoolToFlowDirectionConverter"/>
         <converters:BoolToAlignmentConverter x:Key="BoolToAlignmentConverter"/>
+        <converters:LevelVisualStateConverter x:Key="LevelVisualStateConverter"/>
+        <converters:FingerPositionToLevelConverter x:Key="FingerPositionToLevelConverter"/>
     </UserControl.Resources>
     <StackPanel Height="19" Orientation="Horizontal" 
                 Margin="{Binding IsSideRight, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToFingerMarginConverter}}" 
                 FlowDirection="{Binding IsSideRight, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToFlowDirectionConverter}}" 
                 HorizontalAlignment="{Binding IsSideRight, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToAlignmentConverter}}">
-        <Border BorderBrush="#E9E9E9" BorderThickness="1" CornerRadius="3" Padding="2" Background="#E9E9E9" Width="50">
+
+        <!-- Border with background that changes based on level -->
+        <Border BorderBrush="#E9E9E9" BorderThickness="1" CornerRadius="3" Padding="2" Width="50">
+
+            <!-- Use a multi-binding to determine the background based on finger level vs. current view level -->
+            <Border.Background>
+                <MultiBinding Converter="{StaticResource LevelVisualStateConverter}" ConverterParameter="finger">
+                    <Binding Path="Finger.Position" RelativeSource="{RelativeSource AncestorType=UserControl}" Converter="{StaticResource FingerPositionToLevelConverter}"/>
+                    <Binding Path="CurrentLevel" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                </MultiBinding>
+            </Border.Background>
+
+            <!-- Always show 'F' prefix for finger -->
             <TextBlock Text="F" FontSize="10" HorizontalAlignment="Center"/>
         </Border>
+
+        <!-- Display the finger name separately, so it's visible even with slashed pattern -->
         <TextBlock Text="{Binding Finger.DisplayName, RelativeSource={RelativeSource AncestorType=UserControl}}" FontSize="10" Margin="2"/>
     </StackPanel>
 </UserControl>

@@ -27,6 +27,9 @@ namespace EM.Maman.DriverClient.Controls
         public static readonly DependencyProperty IsSideRightProperty =
             DependencyProperty.Register("IsSideRight", typeof(bool), typeof(FingerControl), new PropertyMetadata(false));
 
+        public static readonly DependencyProperty CurrentLevelProperty =
+            DependencyProperty.Register("CurrentLevel", typeof(int), typeof(FingerControl), new PropertyMetadata(0));
+
         public Finger Finger
         {
             get { return (Finger)GetValue(FingerProperty); }
@@ -37,6 +40,12 @@ namespace EM.Maman.DriverClient.Controls
         {
             get { return (bool)GetValue(IsSideRightProperty); }
             set { SetValue(IsSideRightProperty, value); }
+        }
+
+        public int CurrentLevel
+        {
+            get { return (int)GetValue(CurrentLevelProperty); }
+            set { SetValue(CurrentLevelProperty, value); }
         }
 
         public FingerControl()
