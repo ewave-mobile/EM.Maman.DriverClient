@@ -20,7 +20,7 @@
                 HorizontalAlignment="{Binding IsSideRight, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToAlignmentConverter}}">
 
         <!-- Border with background that changes based on level -->
-        <Border BorderBrush="#E9E9E9" BorderThickness="1" CornerRadius="3" Padding="2" Width="50">
+        <Border BorderBrush="#E9E9E9" BorderThickness="1" CornerRadius="3" Padding="2" Width="50" >
 
             <!-- Use a multi-binding to determine the background based on finger level vs. current view level -->
             <Border.Background>

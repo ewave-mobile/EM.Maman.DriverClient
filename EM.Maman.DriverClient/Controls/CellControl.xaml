@@ -16,7 +16,7 @@
 
     <Border BorderBrush="#E9E9E9" BorderThickness="1" CornerRadius="0" Padding="2" 
             Background="{Binding HasPallet, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource HasPalletToCellColorConverter}}" 
-            Width="50" Margin="4,2,4,2">
+            Width="50" Margin="4,2,4,2" Height="20">
         <Grid>
             <!-- Cell ID (original display) -->
             <!--<TextBlock Text="{Binding CellInfo.DisplayName, RelativeSource={RelativeSource AncestorType=UserControl}}" 

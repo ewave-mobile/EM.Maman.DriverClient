@@ -107,7 +107,7 @@
                                                     <Setter Property="Visibility" Value="Visible"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding LeftFinger}" Value="{x:Null}">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Setter Property="Visibility" Value="Hidden"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -117,7 +117,7 @@
                     Finger="{Binding LeftFinger}" 
                     IsSideRight="True"
                     CurrentLevel="{Binding DataContext.TrolleyVM.SelectedLevelNumber, RelativeSource={RelativeSource AncestorType=Window}}"
-                    Width="100" Margin="0,1"/>
+                    Width="100" Margin="0,0.5"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -126,7 +126,7 @@
                             <!-- Left Cells with Border -->
                             <Border Grid.Column="1" 
             BorderBrush="#CCCCCC" BorderThickness="1" 
-            CornerRadius="5" Margin="0,5,5,5">
+            CornerRadius="5" Margin="0,0,0,0">
                                 <ItemsControl ItemsSource="{Binding TrolleyVM.Rows}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -225,7 +225,7 @@
                             <!-- Right Cells with Border -->
                             <Border Grid.Column="3"
             BorderBrush="#CCCCCC" BorderThickness="1" 
-            CornerRadius="5" Margin="5,5,0,5">
+            CornerRadius="5" Margin="0,0,0,0">
                                 <ItemsControl ItemsSource="{Binding TrolleyVM.Rows}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -248,7 +248,7 @@
                                                 <!-- Position Indicator -->
                                                 <Border Grid.Column="0" 
                                 BorderBrush="#E1E1E1" BorderThickness="1" 
-                                Height="18" Width="18" Margin="2,1,2,2">
+                                Height="18" Width="18" Margin="2,2,2,2">
                                                     <TextBlock Text="{Binding Position}" 
                                      FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 </Border>
@@ -308,7 +308,7 @@
                                                     <Setter Property="Visibility" Value="Visible"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding RightFinger}" Value="{x:Null}">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Setter Property="Visibility" Value="hidden"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -318,7 +318,7 @@
                     Finger="{Binding RightFinger}" 
                     IsSideRight="False"
                     CurrentLevel="{Binding DataContext.TrolleyVM.SelectedLevelNumber, RelativeSource={RelativeSource AncestorType=Window}}"
-                    Width="100" Margin="0,1"/>
+                    Width="100" Margin="0,0.5"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
