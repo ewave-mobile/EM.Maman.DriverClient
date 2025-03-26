@@ -24,6 +24,11 @@ namespace EM.Maman.DriverClient.ViewModels
         private bool _autoSyncToTrolleyLevel = true;
         private RelayCommand _selectLevelCommand;
 
+        // New properties for trolley cells
+        private TrolleyCell _leftCell;
+        private TrolleyCell _rightCell;
+        private string _trolleyName = "Main Trolley";
+
         #region Properties
 
         public ObservableCollection<CompositeRow> Rows
@@ -146,6 +151,46 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
+        // New properties for trolley cells
+        public TrolleyCell LeftCell
+        {
+            get => _leftCell;
+            set
+            {
+                if (_leftCell != value)
+                {
+                    _leftCell = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public TrolleyCell RightCell
+        {
+            get => _rightCell;
+            set
+            {
+                if (_rightCell != value)
+                {
+                    _rightCell = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string TrolleyName
+        {
+            get => _trolleyName;
+            set
+            {
+                if (_trolleyName != value)
+                {
+                    _trolleyName = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public ICommand SelectLevelCommand => _selectLevelCommand ??= new RelayCommand(SelectLevel);
 
         #endregion
@@ -156,12 +201,66 @@ namespace EM.Maman.DriverClient.ViewModels
             Levels = new ObservableCollection<CompositeLevel>();
             LevelTabs = new ObservableCollection<LevelTab>();
 
+            // Initialize trolley cells
+            LeftCell = new TrolleyCell { CellPosition = "Left" };
+            RightCell = new TrolleyCell { CellPosition = "Right" };
+
             // Load test data
             LoadTestData();
+
+            // Add some test pallets to the trolley cells
+            LoadTrolleyPallets();
 
             // Initialize tabs
             InitializeLevelTabs();
         }
+
+        private void LoadTrolleyPallets()
+        {
+            // Create some test pallets for the trolley cells (for demonstration)
+            var leftPallet = new Pallet
+            {
+                Id = 101,
+                DisplayName = "TRL-L001",
+                UldType = "AKE",
+                UldCode = "AKE2345LT",
+                IsSecure = true
+            };
+
+            // Initially set the right cell empty
+            LeftCell.Pallet = leftPallet;
+            RightCell.Pallet = null;
+        }
+
+        // Method to load a pallet into the left cell
+        public void LoadPalletIntoLeftCell(Pallet pallet)
+        {
+            LeftCell.Pallet = pallet;
+        }
+
+        // Method to load a pallet into the right cell
+        public void LoadPalletIntoRightCell(Pallet pallet)
+        {
+            RightCell.Pallet = pallet;
+        }
+
+        // Method to remove pallet from the left cell
+        public Pallet RemovePalletFromLeftCell()
+        {
+            var pallet = LeftCell.Pallet;
+            LeftCell.Pallet = null;
+            return pallet;
+        }
+
+        // Method to remove pallet from the right cell
+        public Pallet RemovePalletFromRightCell()
+        {
+            var pallet = RightCell.Pallet;
+            RightCell.Pallet = null;
+            return pallet;
+        }
+
+        // Rest of your existing methods...
 
         private void LoadTestData()
         {
@@ -246,43 +345,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 HighestActiveRow = Rows.Max(r => r.Position);
             }
         }
-        private IEnumerable<CellWithPalletInfo> LoadCellsWithPalletsFromDb()
-        {
-            // This is a test data method that would normally get data from the repository
 
-            // Create some test pallets
-            var testPallets = new List<Pallet>
-    {
-        new Pallet { Id = 1, DisplayName = "PLT-A001", UldType = "AKE", UldCode = "AKE1234AX", IsSecure = true },
-        new Pallet { Id = 2, DisplayName = "PLT-B002", UldType = "PAG", UldCode = "PAG5678BX", IsSecure = false },
-        new Pallet { Id = 3, DisplayName = "PLT-C003", UldType = "AKE", UldCode = "AKE9012CX", IsSecure = false },
-        new Pallet { Id = 4, DisplayName = "PLT-D004", UldType = "PAJ", UldCode = "PAJ3456DX", IsSecure = true },
-        new Pallet { Id = 5, DisplayName = "PLT-E005", UldType = "AKE", UldCode = "AKE7890EX", IsSecure = false },
-        new Pallet { Id = 6, DisplayName = "PLT-F006", UldType = "PAG", UldCode = "PAG1234FX", IsSecure = false },
-        new Pallet { Id = 7, DisplayName = "PLT-G007", UldType = "PMC", UldCode = "PMC5678GX", IsSecure = true },
-        new Pallet { Id = 8, DisplayName = "PLT-H008", UldType = "AKE", UldCode = "AKE9012HX", IsSecure = false }
-    };
-
-            // Create cell associations - these IDs should match some of the cells we're creating elsewhere
-            var cellWithPalletInfoList = new List<CellWithPalletInfo>
-    {
-        // Level 1 pallets
-        new CellWithPalletInfo { Cell = new Cell { Id = 1000, Position = 0, HeightLevel = 1, Side = 1, Order = 0 }, Pallet = testPallets[0] },
-        new CellWithPalletInfo { Cell = new Cell { Id = 1200, Position = 0, HeightLevel = 1, Side = 2, Order = 0 }, Pallet = testPallets[1] },
-        new CellWithPalletInfo { Cell = new Cell { Id = 1005, Position = 5, HeightLevel = 1, Side = 1, Order = 0 }, Pallet = testPallets[2] },
-        
-        // Level 2 pallets
-        new CellWithPalletInfo { Cell = new Cell { Id = 2003, Position = 3, HeightLevel = 2, Side = 1, Order = 0 }, Pallet = testPallets[3] },
-        new CellWithPalletInfo { Cell = new Cell { Id = 2103, Position = 3, HeightLevel = 2, Side = 1, Order = 1 }, Pallet = testPallets[4] },
-        new CellWithPalletInfo { Cell = new Cell { Id = 2210, Position = 10, HeightLevel = 2, Side = 2, Order = 0 }, Pallet = testPallets[5] },
-        
-        // Level 3 pallets
-        new CellWithPalletInfo { Cell = new Cell { Id = 3008, Position = 8, HeightLevel = 3, Side = 1, Order = 0 }, Pallet = testPallets[6] },
-        new CellWithPalletInfo { Cell = new Cell { Id = 3215, Position = 15, HeightLevel = 3, Side = 2, Order = 0 }, Pallet = testPallets[7] }
-    };
-
-            return cellWithPalletInfoList;
-        }
         private void InitializeLevelTabs()
         {
             LevelTabs.Clear();
@@ -354,10 +417,10 @@ namespace EM.Maman.DriverClient.ViewModels
         }
 
         #region Test Data Loaders
-
+        // Existing test data loaders remain unchanged
         private IEnumerable<Level> LoadLevelsFromDb()
         {
-            // Simplified to just 4 levels (0-3)
+            // Implementation remains the same
             return new List<Level>
             {
                 new Level { Id = 1, Number = 1, DisplayName = "Level 0" },
@@ -369,6 +432,7 @@ namespace EM.Maman.DriverClient.ViewModels
 
         private IEnumerable<Cell> LoadCellsFromDb()
         {
+            // Implementation remains the same
             var cells = new List<Cell>();
 
             // Level 0 cells
@@ -410,30 +474,64 @@ namespace EM.Maman.DriverClient.ViewModels
             return cells;
         }
 
-
         private IEnumerable<Finger> LoadFingersFromDb()
         {
-            // Position is calculated as (level*100 + position)
-            // The important point is that the position % 100 gives the row number
+            // Implementation remains the same
             return new List<Finger>
-    {
-        // Position numbering format: Level*100 + RowPosition
-        // For example, 102 means Level 1, Row 2
-        
-        // Left side fingers (Side = 0)
-        new Finger{ Id = 1, Side = 0, Position = 102, Description = "Finger L1-02", DisplayName = "L02", DisplayColor = "Grey" },
-        new Finger{ Id = 3, Side = 0, Position = 105, Description = "Finger L1-05", DisplayName = "L05", DisplayColor = "Grey" },
-        new Finger{ Id = 5, Side = 0, Position = 112, Description = "Finger L1-12", DisplayName = "L12", DisplayColor = "Grey" },
-        new Finger{ Id = 7, Side = 0, Position = 118, Description = "Finger L1-18", DisplayName = "L18", DisplayColor = "Grey" },
-        
-        // Right side fingers (Side = 1)
-        new Finger{ Id = 2, Side = 1, Position = 103, Description = "Finger R1-03", DisplayName = "R03", DisplayColor = "Grey" },
-        new Finger{ Id = 4, Side = 1, Position = 108, Description = "Finger R1-08", DisplayName = "R08", DisplayColor = "Grey" },
-        new Finger{ Id = 6, Side = 1, Position = 115, Description = "Finger R1-15", DisplayName = "R15", DisplayColor = "Grey" },
-        new Finger{ Id = 8, Side = 1, Position = 120, Description = "Finger R1-20", DisplayName = "R20", DisplayColor = "Grey" }
-    };
+            {
+                // Position numbering format: Level*100 + RowPosition
+                // For example, 102 means Level 1, Row 2
+                
+                // Left side fingers (Side = 0)
+                new Finger{ Id = 1, Side = 0, Position = 102, Description = "Finger L1-02", DisplayName = "L02", DisplayColor = "Grey" },
+                new Finger{ Id = 3, Side = 0, Position = 105, Description = "Finger L1-05", DisplayName = "L05", DisplayColor = "Grey" },
+                new Finger{ Id = 5, Side = 0, Position = 112, Description = "Finger L1-12", DisplayName = "L12", DisplayColor = "Grey" },
+                new Finger{ Id = 7, Side = 0, Position = 118, Description = "Finger L1-18", DisplayName = "L18", DisplayColor = "Grey" },
+                
+                // Right side fingers (Side = 1)
+                new Finger{ Id = 2, Side = 1, Position = 103, Description = "Finger R1-03", DisplayName = "R03", DisplayColor = "Grey" },
+                new Finger{ Id = 4, Side = 1, Position = 108, Description = "Finger R1-08", DisplayName = "R08", DisplayColor = "Grey" },
+                new Finger{ Id = 6, Side = 1, Position = 115, Description = "Finger R1-15", DisplayName = "R15", DisplayColor = "Grey" },
+                new Finger{ Id = 8, Side = 1, Position = 120, Description = "Finger R1-20", DisplayName = "R20", DisplayColor = "Grey" }
+            };
         }
 
+        private IEnumerable<CellWithPalletInfo> LoadCellsWithPalletsFromDb()
+        {
+            // Implementation remains the same
+            // Create some test pallets
+            var testPallets = new List<Pallet>
+            {
+                new Pallet { Id = 1, DisplayName = "PLT-A001", UldType = "AKE", UldCode = "AKE1234AX", IsSecure = true },
+                new Pallet { Id = 2, DisplayName = "PLT-B002", UldType = "PAG", UldCode = "PAG5678BX", IsSecure = false },
+                new Pallet { Id = 3, DisplayName = "PLT-C003", UldType = "AKE", UldCode = "AKE9012CX", IsSecure = false },
+                new Pallet { Id = 4, DisplayName = "PLT-D004", UldType = "PAJ", UldCode = "PAJ3456DX", IsSecure = true },
+                new Pallet { Id = 5, DisplayName = "PLT-E005", UldType = "AKE", UldCode = "AKE7890EX", IsSecure = false },
+                new Pallet { Id = 6, DisplayName = "PLT-F006", UldType = "PAG", UldCode = "PAG1234FX", IsSecure = false },
+                new Pallet { Id = 7, DisplayName = "PLT-G007", UldType = "PMC", UldCode = "PMC5678GX", IsSecure = true },
+                new Pallet { Id = 8, DisplayName = "PLT-H008", UldType = "AKE", UldCode = "AKE9012HX", IsSecure = false }
+            };
+
+            // Create cell associations - these IDs should match some of the cells we're creating elsewhere
+            var cellWithPalletInfoList = new List<CellWithPalletInfo>
+            {
+                // Level 1 pallets
+                new CellWithPalletInfo { Cell = new Cell { Id = 1000, Position = 0, HeightLevel = 1, Side = 1, Order = 0 }, Pallet = testPallets[0] },
+                new CellWithPalletInfo { Cell = new Cell { Id = 1200, Position = 0, HeightLevel = 1, Side = 2, Order = 0 }, Pallet = testPallets[1] },
+                new CellWithPalletInfo { Cell = new Cell { Id = 1005, Position = 5, HeightLevel = 1, Side = 1, Order = 0 }, Pallet = testPallets[2] },
+                
+                // Level 2 pallets
+                new CellWithPalletInfo { Cell = new Cell { Id = 2003, Position = 3, HeightLevel = 2, Side = 1, Order = 0 }, Pallet = testPallets[3] },
+                new CellWithPalletInfo { Cell = new Cell { Id = 2103, Position = 3, HeightLevel = 2, Side = 1, Order = 1 }, Pallet = testPallets[4] },
+                new CellWithPalletInfo { Cell = new Cell { Id = 2210, Position = 10, HeightLevel = 2, Side = 2, Order = 0 }, Pallet = testPallets[5] },
+                
+                // Level 3 pallets
+                new CellWithPalletInfo { Cell = new Cell { Id = 3008, Position = 8, HeightLevel = 3, Side = 1, Order = 0 }, Pallet = testPallets[6] },
+                new CellWithPalletInfo { Cell = new Cell { Id = 3215, Position = 15, HeightLevel = 3, Side = 2, Order = 0 }, Pallet = testPallets[7] }
+            };
+
+            return cellWithPalletInfoList;
+        }
         #endregion
 
         #region INotifyPropertyChanged

@@ -25,5 +25,6 @@ namespace EM.Maman.DriverClient
             IOpcService opcService = new OpcUaService();
             this.DataContext = new MainViewModel(opcService);
         }
+
     }
 }
