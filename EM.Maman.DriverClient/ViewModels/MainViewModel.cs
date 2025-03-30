@@ -10,6 +10,10 @@ using System.Windows.Input;
 using EM.Maman.DriverClient.Services;
 using System.Windows;
 using EM.Maman.Models.DisplayModels;
+using EM.Maman.DAL;
+using EM.Maman.Services;
+using Microsoft.Extensions.Logging;
+using EM.Maman.Models.Interfaces;
 
 namespace EM.Maman.DriverClient.ViewModels
 {
@@ -19,6 +23,19 @@ namespace EM.Maman.DriverClient.ViewModels
 
         public ObservableCollection<Register> ReadOnlyRegisters { get; } = new();
         public ObservableCollection<Register> WritableRegisters { get; } = new();
+        private TaskViewModel _taskVM;
+        public TaskViewModel TaskVM
+        {
+            get => _taskVM;
+            set
+            {
+                if (_taskVM != value)
+                {
+                    _taskVM = value;
+                    OnPropertyChanged(nameof(TaskVM));
+                }
+            }
+        }
 
         private int _positionPV;
         public int PositionPV
@@ -117,10 +134,15 @@ namespace EM.Maman.DriverClient.ViewModels
 
         #region Constructor
 
-        public MainViewModel(IOpcService opcService)
+        public MainViewModel(
+          IOpcService opcService,
+          IUnitOfWork unitOfWork,
+          IConnectionManager connectionManager,
+          IDispatcherService dispatcherService,
+          ILoggerFactory loggerFactory)
         {
             _opcService = opcService;
-            _dispatcherService = new DispatcherService(); // Ideally injected via DI.
+            _dispatcherService = dispatcherService; // Now injected via DI
 
             _opcService.RegisterChanged += OpcService_RegisterChanged;
 
@@ -128,14 +150,25 @@ namespace EM.Maman.DriverClient.ViewModels
 
             WriteRegisterCommand = new RelayCommand(WriteRegister, CanWriteRegister);
             ConnectToOpcCommand = new RelayCommand(_ => ConnectToOpc(), _ => true);
-            MoveTrolleyUpCommand = new RelayCommand(_ => MoveTrolleyUp(), _ => CurrentTrolley.Position > 0);
+            MoveTrolleyUpCommand = new RelayCommand(_ => MoveTrolleyUp(), _ => CurrentTrolley?.Position > 0);
             MoveTrolleyDownCommand = new RelayCommand(_ => MoveTrolleyDown(), _ => true);
             SubscribeRegisterCommand = new RelayCommand(_ => SubscribeRegister(ReadOnlyRegisters.FirstOrDefault(r => r.NodeId.Contains("Position_PV"))), _ => true);
             RefreshRegistersCommand = new RelayCommand(async _ => await RefreshRegistersAsync(), _ => true);
 
             TrolleyVM = new TrolleyViewModel();
             CurrentTrolley = new Trolley { Id = 1, DisplayName = "Main Trolley", Position = 1 };
+
+            // Initialize TaskViewModel with all required dependencies
+            TaskVM = new TaskViewModel(
+                unitOfWork,
+                connectionManager,
+                opcService,
+                dispatcherService,
+                loggerFactory.CreateLogger<TaskViewModel>()  // Create a logger for TaskViewModel
+            );
+
             SubscribeToCellChanges();
+
             // Start the asynchronous initialization.
             InitializeOpcAsync();
         }

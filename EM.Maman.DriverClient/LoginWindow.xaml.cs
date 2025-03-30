@@ -1,16 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 
 namespace EM.Maman.DriverClient
 {
@@ -19,18 +9,24 @@ namespace EM.Maman.DriverClient
     /// </summary>
     public partial class LoginWindow : Window
     {
-        public LoginWindow()
+        private readonly IServiceProvider _serviceProvider;
+
+        public LoginWindow(IServiceProvider serviceProvider)
         {
             InitializeComponent();
+            _serviceProvider = serviceProvider;
+            DataContext = this;
         }
+
         //string that binds to the wpf and write the current version number of the application with the word "Version"
         public string Version => $"גרסה {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version}";
         public string Greeting => "hi";
+
         //event handler for the login button
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            //change current window to main window
-            MainWindow mainWindow = new MainWindow();
+            //change current window to main window using DI container
+            var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
             mainWindow.Show();
             this.Close();
         }

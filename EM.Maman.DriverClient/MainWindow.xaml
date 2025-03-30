@@ -10,6 +10,7 @@
         xmlns:displaymodels="clr-namespace:EM.Maman.Models.DisplayModels;assembly=EM.Maman.Models"
         xmlns:viewmodels="clr-namespace:EM.Maman.DriverClient.ViewModels" 
         xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters" xmlns:controls="clr-namespace:EM.Maman.DriverClient.Controls"
+        xmlns:views="clr-namespace:EM.Maman.DriverClient.Views"
         d:DataContext="{d:DesignInstance Type=viewmodels:MainViewModel}"
         mc:Ignorable="d"
         Title="MainWindow" Height="{StaticResource WindowHeight}" Width="{StaticResource WindowWidth}" Background="White">
@@ -29,6 +30,8 @@
     </Window.Resources>
 
     <Grid Background="White">
+        <TabControl FlowDirection="RightToLeft">
+            <TabItem Header="מחסן">
         <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft" Height="950" VerticalAlignment="Top">
             <StackPanel Orientation="Horizontal" Width="1150">
                 <ScrollViewer Height="auto" Width="200">
@@ -360,5 +363,10 @@
                 <!-- Right side panel content -->
             </StackPanel>
         </StackPanel>
+            </TabItem>
+            <TabItem Header="משימות">
+                <views:TasksView DataContext="{Binding TaskVM}" />
+            </TabItem>
+        </TabControl>
     </Grid>
 </Window>
