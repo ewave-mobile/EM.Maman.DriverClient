@@ -119,6 +119,27 @@ namespace EM.Maman.DriverClient.ViewModels
 
         public TrolleyViewModel TrolleyVM { get; set; }
 
+        private bool _isWarehouseViewActive = true;
+
+        /// <summary>
+        /// Gets or sets whether the warehouse view is currently active
+        /// </summary>
+        public bool IsWarehouseViewActive
+        {
+            get => _isWarehouseViewActive;
+            set
+            {
+                if (_isWarehouseViewActive != value)
+                {
+                    _isWarehouseViewActive = value;
+                    OnPropertyChanged(nameof(IsWarehouseViewActive));
+                }
+            }
+        }
+        private RelayCommand _showWarehouseViewCommand;
+        private RelayCommand _showTasksViewCommand;
+
+
         #endregion
 
         #region Commands
@@ -129,6 +150,36 @@ namespace EM.Maman.DriverClient.ViewModels
         public ICommand ConnectToOpcCommand { get; }
         public ICommand RefreshRegistersCommand { get; }
         public ICommand WriteRegisterCommand { get; }
+        /// <summary>
+        /// Command to show the warehouse view
+        /// </summary>
+        public ICommand ShowWarehouseViewCommand => _showWarehouseViewCommand ??= new RelayCommand(_ => ShowWarehouseView(), _ => !IsWarehouseViewActive);
+
+        /// <summary>
+        /// Command to show the tasks view
+        /// </summary>
+        public ICommand ShowTasksViewCommand => _showTasksViewCommand ??= new RelayCommand(_ => ShowTasksView(), _ => IsWarehouseViewActive);
+
+        /// <summary>
+        /// Switch to the warehouse view
+        /// </summary>
+        private void ShowWarehouseView()
+        {
+            IsWarehouseViewActive = true;
+            (_showWarehouseViewCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            (_showTasksViewCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+
+        /// <summary>
+        /// Switch to the tasks view
+        /// </summary>
+        private void ShowTasksView()
+        {
+            IsWarehouseViewActive = false;
+            (_showWarehouseViewCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            (_showTasksViewCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+
 
         #endregion
 
