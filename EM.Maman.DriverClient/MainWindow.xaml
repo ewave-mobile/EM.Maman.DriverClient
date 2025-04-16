@@ -45,12 +45,11 @@
 
                 <!-- Navigation buttons -->
                 <Button Grid.Column="1" Style="{StaticResource MaterialDesignFlatButton}" 
-        Command="{Binding ShowWarehouseViewCommand}" 
+                        Command="{Binding ShowWarehouseViewCommand}" 
                         Foreground="#CDCDCD" BorderBrush="#CDCDCD" BorderThickness="1"
-        Visibility="{Binding IsWarehouseViewActive, Converter={StaticResource BoolInverterConverter}, ConverterParameter=Visibility}">
+                        Visibility="{Binding IsWarehouseViewActive, Converter={StaticResource BoolInverterConverter}, ConverterParameter=Visibility}">
                     <StackPanel Orientation="Horizontal">
                         <materialDesign:PackIcon Kind="Warehouse" Width="24" Height="24" Margin="0,0,0,0"/>
-                        <!--<TextBlock Text="מחסן" VerticalAlignment="Center"/>-->
                     </StackPanel>
                 </Button>
 
@@ -60,373 +59,33 @@
                         Visibility="{Binding IsWarehouseViewActive, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <StackPanel Orientation="Horizontal">
                         <materialDesign:PackIcon Kind="ClipboardListOutline" Width="24" Height="24" Margin="0,0,0,0"/>
-                        <!--<TextBlock Text="משימות" VerticalAlignment="Center"/>-->
                     </StackPanel>
                 </Button>
-
-                <!-- Additional buttons can be added here -->
             </Grid>
         </materialDesign:Card>
 
         <!-- Main Content Area - Takes all remaining space -->
         <Grid>
-            <!-- Warehouse View -->
-            <ContentControl>
-                <ContentControl.Style>
-                    <Style TargetType="ContentControl">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsWarehouseViewActive}" Value="True">
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </ContentControl.Style>
-                <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft" Height="950" VerticalAlignment="Top">
-                    <StackPanel Orientation="Horizontal" Width="1150">
-                        <ScrollViewer Height="auto" Width="200">
-                            <!-- Content for side panel -->
-                        </ScrollViewer>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="350" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            
+            <!-- Left Side - Current Tasks View (always visible) -->
+            <views:CurrentTasksView Grid.Column="0" DataContext="{Binding}" />
+            
+            <!-- Right Side - Content Area -->
+            <Grid Grid.Column="1">
+                <!-- Warehouse View -->
+                <ContentControl Visibility="{Binding IsWarehouseViewActive, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <views:WarehouseView DataContext="{Binding}" />
+                </ContentControl>
 
-                        <StackPanel Width="700" Height="auto" Orientation="Vertical" FlowDirection="LeftToRight">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <!-- Controls -->
-                                    <RowDefinition Height="Auto"/>
-                                    <!-- Warehouse Grid -->
-                                </Grid.RowDefinitions>
-
-                                <!-- Control buttons -->
-                                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" 
-                                          VerticalAlignment="Center" Margin="10" FlowDirection="LeftToRight">
-                                    <!-- Arrow buttons -->
-                                    <Button Width="20" Height="20" BorderBrush="#CDCDCD" BorderThickness="1"
-                                          Background="White" Margin="5" HorizontalAlignment="Center"
-                                          Padding="0" VerticalAlignment="Center" Command="{Binding TestUnloadLeftCellCommand}">
-                                        <materialDesign:PackIcon Kind="ArrowLeft" Width="16" Height="16" Padding="0"
-                                                               HorizontalAlignment="Center" VerticalAlignment="Center" 
-                                                               Foreground="#5F6368" />
-                                    </Button>
-                                    <Button Width="20" Height="20" BorderBrush="#CDCDCD" BorderThickness="1"
-                                          Background="White" Margin="5,5,30,5" Padding="0" Command="{Binding TestLoadLeftCellCommand}">
-                                        <materialDesign:PackIcon Kind="ArrowRight" Width="16" Height="16" 
-                                                               HorizontalAlignment="Center" VerticalAlignment="Center" 
-                                                               Foreground="#5F6368" />
-                                    </Button>
-                                    <Button Width="20" Height="20" BorderBrush="#CDCDCD" BorderThickness="1"
-                                          Background="White" Margin="5" HorizontalAlignment="Center"
-                                          Padding="0" VerticalAlignment="Center" Command="{Binding TestLoadRightCellCommand}">
-                                        <materialDesign:PackIcon Kind="ArrowLeft" Width="16" Height="16" Padding="0"
-                                                               HorizontalAlignment="Center" VerticalAlignment="Center" 
-                                                               Foreground="#5F6368" />
-                                    </Button>
-                                    <Button Width="20" Height="20" BorderBrush="#CDCDCD" BorderThickness="1"
-                                          Background="White" Margin="5,5,5,5" Padding="0" Command="{Binding TestUnloadRightCellCommand}">
-                                        <materialDesign:PackIcon Kind="ArrowRight" Width="16" Height="16" 
-                                                               HorizontalAlignment="Center" VerticalAlignment="Center" 
-                                                               Foreground="#5F6368" />
-                                    </Button>
-                                    <!-- More buttons as needed -->
-                                </StackPanel>
-
-                                <Grid Grid.Row="1">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <!-- Left Fingers (OUTSIDE border) -->
-                                        <ColumnDefinition Width="Auto"/>
-                                        <!-- Left Cells (WITH border) -->
-                                        <ColumnDefinition Width="*"/>
-                                        <!-- Center/Trolley -->
-                                        <ColumnDefinition Width="Auto"/>
-                                        <!-- Right Cells (WITH border) -->
-                                        <ColumnDefinition Width="*"/>
-                                        <!-- Right Fingers (OUTSIDE border) -->
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Left Fingers (No Border) -->
-                                    <ItemsControl Grid.Column="0" ItemsSource="{Binding TrolleyVM.Rows}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Vertical"  />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate DataType="{x:Type displaymodels:CompositeRow}">
-                                                <!-- Use a grid with style triggers for visibility -->
-                                                <Grid>
-                                                    <Grid.Style>
-                                                        <Style TargetType="Grid">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding LeftFinger}" Value="{x:Null}">
-                                                                    <Setter Property="Visibility" Value="Hidden"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Grid.Style>
-
-                                                    <controls:FingerControl FlowDirection="RightToLeft"
-                                                                          Finger="{Binding LeftFinger}" 
-                                                                          IsSideRight="True"
-                                                                          CurrentLevel="{Binding DataContext.TrolleyVM.SelectedLevelNumber, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                          Width="100" Margin="0,0.5"/>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-
-                                    <!-- Left Cells with Border -->
-                                    <Border Grid.Column="1" 
-                                          BorderBrush="#CCCCCC" BorderThickness="1" 
-                                          CornerRadius="5" Margin="0,0,0,0">
-                                        <ItemsControl ItemsSource="{Binding TrolleyVM.Rows}">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <StackPanel Orientation="Vertical"/>
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate DataType="{x:Type displaymodels:CompositeRow}">
-                                                    <!-- Show only cells and position indicator -->
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <!-- Left Outer Cell -->
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <!-- Left Inner Cell -->
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <!-- Position Indicator -->
-                                                        </Grid.ColumnDefinitions>
-
-                                                        <!-- Left Outer Cell with visibility style -->
-                                                        <Grid Grid.Column="1">
-                                                            <Grid.Style>
-                                                                <Style TargetType="Grid">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding LeftOuterCell}" Value="{x:Null}">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Grid.Style>
-                                                            <controls:CellControl CellInfo="{Binding LeftOuterCell}"
-                                                                               PalletInfo="{Binding LeftOuterPallet}"
-                                                                               HasPallet="{Binding HasLeftOuterPallet}"/>
-                                                        </Grid>
-
-                                                        <!-- Left Inner Cell with visibility style -->
-                                                        <Grid Grid.Column="0">
-                                                            <Grid.Style>
-                                                                <Style TargetType="Grid">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding LeftInnerCell}" Value="{x:Null}">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Grid.Style>
-                                                            <controls:CellControl CellInfo="{Binding LeftInnerCell}"
-                                                                               PalletInfo="{Binding LeftInnerPallet}"
-                                                                               HasPallet="{Binding HasLeftInnerPallet}"/>
-                                                        </Grid>
-
-                                                        <!-- Position Indicator -->
-                                                        <Border Grid.Column="2" 
-                                                              BorderBrush="#E1E1E1" BorderThickness="1" 
-                                                              Height="18" Width="18" Margin="2,1,2,2">
-                                                            <TextBlock Text="{Binding Position}" 
-                                                                     FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                        </Border>
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </Border>
-
-                                    <!-- Center Column - Trolley with Cells -->
-                                    <ItemsControl Grid.Column="2" ItemsSource="{Binding TrolleyVM.Rows}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Vertical"/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate DataType="{x:Type displaymodels:CompositeRow}">
-                                                <controls:TrolleyWithCellsControl 
-                                                                               RowPosition="{Binding Position}"
-                                                                               TrolleyPosition="{Binding DataContext.CurrentTrolley.Position, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                               TrolleyName="{Binding DataContext.TrolleyVM.TrolleyName, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                               LeftCell="{Binding DataContext.TrolleyVM.LeftCell, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                               RightCell="{Binding DataContext.TrolleyVM.RightCell, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                               HorizontalAlignment="Center"
-                                                                               Margin="10,1"/>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                    <!-- Right Cells with Border -->
-                                    <Border Grid.Column="3"
-                                          BorderBrush="#CCCCCC" BorderThickness="1" 
-                                          CornerRadius="5" Margin="0,0,0,0">
-                                        <ItemsControl ItemsSource="{Binding TrolleyVM.Rows}">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <StackPanel Orientation="Vertical"/>
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate DataType="{x:Type displaymodels:CompositeRow}">
-                                                    <!-- Show only position indicator and cells -->
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <!-- Position Indicator -->
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <!-- Right Outer Cell -->
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <!-- Right Inner Cell -->
-                                                        </Grid.ColumnDefinitions>
-
-                                                        <!-- Position Indicator -->
-                                                        <Border Grid.Column="0" 
-                                                              BorderBrush="#E1E1E1" BorderThickness="1" 
-                                                              Height="18" Width="18" Margin="2,2,2,2">
-                                                            <TextBlock Text="{Binding Position}" 
-                                                                     FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                        </Border>
-
-                                                        <!-- Right Outer Cell with visibility style -->
-                                                        <Grid Grid.Column="1">
-                                                            <Grid.Style>
-                                                                <Style TargetType="Grid">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding RightOuterCell}" Value="{x:Null}">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Grid.Style>
-                                                            <controls:CellControl CellInfo="{Binding RightOuterCell}"
-                                                                               PalletInfo="{Binding RightOuterPallet}"
-                                                                               HasPallet="{Binding HasRightOuterPallet}"/>
-                                                        </Grid>
-
-                                                        <!-- Right Inner Cell with visibility style -->
-                                                        <Grid Grid.Column="2">
-                                                            <Grid.Style>
-                                                                <Style TargetType="Grid">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding RightInnerCell}" Value="{x:Null}">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Grid.Style>
-                                                            <controls:CellControl CellInfo="{Binding RightInnerCell}"
-                                                                               PalletInfo="{Binding RightInnerPallet}"
-                                                                               HasPallet="{Binding HasRightInnerPallet}"/>
-                                                        </Grid>
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </Border>
-
-                                    <!-- Right Fingers (No Border) -->
-                                    <ItemsControl Grid.Column="4" ItemsSource="{Binding TrolleyVM.Rows}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Vertical"/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate DataType="{x:Type displaymodels:CompositeRow}">
-                                                <!-- Use a grid with style triggers for visibility -->
-                                                <Grid>
-                                                    <Grid.Style>
-                                                        <Style TargetType="Grid">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding RightFinger}" Value="{x:Null}">
-                                                                    <Setter Property="Visibility" Value="hidden"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Grid.Style>
-
-                                                    <controls:FingerControl  FlowDirection="RightToLeft"
-                                                                          Finger="{Binding RightFinger}" 
-                                                                          IsSideRight="False"
-                                                                          CurrentLevel="{Binding DataContext.TrolleyVM.SelectedLevelNumber, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                          Width="100" Margin="0,0.5"/>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </Grid>
-                            </Grid>
-
-                            <!-- Level Tabs -->
-                            <ItemsControl VerticalAlignment="Bottom" Grid.Row="1" 
-                                        ItemsSource="{Binding TrolleyVM.LevelTabs}" Margin="0,30,0,0">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Button Style="{StaticResource LevelTabButtonStyle}"
-                                              Background="{Binding IsSelected, Converter={StaticResource BoolToTabColorConverter}}"
-                                              Command="{Binding DataContext.TrolleyVM.SelectLevelCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                              CommandParameter="{Binding Level.Number}">
-                                            <StackPanel>
-                                                <TextBlock Style="{StaticResource LevelTabTitleStyle}" 
-                                                         Text="{Binding DisplayName}" 
-                                                         Foreground="{Binding IsSelected, Converter={StaticResource BoolToTextColorConverter}}"/>
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,0">
-                                                    <TextBlock Style="{StaticResource LevelTabCountStyle}" 
-                                                             Text="{Binding ItemCount}" 
-                                                             Foreground="{Binding IsSelected, Converter={StaticResource BoolToTextColorConverter}}"/>
-                                                    <TextBlock Style="{StaticResource LevelTabCountStyle}" 
-                                                             Text=" | " 
-                                                             Foreground="{Binding IsSelected, Converter={StaticResource BoolToTextColorConverter}}"/>
-                                                    <TextBlock Style="{StaticResource LevelTabCountStyle}" 
-                                                             Text="{Binding EmptyCount}" 
-                                                             Foreground="{Binding IsSelected, Converter={StaticResource BoolToTextColorConverter}}"/>
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <StackPanel Orientation="Vertical">
-                        <!-- Right side panel content -->
-                    </StackPanel>
-                </StackPanel>
-            </ContentControl>
-
-            <!-- Tasks View -->
-            <ContentControl>
-                <ContentControl.Style>
-                    <Style TargetType="ContentControl">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsWarehouseViewActive}" Value="False">
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </ContentControl.Style>
-                <views:TasksView DataContext="{Binding TaskVM}" />
-            </ContentControl>
+                <!-- Tasks View -->
+                <ContentControl Visibility="{Binding IsWarehouseViewActive, Converter={StaticResource BoolInverterConverter}, ConverterParameter=Visibility}">
+                    <views:TasksView DataContext="{Binding}" />
+                </ContentControl>
+            </Grid>
         </Grid>
     </DockPanel>
 </Window>

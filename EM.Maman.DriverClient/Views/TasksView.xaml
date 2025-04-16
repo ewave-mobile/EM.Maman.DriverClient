@@ -8,9 +8,8 @@
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters"
              mc:Ignorable="d" 
-             d:DesignHeight="800" d:DesignWidth="1200"
-             FlowDirection="RightToLeft"
-             d:DataContext="{d:DesignInstance Type=vm:TaskViewModel}">
+             d:DesignHeight="800" d:DesignWidth="800"
+             FlowDirection="RightToLeft">
 
     <UserControl.Resources>
         <ResourceDictionary>
@@ -21,14 +20,15 @@
             <converters:TaskStatusToColorConverter x:Key="TaskStatusToColorConverter" />
             <converters:TaskStatusToBrushConverter x:Key="TaskStatusToBrushConverter" />
             <converters:BoolInverterConverter x:Key="BoolInverterConverter" />
+            <converters:BoolToTabColorConverter x:Key="BoolToTabColorConverter" />
+            <converters:BoolToTextColorConverter x:Key="BoolToTextColorConverter" />
 
             <Style x:Key="TaskCardStyle" TargetType="Border">
                 <Setter Property="Margin" Value="5" />
                 <Setter Property="Padding" Value="10" />
-                <Setter Property="CornerRadius" Value="4" />
-                <Setter Property="Background" Value="White" />
                 <Setter Property="BorderBrush" Value="#BDBDBD" />
                 <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Background" Value="White" />
                 <Setter Property="Effect">
                     <Setter.Value>
                         <DropShadowEffect ShadowDepth="2" BlurRadius="5" Opacity="0.2" />
@@ -41,316 +41,247 @@
                 <Setter Property="HorizontalAlignment" Value="Left" />
                 <Setter Property="Margin" Value="-10,0,0,0" />
             </Style>
-
-            <Style x:Key="ActiveTaskStatusStyle" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="16" />
+            
+            <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="18" />
                 <Setter Property="FontWeight" Value="SemiBold" />
-                <Setter Property="Margin" Value="0,5,0,15" />
-                <Setter Property="HorizontalAlignment" Value="Center" />
-            </Style>
-
-            <Style x:Key="StepIndicatorStyle" TargetType="Ellipse">
-                <Setter Property="Width" Value="30" />
-                <Setter Property="Height" Value="30" />
-                <Setter Property="Fill" Value="#BDBDBD" />
-                <Style.Triggers>
-                    <DataTrigger Binding="{Binding IsCurrentStep}" Value="True">
-                        <Setter Property="Fill" Value="#2196F3" />
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding IsCompleted}" Value="True">
-                        <Setter Property="Fill" Value="#4CAF50" />
-                    </DataTrigger>
-                </Style.Triggers>
-            </Style>
-
-            <Style x:Key="StepConnectorStyle" TargetType="Rectangle">
-                <Setter Property="Width" Value="50" />
-                <Setter Property="Height" Value="2" />
-                <Setter Property="Fill" Value="#BDBDBD" />
-                <Setter Property="VerticalAlignment" Value="Center" />
-                <Style.Triggers>
-                    <DataTrigger Binding="{Binding IsCompleted}" Value="True">
-                        <Setter Property="Fill" Value="#4CAF50" />
-                    </DataTrigger>
-                </Style.Triggers>
+                <Setter Property="Margin" Value="0,0,0,10" />
             </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid Margin="20">
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Header area -->
-        <Grid Grid.Row="0">
+        <!-- Header with title and create task button -->
+        <Grid Grid.Row="0" Margin="10,10,10,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <TextBlock Grid.Column="0" Text="ניהול משימות" 
-                     FontSize="24" FontWeight="Bold" Margin="0,0,0,15" />
+            <TextBlock Grid.Column="0" Text="ממתין לעבודה" Style="{StaticResource SectionHeaderStyle}" />
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <Button Style="{StaticResource MaterialDesignFlatButton}"
-                        Command="{Binding RefreshTasksCommand}" ToolTip="רענן רשימה">
-                    <materialDesign:PackIcon Kind="Refresh" Width="24" Height="24" />
-                </Button>
-                <Button Style="{StaticResource MaterialDesignRaisedButton}"
-                        Command="{Binding CreateImportTaskCommand}" Margin="5,0">
-                    <StackPanel Orientation="Horizontal">
-                        <materialDesign:PackIcon Kind="Import" Margin="0,0,5,0" />
-                        <TextBlock Text="יצירת משימת יבוא" />
-                    </StackPanel>
-                </Button>
-                <Button Style="{StaticResource MaterialDesignRaisedButton}"
-                        Command="{Binding CreateExportTaskCommand}">
-                    <StackPanel Orientation="Horizontal">
-                        <materialDesign:PackIcon Kind="Export" Margin="0,0,5,0" />
-                        <TextBlock Text="יצירת משימת יצוא" />
-                    </StackPanel>
-                </Button>
-            </StackPanel>
+            <Button Grid.Column="1" 
+                    Style="{StaticResource MaterialDesignRaisedButton}"
+                    Command="{Binding TaskVM.CreateManualTaskCommand}"
+                    Background="#2196F3" BorderBrush="#1976D2"
+                    Margin="0,0,0,10">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="Plus" Width="20" Height="20" VerticalAlignment="Center" />
+                    <TextBlock Text="יצירת משימה ידנית" Margin="8,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
         </Grid>
 
-        <!-- Active task area (visible only when a task is active) -->
-        <Border Grid.Row="1" Background="#F5F5F5" CornerRadius="5" Padding="15"
-                Margin="0,0,0,15" Visibility="{Binding IsTaskActive, Converter={StaticResource BooleanToVisibilityConverter}}">
+        <!-- Content area for tasks -->
+        <Grid Grid.Row="1" Margin="10,0,10,10">
+            <!-- Tasks View -->
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <!-- Active task header -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-                    <TextBlock Text="משימה פעילה: " FontSize="18" FontWeight="Bold" />
-                    <TextBlock Text="{Binding ActiveTask.Name}" FontSize="18" Margin="5,0,0,0" />
-                </StackPanel>
-
-                <!-- Task status -->
-                <TextBlock Grid.Row="1" Text="{Binding StatusMessage}" 
-                         Style="{StaticResource ActiveTaskStatusStyle}" />
-
-                <!-- Progress steps visualization -->
-                <Grid Grid.Row="2" HorizontalAlignment="Center" Margin="0,0,0,15">
+                <!-- Task headers -->
+                <Grid Grid.Row="0" Margin="0,10,0,0">
                     <Grid.ColumnDefinitions>
-                        <!-- For Import: 5 steps + 4 connectors -->
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Dynamic step indicators based on task type -->
-                    <ItemsControl Grid.Column="0" Grid.ColumnSpan="9"
-                                ItemsSource="{Binding TaskSteps}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <!-- Step indicator -->
-                                    <Grid>
-                                        <Ellipse Style="{StaticResource StepIndicatorStyle}" />
-                                        <TextBlock Text="{Binding StepNumber}" 
-                                                 HorizontalAlignment="Center" VerticalAlignment="Center" 
-                                                 Foreground="White" FontWeight="Bold" />
-                                    </Grid>
+                    <!-- Storage Tasks Header -->
+                    <Border Grid.Column="0" 
+                            Background="#2196F3" 
+                            BorderThickness="1,1,1,0" 
+                            BorderBrush="#1976D2" 
+                            Padding="10,5">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="ממתין לאחסון" 
+                                       FontWeight="SemiBold" 
+                                       Foreground="White"/>
+                            <TextBlock Text=" | " Margin="5,0" Foreground="White"/>
+                            <TextBlock Text="{Binding TaskVM.StorageTasksCount, StringFormat='{}{0} פריטים'}" Foreground="White"/>
+                        </StackPanel>
+                    </Border>
 
-                                    <!-- Step description -->
-                                    <StackPanel Orientation="Vertical" VerticalAlignment="Center" Width="100" Margin="5,0,5,0">
-                                        <TextBlock Text="{Binding StepName}" TextWrapping="Wrap" 
-                                                 FontSize="12" HorizontalAlignment="Center" />
-                                    </StackPanel>
-
-                                    <!-- Connector (except for last item) -->
-                                    <Rectangle Style="{StaticResource StepConnectorStyle}"
-                                             Visibility="{Binding IsLastStep, Converter={StaticResource BoolInverterConverter}, ConverterParameter=Visibility}" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <!-- Retrieval Tasks Header -->
+                    <Border Grid.Column="1" 
+                            Background="#FF9800" 
+                            BorderThickness="1,1,1,0" 
+                            BorderBrush="#F57C00" 
+                            Padding="10,5">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="ממתין לשליפה" 
+                                       FontWeight="SemiBold" 
+                                       Foreground="White"/>
+                            <TextBlock Text=" | " Margin="5,0" Foreground="White"/>
+                            <TextBlock Text="{Binding TaskVM.RetrievalTasksCount, StringFormat='{}{0} פריטים'}" Foreground="White"/>
+                        </StackPanel>
+                    </Border>
                 </Grid>
 
-                <!-- Progress bar -->
-                <ProgressBar Grid.Row="3" Height="8" Value="{Binding ProgressPercentage, Mode=OneWay}" 
-                           Maximum="100" Margin="0,0,0,15" />
+                <!-- Tasks lists container -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- Storage Tasks List -->
+                    <Border Grid.Column="0" BorderThickness="1" BorderBrush="#DDDDDD" Background="White">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding TaskVM.StorageTasks}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource TaskCardStyle}" Margin="5,5,5,0">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
 
-                <!-- Task action buttons -->
-                <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center">
-                    <!-- Navigation buttons -->
-                    <Button Style="{StaticResource MaterialDesignRaisedButton}" 
-                          Command="{Binding NavigateToSourceCommand}" Margin="0,0,10,0">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="TruckDelivery" Margin="0,0,5,0" />
-                            <TextBlock Text="נווט למקור" />
-                        </StackPanel>
-                    </Button>
+                                                <!-- Task type indicator bar (left) -->
+                                                <Border Grid.Column="0" Style="{StaticResource TaskTypeIndicatorStyle}"
+                                                      Background="#2196F3" />
 
-                    <Button Style="{StaticResource MaterialDesignRaisedButton}" 
-                          Command="{Binding NavigateToDestinationCommand}" Margin="0,0,10,0">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="TruckDelivery" Margin="0,0,5,0" />
-                            <TextBlock Text="נווט ליעד" />
-                        </StackPanel>
-                    </Button>
+                                                <!-- Task details -->
+                                                <Grid Grid.Column="1" Margin="5,0,0,0">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
+                                                    
+                                                    <Grid Grid.Row="0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        
+                                                        <TextBlock Grid.Column="0" Text="קוד:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Code}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                        <Border Grid.Column="2" Background="{Binding Status, Converter={StaticResource TaskStatusToBrushConverter}}" 
+                                                              BorderThickness="0" Padding="5,2" HorizontalAlignment="Left" Margin="0,0,0,0">
+                                                            <TextBlock Text="{Binding Status, Converter={StaticResource TaskStatusToTextConverter}}" 
+                                                                     FontSize="11" Foreground="White" />
+                                                        </Border>
+                                                    </Grid>
+                                                    
+                                                    <StackPanel Grid.Row="1" Margin="0,10,0,0">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="מיקום:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
+                                                            <TextBlock Text="10.45" FontSize="12" Margin="0,0,10,0" />
+                                                        </StackPanel>
+                                                        
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="גובה:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
+                                                            <TextBlock Text="105" FontSize="12" Margin="0,0,10,0" />
+                                                        </StackPanel>
+                                                        
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="מקט:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
+                                                            <TextBlock Text="546" FontSize="12" Margin="0,0,10,0" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Grid>
 
-                    <!-- Complete/Cancel buttons -->
-                    <Button Style="{StaticResource MaterialDesignRaisedDarkButton}" 
-                          Command="{Binding CompleteTaskCommand}" Margin="0,0,10,0"
-                          Background="#4CAF50" BorderBrush="#388E3C">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="Check" Margin="0,0,5,0" />
-                            <TextBlock Text="סיים משימה" />
-                        </StackPanel>
-                    </Button>
+                                                <!-- Action button -->
+                                                <Button Grid.Column="2" Style="{StaticResource MaterialDesignRaisedButton}" 
+                                                      Command="{Binding DataContext.TaskVM.StartTaskCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                      CommandParameter="{Binding}"
+                                                      Margin="5,0,0,0" VerticalAlignment="Center"
+                                                      Background="#2196F3" BorderBrush="#1976D2">
+                                                    <materialDesign:PackIcon Kind="ArrowLeft" Width="24" Height="24" />
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
 
-                    <Button Style="{StaticResource MaterialDesignOutlinedButton}" 
-                          Command="{Binding CancelTaskCommand}">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="Cancel" Margin="0,0,5,0" />
-                            <TextBlock Text="בטל משימה" />
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
+                    <!-- Retrieval Tasks List -->
+                    <Border Grid.Column="1" BorderThickness="1" BorderBrush="#DDDDDD" Background="White">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding TaskVM.RetrievalTasks}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource TaskCardStyle}" Margin="5,5,5,0">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Task type indicator bar (left) -->
+                                                <Border Grid.Column="0" Style="{StaticResource TaskTypeIndicatorStyle}"
+                                                      Background="#FF9800" />
+
+                                                <!-- Task details -->
+                                                <Grid Grid.Column="1" Margin="5,0,0,0">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
+                                                    
+                                                    <Grid Grid.Row="0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        
+                                                        <TextBlock Grid.Column="0" Text="קוד:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Code}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                        <Border Grid.Column="2" Background="{Binding Status, Converter={StaticResource TaskStatusToBrushConverter}}" 
+                                                              BorderThickness="0" Padding="5,2" HorizontalAlignment="Left" Margin="0,0,0,0">
+                                                            <TextBlock Text="{Binding Status, Converter={StaticResource TaskStatusToTextConverter}}" 
+                                                                     FontSize="11" Foreground="White" />
+                                                        </Border>
+                                                    </Grid>
+                                                    
+                                                    <StackPanel Grid.Row="1" Margin="0,10,0,0">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="מיקום:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
+                                                            <TextBlock Text="10.45" FontSize="12" Margin="0,0,10,0" />
+                                                        </StackPanel>
+                                                        
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="גובה:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
+                                                            <TextBlock Text="105" FontSize="12" Margin="0,0,10,0" />
+                                                        </StackPanel>
+                                                        
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="מקט:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
+                                                            <TextBlock Text="546" FontSize="12" Margin="0,0,10,0" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Grid>
+
+                                                <!-- Action button -->
+                                                <Button Grid.Column="2" Style="{StaticResource MaterialDesignRaisedButton}" 
+                                                      Command="{Binding DataContext.TaskVM.StartTaskCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                      CommandParameter="{Binding}"
+                                                      Margin="5,0,0,0" VerticalAlignment="Center"
+                                                      Background="#FF9800" BorderBrush="#F57C00">
+                                                    <materialDesign:PackIcon Kind="ArrowLeft" Width="24" Height="24" />
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
             </Grid>
-        </Border>
-
-        <!-- Tasks lists -->
-        <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <!-- Pending Tasks Panel -->
-            <DockPanel Grid.Column="0">
-                <TextBlock DockPanel.Dock="Top" Text="משימות ממתינות" 
-                         FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
-
-                <!-- Filter and sort controls could go here -->
-
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding PendingTasks}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Style="{StaticResource TaskCardStyle}" Margin="5,5,10,15">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <!-- Task type indicator bar (left) -->
-                                        <Border Grid.Column="0" Style="{StaticResource TaskTypeIndicatorStyle}"
-                                              Background="{Binding TaskType, Converter={StaticResource TaskTypeToColorConverter}}" />
-
-                                        <!-- Task details -->
-                                        <StackPanel Grid.Column="1" Margin="5,0,0,0">
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Margin="0,0,0,5" />
-                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
-                                                <TextBlock Text="קוד: " FontSize="12" Foreground="#757575" />
-                                                <TextBlock Text="{Binding Code}" FontSize="12" Foreground="#757575" />
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
-                                                <TextBlock Text="נוצר: " FontSize="12" Foreground="#757575" />
-                                                <TextBlock Text="{Binding CreatedDateTime, StringFormat='dd/MM/yyyy HH:mm'}" 
-                                                         FontSize="12" Foreground="#757575" />
-                                            </StackPanel>
-                                            <Border Background="{Binding Status, Converter={StaticResource TaskStatusToBrushConverter}}" 
-                                                  CornerRadius="3" Padding="5,2" HorizontalAlignment="Left" Margin="0,5,0,0">
-                                                <TextBlock Text="{Binding Status, Converter={StaticResource TaskStatusToTextConverter}}" 
-                                                         FontSize="11" Foreground="White" />
-                                            </Border>
-                                            <TextBlock Text="{Binding Description}" FontSize="12" Margin="0,5,0,0" 
-                                                     TextWrapping="Wrap" MaxHeight="60" />
-                                        </StackPanel>
-
-                                        <!-- Action button -->
-                                        <Button Grid.Column="2" Style="{StaticResource MaterialDesignRaisedButton}" 
-                                              Command="{Binding DataContext.StartTaskCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                              CommandParameter="{Binding}"
-                                              Margin="5,0,0,0" VerticalAlignment="Top">
-                                            <TextBlock Text="התחל" />
-                                        </Button>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </DockPanel>
-
-            <!-- Separator -->
-            <Rectangle Grid.Column="1" Width="1" Fill="#E0E0E0" Margin="15,0" />
-
-            <!-- Completed Tasks Panel -->
-            <DockPanel Grid.Column="2">
-                <TextBlock DockPanel.Dock="Top" Text="משימות שהושלמו" 
-                         FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
-
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding CompletedTasks}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Style="{StaticResource TaskCardStyle}" Margin="10,5,5,15" Opacity="0.8">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <!-- Task type indicator bar (left) -->
-                                        <Border Grid.Column="0" Style="{StaticResource TaskTypeIndicatorStyle}"
-                                              Background="{Binding TaskType, Converter={StaticResource TaskTypeToColorConverter}}" />
-
-                                        <!-- Task details -->
-                                        <StackPanel Grid.Column="1" Margin="5,0,0,0">
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Margin="0,0,0,5" />
-                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
-                                                <TextBlock Text="קוד: " FontSize="12" Foreground="#757575" />
-                                                <TextBlock Text="{Binding Code}" FontSize="12" Foreground="#757575" />
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
-                                                <TextBlock Text="נוצר: " FontSize="12" Foreground="#757575" />
-                                                <TextBlock Text="{Binding CreatedDateTime, StringFormat='dd/MM/yyyy HH:mm'}" 
-                                                         FontSize="12" Foreground="#757575" />
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
-                                                <TextBlock Text="הושלם: " FontSize="12" Foreground="#757575" />
-                                                <TextBlock Text="{Binding ExecutedDateTime, StringFormat='dd/MM/yyyy HH:mm'}" 
-                                                         FontSize="12" Foreground="#757575" />
-                                            </StackPanel>
-                                            <Border Background="{Binding Status, Converter={StaticResource TaskStatusToBrushConverter}}" 
-                                                  CornerRadius="3" Padding="5,2" HorizontalAlignment="Left" Margin="0,5,0,0">
-                                                <TextBlock Text="{Binding Status, Converter={StaticResource TaskStatusToTextConverter}}" 
-                                                         FontSize="11" Foreground="White" />
-                                            </Border>
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </DockPanel>
         </Grid>
     </Grid>
 </UserControl>

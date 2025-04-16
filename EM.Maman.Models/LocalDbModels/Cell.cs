@@ -31,5 +31,7 @@ public partial class Cell
 
     public DateTime? LastModified { get; set; }
 
+    public int? Depth { get; set; }
+
     public virtual Level HeightLevelNavigation { get; set; }
 }

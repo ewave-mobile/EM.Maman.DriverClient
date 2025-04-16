@@ -7,7 +7,7 @@
         xmlns:vm="clr-namespace:EM.Maman.DriverClient.ViewModels"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         mc:Ignorable="d"
-        Title="Export Task" Height="600" Width="900"
+        Title="Retrieval Task" Height="600" Width="900"
         WindowStartupLocation="CenterOwner"
         Background="White"
         FlowDirection="RightToLeft"
@@ -40,7 +40,7 @@
 
         <!-- Header -->
         <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
-                   Text="יצירת משימת יצוא"
+                   Text="יצירת משימת שליפה"
                    FontSize="24" FontWeight="Bold"
                    Margin="0,0,0,20"/>
 
@@ -79,7 +79,7 @@
                           ItemsSource="{Binding AvailablePallets}"
                           SelectedItem="{Binding SelectedPallet}"
                           DisplayMemberPath="DisplayName"
-                          materialDesign:HintAssist.Hint="בחר משטח ליצוא"
+                          materialDesign:HintAssist.Hint="בחר משטח לשליפה"
                           IsEnabled="{Binding IsEditingPallet, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}"/>
                 <Button Grid.Column="1" Command="{Binding EditPalletCommand}" 
                         Margin="5,0,0,0" ToolTip="ערוך פרטי משטח">
@@ -248,7 +248,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="תצוגה מקדימה - מדבקת יצוא" 
+                <TextBlock Grid.Row="0" Text="תצוגה מקדימה - מדבקת שליפה" 
                            FontWeight="Bold" HorizontalAlignment="Center"
                            Margin="0,0,0,15"/>
 
@@ -270,7 +270,7 @@
                         <!-- Top orange bar -->
                         <Border Grid.Row="0" Background="#F57F17" Height="30" 
                                 Margin="-10,-10,-10,10">
-                            <TextBlock Text="EXPORT" FontWeight="Bold" FontSize="16" 
+                            <TextBlock Text="RETRIEVAL" FontWeight="Bold" FontSize="16" 
                                        Foreground="White" HorizontalAlignment="Center" 
                                        VerticalAlignment="Center"/>
                         </Border>

@@ -395,7 +395,17 @@ namespace EM.Maman.DriverClient.ViewModels
                             LeftOuterPallet = leftOuter != null && palletsByCellId.ContainsKey(leftOuter.Id) ? palletsByCellId[leftOuter.Id] : null,
                             LeftInnerPallet = leftInner != null && palletsByCellId.ContainsKey(leftInner.Id) ? palletsByCellId[leftInner.Id] : null,
                             RightOuterPallet = rightOuter != null && palletsByCellId.ContainsKey(rightOuter.Id) ? palletsByCellId[rightOuter.Id] : null,
-                            RightInnerPallet = rightInner != null && palletsByCellId.ContainsKey(rightInner.Id) ? palletsByCellId[rightInner.Id] : null
+                            RightInnerPallet = rightInner != null && palletsByCellId.ContainsKey(rightInner.Id) ? palletsByCellId[rightInner.Id] : null,
+                            
+                            // Initialize additional cells (initially null)
+                            LeftCell3 = null,
+                            LeftCell4 = null,
+                            RightCell3 = null,
+                            RightCell4 = null,
+                            
+                            // Initialize finger pallet counts (for level 1 only)
+                            LeftFingerPalletCount = level.Number == 1 && leftFinger != null ? new Random().Next(0, 5) : 0,
+                            RightFingerPalletCount = level.Number == 1 && rightFinger != null ? new Random().Next(0, 5) : 0
                         };
 
                         compositeLevel.Rows.Add(row);

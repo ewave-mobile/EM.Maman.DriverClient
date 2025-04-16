@@ -9,41 +9,55 @@ using System.Windows;
 
 namespace EM.Maman.DriverClient.Converters
 {
-    // Converts boolean to inverted boolean or visibility
+    /// <summary>
+    /// Converts a boolean to its inverse value and then to a visibility
+    /// </summary>
     public class BoolInverterConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is bool boolValue)
             {
-                if (parameter != null && parameter.ToString() == "Invert")
-                {
-                    // For explicit "Invert" parameter
-                    if (targetType == typeof(Visibility))
-                        return boolValue ? Visibility.Collapsed : Visibility.Visible;
-                    return !boolValue;
-                }
-                else if (parameter != null && parameter.ToString() == "Visibility")
-                {
-                    // For backward compatibility
-                    return boolValue ? Visibility.Collapsed : Visibility.Visible;
-                }
+                // Invert the boolean value
+                bool invertedValue = !boolValue;
 
-                // Default behavior is to invert the boolean
+                // Convert to visibility
                 if (targetType == typeof(Visibility))
-                    return boolValue ? Visibility.Collapsed : Visibility.Visible;
-                return !boolValue;
+                {
+                    return invertedValue ? Visibility.Visible : Visibility.Collapsed;
+                }
+                
+                // Return the inverted boolean if the target type is boolean
+                return invertedValue;
             }
-            return value;
+            
+            // Default to collapsed if not a boolean
+            if (targetType == typeof(Visibility))
+            {
+                return Visibility.Collapsed;
+            }
+            
+            return false;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
+            if (value is Visibility visibility)
+            {
+                // Convert back from visibility to inverted boolean
+                bool visibleValue = visibility == Visibility.Visible;
+                
+                // Return the inverted value
+                return !visibleValue;
+            }
+            
             if (value is bool boolValue)
             {
+                // Return the inverted boolean
                 return !boolValue;
             }
-            return value;
+            
+            return false;
         }
     }
 }

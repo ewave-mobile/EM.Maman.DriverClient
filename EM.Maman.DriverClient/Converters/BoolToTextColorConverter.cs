@@ -1,26 +1,35 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Data;
 using System.Windows.Media;
 
 namespace EM.Maman.DriverClient.Converters
 {
-    /// <summary>
-    /// Converts a boolean to text color for tab selection
-    /// </summary>
     public class BoolToTextColorConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is bool isSelected && isSelected)
+            if (value is bool isSelected)
             {
-                return new SolidColorBrush(Colors.White);
+                bool isForSelected = true;
+                if (parameter is string paramStr && paramStr.ToLower() == "false")
+                {
+                    isForSelected = false;
+                }
+
+                // If this is for the selected tab and it is selected, or
+                // if this is for the unselected tab and it is not selected
+                if ((isForSelected && isSelected) || (!isForSelected && !isSelected))
+                {
+                    return new SolidColorBrush(Color.FromRgb(33, 150, 243)); // #2196F3 (Blue)
+                }
+                else
+                {
+                    return new SolidColorBrush(Color.FromRgb(117, 117, 117)); // #757575 (Gray)
+                }
             }
-            return new SolidColorBrush(Color.FromRgb(75, 85, 99)); // #4B5563 - gray
+
+            return new SolidColorBrush(Colors.Black);
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

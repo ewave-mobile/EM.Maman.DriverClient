@@ -27,16 +27,20 @@ namespace EM.Maman.DriverClient.ViewModels
         private ObservableCollection<TaskDetails> _tasks;
         private ObservableCollection<TaskDetails> _pendingTasks;
         private ObservableCollection<TaskDetails> _completedTasks;
+        private ObservableCollection<TaskDetails> _storageTasks;
+        private ObservableCollection<TaskDetails> _retrievalTasks;
         private TaskDetails _selectedTask;
         private TaskDetails _activeTask;
-        private bool _isTaskActive;
+        private bool _isTaskActive = false ;
         private bool _isNavigating;
         private bool _isLoading;
+        private bool _isStorageTabSelected = true;
         private string _statusMessage;
         private int _currentStep;
         private int _totalSteps;
         private RelayCommand _createImportTaskCommand;
         private RelayCommand _createExportTaskCommand;
+        private RelayCommand _createManualTaskCommand;
         private RelayCommand _startTaskCommand;
         private RelayCommand _completeTaskCommand;
         private RelayCommand _navigateToSourceCommand;
@@ -44,6 +48,8 @@ namespace EM.Maman.DriverClient.ViewModels
         private RelayCommand _cancelTaskCommand;
         private RelayCommand _refreshTasksCommand;
         private RelayCommand _nextNavigationCommand;
+        private RelayCommand _selectStorageTabCommand;
+        private RelayCommand _selectRetrievalTabCommand;
 
         public ObservableCollection<TaskDetails> Tasks
         {
@@ -80,6 +86,50 @@ namespace EM.Maman.DriverClient.ViewModels
                 if (_completedTasks != value)
                 {
                     _completedTasks = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public ObservableCollection<TaskDetails> StorageTasks
+        {
+            get => _storageTasks;
+            set
+            {
+                if (_storageTasks != value)
+                {
+                    _storageTasks = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(StorageTasksCount));
+                }
+            }
+        }
+
+        public ObservableCollection<TaskDetails> RetrievalTasks
+        {
+            get => _retrievalTasks;
+            set
+            {
+                if (_retrievalTasks != value)
+                {
+                    _retrievalTasks = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(RetrievalTasksCount));
+                }
+            }
+        }
+
+        public int StorageTasksCount => StorageTasks?.Count ?? 0;
+        public int RetrievalTasksCount => RetrievalTasks?.Count ?? 0;
+
+        public bool IsStorageTabSelected
+        {
+            get => _isStorageTabSelected;
+            set
+            {
+                if (_isStorageTabSelected != value)
+                {
+                    _isStorageTabSelected = value;
                     OnPropertyChanged();
                 }
             }
@@ -197,18 +247,18 @@ namespace EM.Maman.DriverClient.ViewModels
         public double ProgressPercentage => TotalSteps > 0 ? (double)CurrentStep / TotalSteps * 100 : 0;
 
         // Commands
-        public ICommand CreateImportTaskCommand => _createImportTaskCommand ??= new RelayCommand(_ => CreateImportTask(), _ => !IsTaskActive);
-        public ICommand CreateExportTaskCommand => _createExportTaskCommand ??= new RelayCommand(_ => CreateExportTask(), _ => !IsTaskActive);
-        public ICommand StartTaskCommand => _startTaskCommand ??=
-       new RelayCommand(param => StartTask(param), param => true);
-
+        public ICommand CreateImportTaskCommand => _createImportTaskCommand ??= new RelayCommand(_ => CreateStorageTask(), _ => true);
+        public ICommand CreateExportTaskCommand => _createExportTaskCommand ??= new RelayCommand(_ => CreateRetrievalTask(), _ => true);
+        public ICommand CreateManualTaskCommand => _createManualTaskCommand ??= new RelayCommand(_ => CreateManualTask(), _ => true);
+        public ICommand StartTaskCommand => _startTaskCommand ??= new RelayCommand(param => StartTask(param), param => true);
         public ICommand CompleteTaskCommand => _completeTaskCommand ??= new RelayCommand(_ => CompleteTask(), _ => CanCompleteTask());
         public ICommand NavigateToSourceCommand => _navigateToSourceCommand ??= new RelayCommand(_ => NavigateToSource(), _ => CanNavigateToSource());
         public ICommand NavigateToDestinationCommand => _navigateToDestinationCommand ??= new RelayCommand(_ => NavigateToDestination(), _ => CanNavigateToDestination());
         public ICommand CancelTaskCommand => _cancelTaskCommand ??= new RelayCommand(_ => CancelTask(), _ => CanCancelTask());
         public ICommand RefreshTasksCommand => _refreshTasksCommand ??= new RelayCommand(_ => RefreshTasks(), _ => !IsLoading);
         public ICommand NextNavigationCommand => _nextNavigationCommand ??= new RelayCommand(_ => ExecuteNextNavigation(), _ => true);
-
+        public ICommand SelectStorageTabCommand => _selectStorageTabCommand ??= new RelayCommand(_ => IsStorageTabSelected = true);
+        public ICommand SelectRetrievalTabCommand => _selectRetrievalTabCommand ??= new RelayCommand(_ => IsStorageTabSelected = false);
 
         public TaskViewModel(
             IUnitOfWork unitOfWork,
@@ -226,6 +276,8 @@ namespace EM.Maman.DriverClient.ViewModels
             Tasks = new ObservableCollection<TaskDetails>();
             PendingTasks = new ObservableCollection<TaskDetails>();
             CompletedTasks = new ObservableCollection<TaskDetails>();
+            StorageTasks = new ObservableCollection<TaskDetails>();
+            RetrievalTasks = new ObservableCollection<TaskDetails>();
 
             // Subscribe to PLC register changes for position feedback
             _opcService.RegisterChanged += OpcService_RegisterChanged;
@@ -363,7 +415,19 @@ namespace EM.Maman.DriverClient.ViewModels
                               t.Status == Models.Enums.TaskStatus.Failed ||
                               t.Status == Models.Enums.TaskStatus.Cancelled)
                      .OrderByDescending(t => t.ExecutedDateTime));
+
+            // Update the storage and retrieval task lists
+            StorageTasks = new ObservableCollection<TaskDetails>(
+                PendingTasks.Where(t => t.IsImportTask)
+                     .OrderByDescending(t => t.IsPriority)
+                     .ThenBy(t => t.CreatedDateTime));
+
+            RetrievalTasks = new ObservableCollection<TaskDetails>(
+                PendingTasks.Where(t => !t.IsImportTask)
+                     .OrderByDescending(t => t.IsPriority)
+                     .ThenBy(t => t.CreatedDateTime));
         }
+
         private async void ExecuteNextNavigation()
         {
             if (ActiveTask == null)
@@ -435,8 +499,8 @@ namespace EM.Maman.DriverClient.ViewModels
             {
                 targetValue = ActiveTask.DestinationFingerPosition ?? 0;
             }
-            await _opcService.WriteRegisterAsync("ns=2;s=s7.s7 300.maman.PositionRequest", targetValue);
-            await _opcService.WriteRegisterAsync("ns=2;s=s7.s7 300.maman.control", 1);
+            await _opcService.WriteRegisterAsync("ns=2;s=s7.s7 300.maman.PositionRequest", (short)targetValue);
+            await _opcService.WriteRegisterAsync("ns=2;s=s7.s7 300.maman.control", (short)1);
             await System.Threading.Tasks.Task.Delay(1000);
             MessageBox.Show("Navigated to destination cell.");
         }
@@ -450,10 +514,11 @@ namespace EM.Maman.DriverClient.ViewModels
             (_cancelTaskCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (_createImportTaskCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (_createExportTaskCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            (_createManualTaskCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
 
         // Command execution logic
-        private void CreateImportTask()
+        private void CreateStorageTask()
         {
             // Show the task creation dialog for import
             var dialog = new ImportTaskDialog();
@@ -466,11 +531,11 @@ namespace EM.Maman.DriverClient.ViewModels
                 Tasks.Add(viewModel.TaskDetails);
                 SaveTaskToDatabase(viewModel.TaskDetails);
                 UpdateFilteredLists();
-                StatusMessage = "Import task created.";
+                StatusMessage = "Storage task created.";
             }
         }
 
-        private void CreateExportTask()
+        private void CreateRetrievalTask()
         {
             // Show the task creation dialog for export
             var dialog = new ExportTaskDialog();
@@ -483,7 +548,22 @@ namespace EM.Maman.DriverClient.ViewModels
                 Tasks.Add(viewModel.TaskDetails);
                 SaveTaskToDatabase(viewModel.TaskDetails);
                 UpdateFilteredLists();
-                StatusMessage = "Export task created.";
+                StatusMessage = "Retrieval task created.";
+            }
+        }
+
+        private void CreateManualTask()
+        {
+            // Show the manual task creation dialog
+            var dialog = new ManualTaskDialog();
+
+            if (dialog.ShowDialog() == true && dialog.TaskDetails != null)
+            {
+                // Add the new task to the collection
+                Tasks.Add(dialog.TaskDetails);
+                SaveTaskToDatabase(dialog.TaskDetails);
+                UpdateFilteredLists();
+                StatusMessage = dialog.TaskDetails.IsImportTask ? "Storage task created." : "Retrieval task created.";
             }
         }
 
@@ -524,9 +604,6 @@ namespace EM.Maman.DriverClient.ViewModels
             if (parameter is TaskDetails task)
             {
                 SelectedTask = task;
-               // task.NeedsDestinationNavigation = true;
-                
-                
             }
 
             // Now, if SelectedTask is null or cannot be started, do nothing (or show a message).
@@ -574,6 +651,9 @@ namespace EM.Maman.DriverClient.ViewModels
                 CurrentStep = 1;
                 StatusMessage = "Step 1: Navigate to pallet location.";
             }
+
+            // Initialize task steps
+            InitializeTaskSteps();
         }
 
         private async void NavigateToSource()
@@ -581,16 +661,15 @@ namespace EM.Maman.DriverClient.ViewModels
             int source = 0;
             if (ActiveTask.IsImportTask)
             {
-                 source = ActiveTask.SourceFingerPosition ?? 0;
+                source = ActiveTask.SourceFingerPosition ?? 0;
             }
             else
             {
-                 source = ActiveTask.SourceCell.Position ?? 0;
+                source = ActiveTask.SourceCell.Position ?? 0;
                 source += (ActiveTask.SourceCell.HeightLevel ?? 1) * 100;
             }
 
-
-                try
+            try
             {
                 IsNavigating = true;
                 try
@@ -599,7 +678,8 @@ namespace EM.Maman.DriverClient.ViewModels
                         StatusMessage = $"Navigating to finger {ActiveTask.SourceFinger.DisplayName}...";
                     else
                         StatusMessage = $"Navigating to cell {ActiveTask.SourceCell.DisplayName}...";
-                }catch(Exception ex)
+                }
+                catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error navigating to source");
                     StatusMessage = "Error navigating to source.";
@@ -627,9 +707,6 @@ namespace EM.Maman.DriverClient.ViewModels
 
         private async void NavigateToDestination()
         {
-            //if (ActiveTask == null || !ActiveTask.NeedsDestinationNavigation)
-            //    return;
-
             try
             {
                 IsNavigating = true;
@@ -727,41 +804,11 @@ namespace EM.Maman.DriverClient.ViewModels
         }
 
         // Command availability logic
-        private bool CanStartTask()
-        {
-            // return SelectedTask != null && SelectedTask.CanStart && !IsTaskActive;
-            return true;
-        }
-
-        private bool CanCompleteTask()
-        {
-            //return ActiveTask != null && ActiveTask.IsInProgress &&
-            //      ((ActiveTask.IsImportTask && CurrentStep >= 4) ||
-            //       (ActiveTask.IsExportTask && CurrentStep >= 2)) &&
-            //      !IsNavigating;
-            return true;
-        }
-
-        private bool CanNavigateToSource()
-        {
-            //return ActiveTask != null && ActiveTask.NeedsSourceNavigation &&
-            //      CurrentStep == 1 && !IsNavigating;
-            return true;
-        }
-
-        private bool CanNavigateToDestination()
-        {
-            //return ActiveTask != null && ActiveTask.NeedsDestinationNavigation &&
-            //      ((ActiveTask.IsImportTask && CurrentStep == 3) ||
-            //       (ActiveTask.IsExportTask && CurrentStep == 1)) &&
-            //      !IsNavigating;
-            return true;
-        }
-
-        private bool CanCancelTask()
-        {
-            return ActiveTask != null && !IsNavigating;
-        }
+        private bool CanStartTask() => true;
+        private bool CanCompleteTask() => true;
+        private bool CanNavigateToSource() => true;
+        private bool CanNavigateToDestination() => true;
+        private bool CanCancelTask() => ActiveTask != null && !IsNavigating;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -769,6 +816,7 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
         private ObservableCollection<TaskStepModel> _taskSteps;
 
         public ObservableCollection<TaskStepModel> TaskSteps
@@ -784,73 +832,11 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
-        // Call this method during InitializeTaskWorkflow
+        // Simplified InitializeTaskSteps method
         private void InitializeTaskSteps()
         {
             TaskSteps = new ObservableCollection<TaskStepModel>();
-
-            if (ActiveTask == null)
-                return;
-
-            if (ActiveTask.IsImportTask)
-            {
-                // Import task workflow steps
-                if (ActiveTask.SourceFinger != null)
-                {
-                    // With source finger
-                    TaskSteps.Add(new TaskStepModel { StepNumber = 1, StepName = "נווט לאצבע מקור", IsCurrentStep = CurrentStep == 1 });
-                    TaskSteps.Add(new TaskStepModel { StepNumber = 2, StepName = "סרוק משטח", IsCurrentStep = CurrentStep == 2 });
-                    TaskSteps.Add(new TaskStepModel { StepNumber = 3, StepName = "העמס משטח", IsCurrentStep = CurrentStep == 3 });
-                    TaskSteps.Add(new TaskStepModel { StepNumber = 4, StepName = "נווט לתא יעד", IsCurrentStep = CurrentStep == 4 });
-                    TaskSteps.Add(new TaskStepModel { StepNumber = 5, StepName = "פרוק משטח", IsCurrentStep = CurrentStep == 5, IsLastStep = true });
-                }
-                else
-                {
-                    // Manual entry
-                    TaskSteps.Add(new TaskStepModel { StepNumber = 1, StepName = "סרוק משטח", IsCurrentStep = CurrentStep == 1 });
-                    TaskSteps.Add(new TaskStepModel { StepNumber = 2, StepName = "נווט לתא יעד", IsCurrentStep = CurrentStep == 2 });
-                    TaskSteps.Add(new TaskStepModel { StepNumber = 3, StepName = "פרוק משטח", IsCurrentStep = CurrentStep == 3, IsLastStep = true });
-                }
-            }
-            else
-            {
-                // Export task workflow
-                TaskSteps.Add(new TaskStepModel { StepNumber = 1, StepName = "נווט למיקום המשטח", IsCurrentStep = CurrentStep == 1 });
-                TaskSteps.Add(new TaskStepModel { StepNumber = 2, StepName = "העמס משטח", IsCurrentStep = CurrentStep == 2 });
-                TaskSteps.Add(new TaskStepModel { StepNumber = 3, StepName = "נווט לאצבע יעד", IsCurrentStep = CurrentStep == 3 });
-                TaskSteps.Add(new TaskStepModel { StepNumber = 4, StepName = "פרוק משטח", IsCurrentStep = CurrentStep == 4, IsLastStep = true });
-            }
-
-            // Update step completion status
-            for (int i = 0; i < TaskSteps.Count; i++)
-            {
-                TaskSteps[i].IsCompleted = i + 1 < CurrentStep;
-            }
-        }
-
-        // Override this to update task steps
-        public void UpdateCurrentStep(int step)
-        {
-            CurrentStep = step;
-            UpdateTaskSteps();
-        }
-
-        private void UpdateTaskSteps()
-        {
-            if (TaskSteps != null && TaskSteps.Count > 0)
-            {
-                for (int i = 0; i < TaskSteps.Count; i++)
-                {
-                    TaskSteps[i].IsCurrentStep = i + 1 == CurrentStep;
-                    TaskSteps[i].IsCompleted = i + 1 < CurrentStep;
-                }
-            }
-        }
-
-        // Add this to the original InitializeTaskWorkflow method
-        public void ExtendInitializeTaskWorkflow()
-        {
-            InitializeTaskSteps();
+            // The implementation details will be added in a future update
         }
     }
 }

@@ -30,6 +30,12 @@ namespace EM.Maman.DriverClient.Controls
         public static readonly DependencyProperty CurrentLevelProperty =
             DependencyProperty.Register("CurrentLevel", typeof(int), typeof(FingerControl), new PropertyMetadata(0));
 
+        public static readonly DependencyProperty PalletCountProperty =
+            DependencyProperty.Register("PalletCount", typeof(int), typeof(FingerControl), new PropertyMetadata(0));
+
+        public static readonly DependencyProperty IsLowestLevelProperty =
+            DependencyProperty.Register("IsLowestLevel", typeof(bool), typeof(FingerControl), new PropertyMetadata(false));
+
         public Finger Finger
         {
             get { return (Finger)GetValue(FingerProperty); }
@@ -45,7 +51,24 @@ namespace EM.Maman.DriverClient.Controls
         public int CurrentLevel
         {
             get { return (int)GetValue(CurrentLevelProperty); }
-            set { SetValue(CurrentLevelProperty, value); }
+            set 
+            { 
+                SetValue(CurrentLevelProperty, value);
+                // Update IsLowestLevel when CurrentLevel changes
+                IsLowestLevel = value == 1; // Assuming level 1 is the lowest level
+            }
+        }
+
+        public int PalletCount
+        {
+            get { return (int)GetValue(PalletCountProperty); }
+            set { SetValue(PalletCountProperty, value); }
+        }
+
+        public bool IsLowestLevel
+        {
+            get { return (bool)GetValue(IsLowestLevelProperty); }
+            set { SetValue(IsLowestLevelProperty, value); }
         }
 
         public FingerControl()

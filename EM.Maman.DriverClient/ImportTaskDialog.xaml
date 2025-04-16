@@ -12,7 +12,7 @@
         WindowStartupLocation="CenterOwner"
         Background="White"
         FlowDirection="RightToLeft"
-        d:DataContext="{d:DesignInstance Type=vm:ImportTaskViewModel}">
+        d:DataContext= "{d:DesignInstance Type=vm:ImportTaskViewModel}">
     <Window.Resources>
         
     </Window.Resources>
