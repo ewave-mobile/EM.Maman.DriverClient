@@ -1,0 +1,128 @@
+<Window x:Class="EM.Maman.DriverClient.AuthenticationDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:EM.Maman.DriverClient"
+        xmlns:vm="clr-namespace:EM.Maman.DriverClient.ViewModels"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        mc:Ignorable="d"
+        Title="אימות פלט לפני העמסה" Height="450" Width="400"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="ToolWindow"
+        ResizeMode="NoResize"
+        FlowDirection="RightToLeft"
+        d:DataContext="{d:DesignInstance Type=vm:AuthenticationDialogViewModel}">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Removed redundant Material Design Defaults reference as it's loaded in App.xaml -->
+                <!-- <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Defaults.xaml" /> -->
+                <!-- Include other necessary resource dictionaries if needed -->
+            </ResourceDictionary.MergedDictionaries>
+            <Style TargetType="TextBlock" x:Key="LabelStyle">
+                <Setter Property="Foreground" Value="Gray"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Margin" Value="0,0,0,2"/>
+            </Style>
+            <Style TargetType="TextBlock" x:Key="ValueStyle">
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="FontSize" Value="14"/>
+            </Style>
+             <Style TargetType="Border" x:Key="DetailBorderStyle">
+                <Setter Property="BorderBrush" Value="#EEEEEE"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="10"/>
+                <Setter Property="Margin" Value="0,0,0,15"/>
+                <Setter Property="CornerRadius" Value="4"/>
+             </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="אימות פלטים לפני העמסה" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+
+        <!-- Pallet Details Section -->
+        <Border Grid.Row="1" Style="{StaticResource DetailBorderStyle}">
+             <StackPanel>
+                 <TextBlock Text="פרטי פאלט" FontSize="16" FontWeight="Medium" Margin="0,0,0,10" HorizontalAlignment="Center"/>
+                 <Grid>
+                     <Grid.ColumnDefinitions>
+                         <ColumnDefinition Width="*"/>
+                         <ColumnDefinition Width="*"/>
+                         <ColumnDefinition Width="*"/>
+                         <ColumnDefinition Width="*"/>
+                         <ColumnDefinition Width="*"/>
+                         <ColumnDefinition Width="*"/>
+                     </Grid.ColumnDefinitions>
+                     <Grid.RowDefinitions>
+                         <RowDefinition Height="Auto"/>
+                         <RowDefinition Height="Auto"/>
+                     </Grid.RowDefinitions>
+
+                     <!-- Labels -->
+                     <TextBlock Grid.Row="0" Grid.Column="0" Text="פרט" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/>
+                     <TextBlock Grid.Row="0" Grid.Column="1" Text="מופע" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/>
+                     <TextBlock Grid.Row="0" Grid.Column="2" Text="מצהר" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/>
+                     <TextBlock Grid.Row="0" Grid.Column="3" Text="סוג פלט" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/>
+                     <TextBlock Grid.Row="0" Grid.Column="4" Text="גובה" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/>
+                     <TextBlock Grid.Row="0" Grid.Column="5" Text="שעה" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/>
+                     <!-- <TextBlock Grid.Row="0" Grid.Column="6" Text="תעדוף" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/> -->
+
+                     <!-- Values -->
+                     <Border Grid.Row="1" Grid.Column="0" Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="2">
+                         <TextBlock Text="{Binding ItemToAuthenticate.PalletDetails.UldCode}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
+                     </Border>
+                     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ItemToAuthenticate.PalletDetails.Instance}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/>
+                     <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding ItemToAuthenticate.PalletDetails.DeclarationNumber}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/>
+                     <Border Grid.Row="1" Grid.Column="3" Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="2">
+                         <TextBlock Text="{Binding ItemToAuthenticate.PalletDetails.PalletType}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
+                     </Border>
+                     <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding ItemToAuthenticate.PalletDetails.Height}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/>
+                     <TextBlock Grid.Row="1" Grid.Column="5" Text="{Binding ItemToAuthenticate.OriginalTask.CreatedDateTime, StringFormat='HH:mm'}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/>
+                     <!-- <TextBlock Grid.Row="1" Grid.Column="6" Text="{Binding ItemToAuthenticate.OriginalTask.IsPriority}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/> -->
+
+                 </Grid>
+             </StackPanel>
+        </Border>
+
+        <!-- Authentication Input Section -->
+         <Border Grid.Row="2" Style="{StaticResource DetailBorderStyle}">
+             <StackPanel>
+                 <TextBlock Text="אימות פלט" FontSize="16" FontWeight="Medium" Margin="0,0,0,10" HorizontalAlignment="Center"/>
+                 <TextBox x:Name="UldCodeTextBox"
+                          materialDesign:HintAssist.Hint="מספר פרט"
+                          Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                          Text="{Binding EnteredUldCode, UpdateSourceTrigger=PropertyChanged}"
+                          Margin="10,0"
+                          HorizontalAlignment="Stretch"
+                          TextAlignment="Center"
+                          FontSize="16"/>
+             </StackPanel>
+         </Border>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center">
+            <Button Content="אישור"
+                    Command="{Binding ConfirmCommand}"
+                    CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                    Style="{StaticResource MaterialDesignRaisedButton}"
+                    Background="#2196F3" BorderBrush="#1976D2"
+                    Width="120" Margin="0,0,10,0"/>
+            <Button Content="ביטול"
+                    Command="{Binding CancelCommand}"
+                    CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                    Width="120"/>
+        </StackPanel>
+    </Grid>
+</Window>

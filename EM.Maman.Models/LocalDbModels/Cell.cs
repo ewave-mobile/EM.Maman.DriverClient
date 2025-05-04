@@ -34,4 +34,6 @@ public partial class Cell
     public int? Depth { get; set; }
 
     public virtual Level HeightLevelNavigation { get; set; }
+
+    public virtual ICollection<Task> Tasks { get; set; } = new List<Task>();
 }

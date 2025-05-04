@@ -179,7 +179,7 @@ namespace EM.Maman.DriverClient.ViewModels
 
             // Load data
             LoadFingersAsync();
-            LoadPalletsAsync();
+            LoadPalletsAsync(); // Keep loading pallets (assuming this might be correct or needs separate review)
         }
 
         private string GenerateTaskCode()
@@ -190,8 +190,25 @@ namespace EM.Maman.DriverClient.ViewModels
 
         private async System.Threading.Tasks.Task LoadFingersAsync()
         {
-            await System.Threading.Tasks.Task.Delay(100);
-            Fingers = new ObservableCollection<Finger>(TestDatabase.Fingers.OrderBy(f => f.Position));
+            try
+            {
+                IsBusy = true; // Use IsBusy for feedback
+                StatusMessage = "Loading fingers...";
+                var fingersFromDb = await _unitOfWork.Fingers.GetAllAsync(); // Fetch from DB
+                Fingers = new ObservableCollection<Finger>(fingersFromDb.OrderBy(f => f.Position));
+                StatusMessage = $"Loaded {Fingers.Count} fingers.";
+            }
+            catch (Exception ex)
+            {
+                // Log the error appropriately
+                StatusMessage = "Error loading fingers.";
+                // Consider showing a message box or logging
+                System.Windows.MessageBox.Show($"Error loading fingers: {ex.Message}", "Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
         }
 
         private async System.Threading.Tasks.Task LoadPalletsAsync()
@@ -235,17 +252,27 @@ namespace EM.Maman.DriverClient.ViewModels
                 return;
             }
 
-            // If we're editing the pallet, update its properties
+            // If we're editing the pallet, update its properties in the SelectedPallet object
+            // Note: This doesn't save to DB here, TaskViewModel handles that.
             if (IsEditingPallet && SelectedPallet != null)
             {
                 ApplyPalletChanges(SelectedPallet);
             }
-            var source = TestDatabase.CellWithPalletInfos.FirstOrDefault(c => c.Pallet.Id == TaskDetails.Pallet.Id).Cell;
-            TaskDetails.SourceCell = source;
-            // Set the task name using the pallet info
-            TaskDetails.Name = $"Export {TaskDetails.Pallet.DisplayName} to {TaskDetails.DestinationFinger.DisplayName}";
 
-            // Close the dialog with success result
+            // Ensure the TaskDetails object has the correct Pallet and DestinationFinger
+            TaskDetails.Pallet = SelectedPallet; // Assign the selected pallet
+            TaskDetails.DestinationFinger = SelectedDestinationFinger; // Assign selected finger
+
+            // We need to determine the SourceCell based on the SelectedPallet.
+            // This requires querying the database (PalletInCell table) to find where the pallet currently is.
+            // This logic should ideally be in TaskViewModel.SaveTaskToDatabase or called from there.
+            // For now, we'll leave TaskDetails.SourceCell null and let TaskViewModel handle finding it.
+            TaskDetails.SourceCell = null; // TaskViewModel needs to find this before saving the Task
+
+            // Set a descriptive name
+            TaskDetails.Name = $"Export {TaskDetails.Pallet?.DisplayName ?? "N/A"} to {TaskDetails.DestinationFinger?.DisplayName ?? "N/A"}";
+
+            // Close the dialog, indicating success. TaskViewModel will handle the actual DB save.
             RequestClose?.Invoke(this, new DialogResultEventArgs(true));
         }
 

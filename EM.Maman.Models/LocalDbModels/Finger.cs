@@ -18,4 +18,6 @@ public partial class Finger
     public string DisplayColor { get; set; }
 
     public int? Side { get; set; }
+
+    public virtual ICollection<Task> Tasks { get; set; } = new List<Task>();
 }

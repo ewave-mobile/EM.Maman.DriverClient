@@ -1,287 +1,336 @@
 ﻿<UserControl x:Class="EM.Maman.DriverClient.Views.TasksView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:EM.Maman.DriverClient.Views"
              xmlns:vm="clr-namespace:EM.Maman.DriverClient.ViewModels"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters"
-             mc:Ignorable="d" 
+             mc:Ignorable="d"
              d:DesignHeight="800" d:DesignWidth="800"
-             FlowDirection="RightToLeft">
+             FlowDirection="RightToLeft"
+             Background="White">
 
     <UserControl.Resources>
         <ResourceDictionary>
-            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
-            <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
-            <converters:TaskTypeToColorConverter x:Key="TaskTypeToColorConverter" />
-            <converters:TaskStatusToTextConverter x:Key="TaskStatusToTextConverter" />
-            <converters:TaskStatusToColorConverter x:Key="TaskStatusToColorConverter" />
-            <converters:TaskStatusToBrushConverter x:Key="TaskStatusToBrushConverter" />
-            <converters:BoolInverterConverter x:Key="BoolInverterConverter" />
-            <converters:BoolToTabColorConverter x:Key="BoolToTabColorConverter" />
-            <converters:BoolToTextColorConverter x:Key="BoolToTextColorConverter" />
+            <!-- Removed local merging of Material Design defaults. Assume it's handled in App.xaml -->
+            <!-- <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Defaults.xaml" />
+            </ResourceDictionary.MergedDictionaries> -->
 
-            <Style x:Key="TaskCardStyle" TargetType="Border">
-                <Setter Property="Margin" Value="5" />
-                <Setter Property="Padding" Value="10" />
-                <Setter Property="BorderBrush" Value="#BDBDBD" />
-                <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="Background" Value="White" />
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+            <converters:TaskStatusToBrushConverter x:Key="TaskStatusToBrushConverter" />
+            <converters:TaskStatusToTextConverter x:Key="TaskStatusToTextConverter" />
+            <converters:TaskTypeToColorConverter x:Key="TaskTypeToColorConverter" /> <!-- Assuming this returns appropriate sidebar colors -->
+
+            <!-- Style for the main task card Border -->
+            <Style x:Key="TaskCardBaseStyle" TargetType="Border">
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="BorderBrush" Value="#E0E0E0"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="4"/>
+                <Setter Property="Margin" Value="0,0,0,10"/>
+                <Setter Property="Padding" Value="10"/>
                 <Setter Property="Effect">
                     <Setter.Value>
-                        <DropShadowEffect ShadowDepth="2" BlurRadius="5" Opacity="0.2" />
+                        <DropShadowEffect ShadowDepth="1" BlurRadius="4" Opacity="0.1" Color="Black"/>
                     </Setter.Value>
                 </Setter>
             </Style>
 
-            <Style x:Key="TaskTypeIndicatorStyle" TargetType="Border">
-                <Setter Property="Width" Value="5" />
-                <Setter Property="HorizontalAlignment" Value="Left" />
-                <Setter Property="Margin" Value="-10,0,0,0" />
+            <!-- Style for Storage Task Card -->
+            <Style x:Key="StorageTaskCardStyle" TargetType="Border" BasedOn="{StaticResource TaskCardBaseStyle}">
+                <!-- No specific overrides needed for now, inherits base -->
+            </Style>
+
+            <!-- Style for Retrieval Task Card -->
+            <Style x:Key="RetrievalTaskCardStyle" TargetType="Border" BasedOn="{StaticResource TaskCardBaseStyle}">
+                <!-- Add colored sidebar -->
+                <Setter Property="BorderThickness" Value="5,1,1,1"/>
+                <!-- Binding BorderBrush to TaskType or Status via converter -->
+                <Setter Property="BorderBrush" Value="{Binding Converter={StaticResource TaskTypeToColorConverter}}"/>
+            </Style>
+
+            <!-- Style for Header Text -->
+            <Style x:Key="ColumnHeaderStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="16"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="#424242"/>
+                <Setter Property="Margin" Value="0,0,0,10"/>
+            </Style>
+
+            <!-- Style for small detail text -->
+            <Style x:Key="DetailTextStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Foreground" Value="#757575"/>
+            </Style>
+
+            <!-- Style for main value text -->
+            <Style x:Key="ValueTextStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="#424242"/>
+            </Style>
+
+            <!-- Style for GO Button -->
+             <Style x:Key="GoButtonStyle" TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
+                <Setter Property="Background" Value="#E0E0E0"/>
+                <Setter Property="Foreground" Value="#424242"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="10,5"/>
+                 <Setter Property="MinWidth" Value="50"/>
+                 <Setter Property="Content">
+                     <Setter.Value>
+                         <TextBlock Text="GO" FontWeight="Bold"/>
+                     </Setter.Value>
+                 </Setter>
             </Style>
             
-            <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="18" />
-                <Setter Property="FontWeight" Value="SemiBold" />
-                <Setter Property="Margin" Value="0,0,0,10" />
-            </Style>
+             <!-- Style for Arrow Button -->
+             <Style x:Key="ArrowButtonStyle" TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatButton}">
+                 <Setter Property="Padding" Value="5"/>
+                 <Setter Property="Foreground" Value="{DynamicResource PrimaryHueMidBrush}"/>
+                 <Setter Property="Content">
+                     <Setter.Value>
+                         <materialDesign:PackIcon Kind="ArrowLeft" Width="24" Height="24"/>
+                     </Setter.Value>
+                 </Setter>
+             </Style>
+
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid>
+    <Grid Margin="10">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto"/> <!-- Header Row -->
+            <RowDefinition Height="*"/>    <!-- Content Row -->
         </Grid.RowDefinitions>
 
-        <!-- Header with title and create task button -->
-        <Grid Grid.Row="0" Margin="10,10,10,0">
+        <!-- Header with create task button -->
+        <Grid Grid.Row="0" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-
-            <TextBlock Grid.Column="0" Text="ממתין לעבודה" Style="{StaticResource SectionHeaderStyle}" />
-
-            <Button Grid.Column="1" 
+            <!-- Placeholder for potential overall title or filters if needed later -->
+            <Button Grid.Column="1"
                     Style="{StaticResource MaterialDesignRaisedButton}"
                     Command="{Binding TaskVM.CreateManualTaskCommand}"
-                    Background="#2196F3" BorderBrush="#1976D2"
-                    Margin="0,0,0,10">
+                    Background="#2196F3" BorderBrush="#1976D2">
                 <StackPanel Orientation="Horizontal">
-                    <materialDesign:PackIcon Kind="Plus" Width="20" Height="20" VerticalAlignment="Center" />
-                    <TextBlock Text="יצירת משימה ידנית" Margin="8,0,0,0" VerticalAlignment="Center" />
+                    <materialDesign:PackIcon Kind="Plus" Width="18" Height="18" VerticalAlignment="Center" />
+                    <TextBlock Text="יצירת משימה ידנית" Margin="5,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
         </Grid>
 
-        <!-- Content area for tasks -->
-        <Grid Grid.Row="1" Margin="10,0,10,10">
-            <!-- Tasks View -->
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
+        <!-- Main Content Area with Two Columns -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/> <!-- Left Column: Retrieval (Wider) -->
+                <ColumnDefinition Width="*"/>   <!-- Right Column: Storage -->
+            </Grid.ColumnDefinitions>
 
-                <!-- Task headers -->
-                <Grid Grid.Row="0" Margin="0,10,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+            <!-- Left Column: Retrieval Tasks -->
+            <DockPanel Grid.Column="0" Margin="0,0,10,0"> <!-- Retrieval on the left -->
+                 <!-- Retrieval Header -->
+                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource ColumnHeaderStyle}" HorizontalAlignment="Center">
+                    <Run Text="ממתין לשליפה"/>
+                    <Run Text="|"/>
+                    <Run Text="{Binding TaskVM.RetrievalTasksCount, Mode=OneWay}"/> <!-- Corrected count binding -->
+                    <Run Text="פריטים"/>
+                </TextBlock>
 
-                    <!-- Storage Tasks Header -->
-                    <Border Grid.Column="0" 
-                            Background="#2196F3" 
-                            BorderThickness="1,1,1,0" 
-                            BorderBrush="#1976D2" 
-                            Padding="10,5">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <TextBlock Text="ממתין לאחסון" 
-                                       FontWeight="SemiBold" 
-                                       Foreground="White"/>
-                            <TextBlock Text=" | " Margin="5,0" Foreground="White"/>
-                            <TextBlock Text="{Binding TaskVM.StorageTasksCount, StringFormat='{}{0} פריטים'}" Foreground="White"/>
-                        </StackPanel>
-                    </Border>
+                <!-- Retrieval Task List -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding TaskVM.RetrievalTasks}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource RetrievalTaskCardStyle}">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/> <!-- Top Row: Source, Dest Finger, Button -->
+                                            <RowDefinition Height="Auto"/> <!-- Bottom Row: Pallet Details -->
+                                        </Grid.RowDefinitions>
 
-                    <!-- Retrieval Tasks Header -->
-                    <Border Grid.Column="1" 
-                            Background="#FF9800" 
-                            BorderThickness="1,1,1,0" 
-                            BorderBrush="#F57C00" 
-                            Padding="10,5">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <TextBlock Text="ממתין לשליפה" 
-                                       FontWeight="SemiBold" 
-                                       Foreground="White"/>
-                            <TextBlock Text=" | " Margin="5,0" Foreground="White"/>
-                            <TextBlock Text="{Binding TaskVM.RetrievalTasksCount, StringFormat='{}{0} פריטים'}" Foreground="White"/>
-                        </StackPanel>
-                    </Border>
-                </Grid>
+                                        <!-- Top Row -->
+                                        <Grid Grid.Row="0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
 
-                <!-- Tasks lists container -->
-                <Grid Grid.Row="1">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    
-                    <!-- Storage Tasks List -->
-                    <Border Grid.Column="0" BorderThickness="1" BorderBrush="#DDDDDD" Background="White">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <ItemsControl ItemsSource="{Binding TaskVM.StorageTasks}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Style="{StaticResource TaskCardStyle}" Margin="5,5,5,0">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
+                                            <!-- Apply GoButtonStyle correctly and set Content explicitly -->
+                                            <Button Grid.Column="0" Style="{StaticResource GoButtonStyle}" Content="GO" VerticalAlignment="Center" Margin="0,0,10,0"
+                                                    Command="{Binding DataContext.TaskVM.StartTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" />
+                                            
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Style="{StaticResource DetailTextStyle}" Text="פריקה בפינגר"/>
+                                                <!-- Destination Finger ComboBox - Updated ItemsSource Binding -->
+                                                <ComboBox ItemsSource="{Binding DataContext.AvailableFingers, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                          SelectedItem="{Binding DestinationFinger, Mode=TwoWay}"
+                                                          DisplayMemberPath="DisplayName"
+                                                          MinWidth="100" MaxWidth="150"
+                                                          Style="{StaticResource MaterialDesignComboBox}"
+                                                          materialDesign:HintAssist.Hint="בחר פינגר"/>
+                                            </StackPanel>
 
-                                                <!-- Task type indicator bar (left) -->
-                                                <Border Grid.Column="0" Style="{StaticResource TaskTypeIndicatorStyle}"
-                                                      Background="#2196F3" />
+                                            <Button Grid.Column="2" Style="{StaticResource ArrowButtonStyle}" VerticalAlignment="Center"
+                                                    Command="{Binding DataContext.TaskVM.StartTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"/>
+                                        </Grid>
 
-                                                <!-- Task details -->
-                                                <Grid Grid.Column="1" Margin="5,0,0,0">
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto" />
-                                                        <RowDefinition Height="Auto" />
-                                                    </Grid.RowDefinitions>
-                                                    
-                                                    <Grid Grid.Row="0">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto" />
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                        </Grid.ColumnDefinitions>
-                                                        
-                                                        <TextBlock Grid.Column="0" Text="קוד:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
-                                                        <TextBlock Grid.Column="1" Text="{Binding Code}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                                        <Border Grid.Column="2" Background="{Binding Status, Converter={StaticResource TaskStatusToBrushConverter}}" 
-                                                              BorderThickness="0" Padding="5,2" HorizontalAlignment="Left" Margin="0,0,0,0">
-                                                            <TextBlock Text="{Binding Status, Converter={StaticResource TaskStatusToTextConverter}}" 
-                                                                     FontSize="11" Foreground="White" />
-                                                        </Border>
-                                                    </Grid>
-                                                    
-                                                    <StackPanel Grid.Row="1" Margin="0,10,0,0">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="מיקום:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
-                                                            <TextBlock Text="10.45" FontSize="12" Margin="0,0,10,0" />
-                                                        </StackPanel>
-                                                        
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="גובה:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
-                                                            <TextBlock Text="105" FontSize="12" Margin="0,0,10,0" />
-                                                        </StackPanel>
-                                                        
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="מקט:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
-                                                            <TextBlock Text="546" FontSize="12" Margin="0,0,10,0" />
-                                                        </StackPanel>
+                                        <!-- Bottom Row: Pallet Details -->
+                                        <Grid Grid.Row="1" Margin="0,10,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/> <!-- Time -->
+                                                <ColumnDefinition Width="Auto"/> <!-- Height -->
+                                                <ColumnDefinition Width="Auto"/> <!-- ULD Type -->
+                                                <ColumnDefinition Width="Auto"/> <!-- ULD Code -->
+                                                <ColumnDefinition Width="Auto"/> <!-- ULD Number -->
+                                                <ColumnDefinition Width="*"/>    <!-- Priority/Status -->
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Time -->
+                                            <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                                <TextBlock Style="{StaticResource DetailTextStyle}" Text="שעה"/>
+                                                <TextBlock Style="{StaticResource ValueTextStyle}" Text="{Binding CreatedDateTime, StringFormat='HH:mm', TargetNullValue='--:--'}"/>
+                                            </StackPanel>
+
+                                            <!-- Height -->
+                                             <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                                <TextBlock Style="{StaticResource DetailTextStyle}" Text="גובה"/>
+                                                <TextBlock Style="{StaticResource ValueTextStyle}" Text="{Binding SourceCell.HeightLevel, TargetNullValue='-'}"/>
+                                            </StackPanel>
+
+                                            <!-- ULD Type -->
+                                             <StackPanel Grid.Column="2" Margin="0,0,10,0">
+                                                <TextBlock Style="{StaticResource DetailTextStyle}" Text="סוג פלט"/>
+                                                <TextBlock Style="{StaticResource ValueTextStyle}" Text="{Binding Pallet.UldType, TargetNullValue='---'}"/>
+                                            </StackPanel>
+
+                                            <!-- ULD Code -->
+                                             <StackPanel Grid.Column="3" Margin="0,0,10,0">
+                                                <TextBlock Style="{StaticResource DetailTextStyle}" Text="מזהה"/>
+                                                <TextBlock Style="{StaticResource ValueTextStyle}" Text="{Binding Pallet.UldCode, TargetNullValue='----'}"/>
+                                            </StackPanel>
+
+                                            <!-- ULD Number -->
+                                             <StackPanel Grid.Column="4" Margin="0,0,10,0">
+                                                <TextBlock Style="{StaticResource DetailTextStyle}" Text="מספר"/>
+                                                <TextBlock Style="{StaticResource ValueTextStyle}" Text="{Binding Pallet.UldNumber, TargetNullValue='----'}"/>
+                                            </StackPanel>
+
+                                            <!-- Status Text -->
+                                            <Border Grid.Column="5" Background="{Binding Status, Converter={StaticResource TaskStatusToBrushConverter}}"
+                                                    Padding="5,2" CornerRadius="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                                <TextBlock Text="{Binding Status, Converter={StaticResource TaskStatusToTextConverter}, TargetNullValue='---'}" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                            </Border>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+
+            <!-- Right Column: Storage Tasks -->
+            <DockPanel Grid.Column="1" Margin="10,0,0,0"> <!-- Storage on the right -->
+                 <!-- Storage Header -->
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource ColumnHeaderStyle}" HorizontalAlignment="Center">
+                    <Run Text="ממתין לאחסון"/>
+                    <Run Text="|"/>
+                    <Run Text="{Binding TaskVM.StorageTasksCount, Mode=OneWay}"/>
+                    <Run Text="פריטים"/>
+                </TextBlock>
+                 
+                 <!-- Storage Finger List -->
+                 <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding TaskVM.AvailableStorageFingers}"> <!-- Changed ItemsSource -->
+                        <ItemsControl.ItemTemplate>
+                            <!-- New DataTemplate for FingerStorageInfo - Revised Mockup Layout -->
+                            <DataTemplate DataType="{x:Type vm:FingerStorageInfo}">
+                                <Border Style="{StaticResource StorageTaskCardStyle}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>   <!-- GO Button -->
+                                            <ColumnDefinition Width="*"/>    <!-- Spacer -->
+                                            <ColumnDefinition Width="Auto"/>   <!-- Finger Details -->
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- GO Button (Column 0 = Visually Left because parent FlowDirection is RightToLeft) -->
+                                        <Button Grid.Column="0" Style="{StaticResource GoButtonStyle}" VerticalAlignment="Center" Margin="10,0,0,0" Content="GO"
+                                                Command="{Binding DataContext.TaskVM.GoToFingerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" />
+
+                                        <!-- Finger Details (Column 2 = Visually Right) -->
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                            <!-- Top Row: Finger Number and Pallet Count Text (Stacked Vertically) -->
+                                            <StackPanel Orientation="Vertical" HorizontalAlignment="Right">
+                                                <!-- Finger Name/Number -->
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <TextBlock Text="פינגר" Style="{StaticResource DetailTextStyle}" VerticalAlignment="Bottom" Margin="5,0,0,2"/>
+                                                    <TextBlock Text="{Binding Finger.DisplayName}" Style="{StaticResource ValueTextStyle}" FontSize="18"/>
+                                                </StackPanel>
+                                                <!-- Pallet Count Text (Conditional) -->
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,2,0,0">
+                                                    <!-- StackPanel for Count > 0 -->
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <StackPanel.Style>
+                                                            <Style TargetType="StackPanel">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding PalletCount}" Value="0">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </StackPanel.Style>
+                                                        <TextBlock Text="{Binding PalletCount}" Style="{StaticResource ValueTextStyle}" Margin="0,0,5,0"/>
+                                                        <TextBlock Text="פלטים בפינגר" Style="{StaticResource DetailTextStyle}"/>
                                                     </StackPanel>
-                                                </Grid>
+                                                    <!-- TextBlock for Count == 0 -->
+                                                    <TextBlock Text="אין פלטים בפינגר" Foreground="Gray">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DetailTextStyle}">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding PalletCount}" Value="0">
+                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </StackPanel>
 
-                                                <!-- Action button -->
-                                                <Button Grid.Column="2" Style="{StaticResource MaterialDesignRaisedButton}" 
-                                                      Command="{Binding DataContext.TaskVM.StartTaskCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                      CommandParameter="{Binding}"
-                                                      Margin="5,0,0,0" VerticalAlignment="Center"
-                                                      Background="#2196F3" BorderBrush="#1976D2">
-                                                    <materialDesign:PackIcon Kind="ArrowLeft" Width="24" Height="24" />
-                                                </Button>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-                    </Border>
-
-                    <!-- Retrieval Tasks List -->
-                    <Border Grid.Column="1" BorderThickness="1" BorderBrush="#DDDDDD" Background="White">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <ItemsControl ItemsSource="{Binding TaskVM.RetrievalTasks}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Style="{StaticResource TaskCardStyle}" Margin="5,5,5,0">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-
-                                                <!-- Task type indicator bar (left) -->
-                                                <Border Grid.Column="0" Style="{StaticResource TaskTypeIndicatorStyle}"
-                                                      Background="#FF9800" />
-
-                                                <!-- Task details -->
-                                                <Grid Grid.Column="1" Margin="5,0,0,0">
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto" />
-                                                        <RowDefinition Height="Auto" />
-                                                    </Grid.RowDefinitions>
-                                                    
-                                                    <Grid Grid.Row="0">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto" />
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                        </Grid.ColumnDefinitions>
-                                                        
-                                                        <TextBlock Grid.Column="0" Text="קוד:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
-                                                        <TextBlock Grid.Column="1" Text="{Binding Code}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                                        <Border Grid.Column="2" Background="{Binding Status, Converter={StaticResource TaskStatusToBrushConverter}}" 
-                                                              BorderThickness="0" Padding="5,2" HorizontalAlignment="Left" Margin="0,0,0,0">
-                                                            <TextBlock Text="{Binding Status, Converter={StaticResource TaskStatusToTextConverter}}" 
-                                                                     FontSize="11" Foreground="White" />
-                                                        </Border>
-                                                    </Grid>
-                                                    
-                                                    <StackPanel Grid.Row="1" Margin="0,10,0,0">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="מיקום:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
-                                                            <TextBlock Text="10.45" FontSize="12" Margin="0,0,10,0" />
-                                                        </StackPanel>
-                                                        
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="גובה:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
-                                                            <TextBlock Text="105" FontSize="12" Margin="0,0,10,0" />
-                                                        </StackPanel>
-                                                        
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="מקט:" FontSize="12" Foreground="#757575" Margin="0,0,5,0" />
-                                                            <TextBlock Text="546" FontSize="12" Margin="0,0,10,0" />
-                                                        </StackPanel>
-                                                    </StackPanel>
-                                                </Grid>
-
-                                                <!-- Action button -->
-                                                <Button Grid.Column="2" Style="{StaticResource MaterialDesignRaisedButton}" 
-                                                      Command="{Binding DataContext.TaskVM.StartTaskCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                      CommandParameter="{Binding}"
-                                                      Margin="5,0,0,0" VerticalAlignment="Center"
-                                                      Background="#FF9800" BorderBrush="#F57C00">
-                                                    <materialDesign:PackIcon Kind="ArrowLeft" Width="24" Height="24" />
-                                                </Button>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-                    </Border>
-                </Grid>
-            </Grid>
+                                            <!-- Pallet Indicator Squares (Below the text) -->
+                                            <ItemsControl ItemsSource="{Binding PalletPlaceholders}" Margin="0,5,0,0">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <!-- Use WrapPanel for better alignment if many squares -->
+                                                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Width="12" Height="12" Background="LightGray" BorderBrush="Gray" BorderThickness="1" Margin="1"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
         </Grid>
     </Grid>
 </UserControl>

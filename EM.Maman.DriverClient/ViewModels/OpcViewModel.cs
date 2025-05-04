@@ -176,11 +176,9 @@ namespace EM.Maman.DriverClient.ViewModels
             _dispatcherService = dispatcherService ?? throw new ArgumentNullException(nameof(dispatcherService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            // Subscribe to register changes
-            _opcService.RegisterChanged += OpcService_RegisterChanged;
-
             // Initialize registers
             InitializeRegisters();
+            // Event subscription removed, using callback in SubscribeRegister instead
         }
 
         #endregion
@@ -197,25 +195,25 @@ namespace EM.Maman.DriverClient.ViewModels
             WritableRegisters.Clear();
 
             // Add some test registers
-            ReadOnlyRegisters.Add(new Register { NodeId = "ns=2;s=Channel1.Device1.Position_PV", Value = "0", Name = "Position PV" });
-            ReadOnlyRegisters.Add(new Register { NodeId = "ns=2;s=Channel1.Device1.Status", Value = "0", Name = "Status" });
-            ReadOnlyRegisters.Add(new Register { NodeId = "ns=2;s=Channel1.Device1.Error", Value = "0", Name = "Error" });
+            ReadOnlyRegisters.Add(new Register { NodeId = "ns=2;s=s7.s7 300.maman.Position_PV", Value = "0", Name = "Position PV" });
+            ReadOnlyRegisters.Add(new Register { NodeId = "ns=2;s=s7.s7 300.maman.status", Value = "0", Name = "Status" });
+            //ReadOnlyRegisters.Add(new Register { NodeId = "ns=2;s=Channel1.Device1.Error", Value = "0", Name = "Error" });
 
-            WritableRegisters.Add(new Register { NodeId = "ns=2;s=Channel1.Device1.Position_SP", Value = "0", Name = "Position SP" });
-            WritableRegisters.Add(new Register { NodeId = "ns=2;s=Channel1.Device1.Command", Value = "0", Name = "Command" });
+            WritableRegisters.Add(new Register { NodeId = "ns=2;s=s7.s7 300.maman.PositionRequest", Value = "0", Name = "Position SP" });
+            WritableRegisters.Add(new Register { NodeId = "ns=2;s=s7.s7 300.maman.control", Value = "0", Name = "Control" });
         }
 
         /// <summary>
         /// Asynchronously connects to the OPC server, refreshes registers, and subscribes.
         /// </summary>
-        public async void InitializeAsync()
+        public async Task InitializeAsync() // Changed void to Task
         {
             try
             {
                 _logger.LogInformation("Initializing OPC connection");
                 
                 // Await the OPC connection.
-                await _opcService.ConnectAsync("opc.tcp://172.18.67.32:49320");
+                await _opcService.ConnectAsync("opc.tcp://172.18.67.242:49320");
 
                 // Once connected, refresh registers.
                 await RefreshRegistersAsync();
@@ -269,7 +267,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 _logger.LogInformation("Connecting to OPC server");
                 
                 // Connect to the OPC server asynchronously
-                _opcService.ConnectAsync("opc.tcp://172.18.67.32:49320").ConfigureAwait(false);
+                _opcService.ConnectAsync("opc.tcp://172.18.67.242:49320").ConfigureAwait(false);
                 Status = "Connected to OPC server";
                 
                 _logger.LogInformation("Connected to OPC server successfully");
@@ -293,8 +291,33 @@ namespace EM.Maman.DriverClient.ViewModels
                     _logger.LogInformation($"Subscribing to register: {register.Name}");
                     
                     // Subscribe to the register
-                    _opcService.SubscribeToRegister(register.NodeId, updatedRegister => {
-                        // Handle register updates
+                    _opcService.SubscribeToRegister(register.NodeId, updatedRegister =>
+                    {
+                        // Update the register value in the UI - Use Dispatcher for thread safety
+                        _dispatcherService.Invoke(() =>
+                        {
+                            // Find the register in our local collection to update its display value if needed
+                            var localRegister = ReadOnlyRegisters.FirstOrDefault(r => r.NodeId == updatedRegister.NodeId);
+                            if (localRegister != null)
+                            {
+                                localRegister.Value = updatedRegister.Value?.ToString() ?? string.Empty;
+                            }
+                            // else: It might be a writable register or one not in our lists, handle as needed
+
+                            // Special handling for Position_PV register
+                            if (updatedRegister.NodeId.Contains("Position_PV"))
+                            {
+                                if (int.TryParse(updatedRegister.Value?.ToString(), out int positionValue))
+                                {
+                                    PositionPV = positionValue; // This setter raises PropertyChanged and PositionChanged event
+                                }
+                                else
+                                {
+                                     _logger.LogWarning($"Could not parse Position_PV value: {updatedRegister.Value}");
+                                }
+                            }
+                            // Add handling for other specific registers if needed
+                        });
                     });
                     Status = $"Subscribed to {register.Name}";
                     
@@ -308,30 +331,7 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
-        /// <summary>
-        /// Handles register changes from the OPC service
-        /// </summary>
-        private void OpcService_RegisterChanged(object sender, RegisterChangedEventArgs e)
-        {
-            // Update the register value in the UI
-            _dispatcherService.Invoke(() =>
-            {
-                var register = ReadOnlyRegisters.FirstOrDefault(r => r.NodeId == e.RegisterName);
-                if (register != null)
-                {
-                    register.Value = e.NewValue?.ToString() ?? string.Empty;
-
-                    // Special handling for Position_PV register
-                    if (register.NodeId.Contains("Position_PV"))
-                    {
-                        if (int.TryParse(register.Value, out int positionValue))
-                        {
-                            PositionPV = positionValue;
-                        }
-                    }
-                }
-            });
-        }
+        // OpcService_RegisterChanged method removed as logic moved to SubscribeToRegister callback
 
         /// <summary>
         /// Determines whether a register can be written to
@@ -351,7 +351,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 _logger.LogInformation($"Writing value {PlcRegisterValue} to Position SP");
                 
                 // Write to the register asynchronously
-                _opcService.WriteRegisterAsync("ns=2;s=Channel1.Device1.Position_SP", PlcRegisterValue).ConfigureAwait(false);
+                _opcService.WriteRegisterAsync("ns=2;s=s7.s7 300.maman.PositionRequest", PlcRegisterValue).ConfigureAwait(false);
                 Status = $"Wrote value {PlcRegisterValue} to Position SP";
                 
                 _logger.LogInformation($"Wrote value {PlcRegisterValue} to Position SP successfully");

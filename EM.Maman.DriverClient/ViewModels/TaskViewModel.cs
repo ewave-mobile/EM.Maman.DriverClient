@@ -1,4 +1,4 @@
-﻿using EM.Maman.Models.CustomModels;
+﻿﻿using EM.Maman.Models.CustomModels;
 using EM.Maman.Models.Interfaces.Services;
 using EM.Maman.Models.Interfaces;
 using EM.Maman.Models.LocalDbModels;
@@ -10,25 +10,82 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading.Tasks; // Keep this for Task
 using System.Windows.Input;
 using System.Windows;
+using Microsoft.EntityFrameworkCore;
+using System.ComponentModel; // Required for INotifyPropertyChanged
+using System.Runtime.CompilerServices; // Required for CallerMemberName
 
 namespace EM.Maman.DriverClient.ViewModels
 {
+    /// <summary>
+    /// Helper class to hold finger information and its pallet count for the storage view.
+    /// </summary>
+    public class FingerStorageInfo : INotifyPropertyChanged
+    {
+        private Finger _finger;
+        private int _palletCount;
+        private List<object> _palletPlaceholders; // For the grey squares
+
+        public Finger Finger
+        {
+            get => _finger;
+            set { _finger = value; OnPropertyChanged(); }
+        }
+
+        public int PalletCount
+        {
+            get => _palletCount;
+            set
+            {
+                if (_palletCount != value)
+                {
+                    _palletCount = value;
+                    OnPropertyChanged();
+                    // Update placeholders when count changes
+                    PalletPlaceholders = Enumerable.Repeat(new object(), _palletCount).ToList();
+                }
+            }
+        }
+
+        // This collection will be bound to the ItemsControl for the grey squares
+        public List<object> PalletPlaceholders
+        {
+            get => _palletPlaceholders;
+            private set { _palletPlaceholders = value; OnPropertyChanged(); }
+        }
+
+        public FingerStorageInfo(Finger finger, int palletCount)
+        {
+            Finger = finger;
+            // Initialize placeholders with empty list if count is 0
+            _palletPlaceholders = new List<object>();
+            PalletCount = palletCount; // Set PalletCount last to trigger placeholder generation
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
     public class TaskViewModel : INotifyPropertyChanged
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IConnectionManager _connectionManager;
         private readonly IOpcService _opcService;
-        private readonly IDispatcherService _dispatcherService;
+        public readonly IDispatcherService _dispatcherService; // Keep this for local use if needed
         private readonly ILogger<TaskViewModel> _logger;
+        public readonly MainViewModel _mainVM; // Added reference to MainViewModel
 
         private ObservableCollection<TaskDetails> _tasks;
         private ObservableCollection<TaskDetails> _pendingTasks;
         private ObservableCollection<TaskDetails> _completedTasks;
-        private ObservableCollection<TaskDetails> _storageTasks;
+        private ObservableCollection<TaskDetails> _storageTasks; // Keep for now, might be used elsewhere
         private ObservableCollection<TaskDetails> _retrievalTasks;
+        private ObservableCollection<FingerStorageInfo> _availableStorageFingers; // Added for the new view
         private TaskDetails _selectedTask;
         private TaskDetails _activeTask;
         private bool _isTaskActive = false ;
@@ -50,6 +107,8 @@ namespace EM.Maman.DriverClient.ViewModels
         private RelayCommand _nextNavigationCommand;
         private RelayCommand _selectStorageTabCommand;
         private RelayCommand _selectRetrievalTabCommand;
+        private RelayCommand _goToFingerCommand; // Added command
+
 
         public ObservableCollection<TaskDetails> Tasks
         {
@@ -100,7 +159,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 {
                     _storageTasks = value;
                     OnPropertyChanged();
-                    OnPropertyChanged(nameof(StorageTasksCount));
+                    // Note: StorageTasksCount is now repurposed for AvailableStorageFingers count
                 }
             }
         }
@@ -119,8 +178,27 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
-        public int StorageTasksCount => StorageTasks?.Count ?? 0;
-        public int RetrievalTasksCount => RetrievalTasks?.Count ?? 0;
+        /// <summary>
+        /// Collection of fingers available for storage, with their pallet counts.
+        /// </summary>
+        public ObservableCollection<FingerStorageInfo> AvailableStorageFingers
+        {
+            get => _availableStorageFingers;
+            set
+            {
+                if (_availableStorageFingers != value)
+                {
+                    _availableStorageFingers = value;
+                    OnPropertyChanged();
+                    // Update the count property when the collection changes
+                    OnPropertyChanged(nameof(StorageTasksCount)); // Re-using StorageTasksCount name for simplicity, but represents finger count now
+                }
+            }
+        }
+
+        // Re-purpose StorageTasksCount to show the count of available fingers for the header
+        public int StorageTasksCount => AvailableStorageFingers?.Count ?? 0;
+        public int RetrievalTasksCount => RetrievalTasks?.Count ?? 0; // Keep retrieval count as is
 
         public bool IsStorageTabSelected
         {
@@ -259,31 +337,47 @@ namespace EM.Maman.DriverClient.ViewModels
         public ICommand NextNavigationCommand => _nextNavigationCommand ??= new RelayCommand(_ => ExecuteNextNavigation(), _ => true);
         public ICommand SelectStorageTabCommand => _selectStorageTabCommand ??= new RelayCommand(_ => IsStorageTabSelected = true);
         public ICommand SelectRetrievalTabCommand => _selectRetrievalTabCommand ??= new RelayCommand(_ => IsStorageTabSelected = false);
+        public ICommand GoToFingerCommand => _goToFingerCommand ??= new RelayCommand(NavigateToFinger, CanNavigateToFinger); // Added command
+
 
         public TaskViewModel(
             IUnitOfWork unitOfWork,
             IConnectionManager connectionManager,
             IOpcService opcService,
-            IDispatcherService dispatcherService,
-            ILogger<TaskViewModel> logger)
+            IDispatcherService dispatcherService, // Keep parameter
+            ILogger<TaskViewModel> logger,
+            MainViewModel mainViewModel) // Added parameter
         {
             _unitOfWork = unitOfWork;
             _connectionManager = connectionManager;
             _opcService = opcService;
-            _dispatcherService = dispatcherService;
+            _dispatcherService = dispatcherService; // Assign injected dispatcher
             _logger = logger;
+            _mainVM = mainViewModel; // Store reference to MainViewModel
 
             Tasks = new ObservableCollection<TaskDetails>();
             PendingTasks = new ObservableCollection<TaskDetails>();
             CompletedTasks = new ObservableCollection<TaskDetails>();
-            StorageTasks = new ObservableCollection<TaskDetails>();
+            StorageTasks = new ObservableCollection<TaskDetails>(); // Keep original task lists for now
             RetrievalTasks = new ObservableCollection<TaskDetails>();
+            AvailableStorageFingers = new ObservableCollection<FingerStorageInfo>(); // Initialize new collection
 
             // Subscribe to PLC register changes for position feedback
             _opcService.RegisterChanged += OpcService_RegisterChanged;
 
-            // Initialize data
-            LoadTasksAsync();
+            // Data loading will be triggered externally via InitializeAsync
+            // LoadTasksAsync(); // REMOVED FROM CONSTRUCTOR
+        }
+
+        /// <summary>
+        /// Asynchronously loads data required by the ViewModel.
+        /// Should be called after the ViewModel is constructed.
+        /// </summary>
+        public async System.Threading.Tasks.Task InitializeAsync() // Fully qualify Task
+        {
+            await LoadTasksAsync();
+            await LoadAvailableStorageFingersAsync(); // Also load finger info on init
+            // Any other async init needed for this VM
         }
 
         private void OpcService_RegisterChanged(object sender, Models.PlcModels.RegisterChangedEventArgs e)
@@ -359,38 +453,41 @@ namespace EM.Maman.DriverClient.ViewModels
                 IsLoading = true;
                 StatusMessage = "Loading tasks...";
 
-                var dbTasks = await _unitOfWork.Tasks.GetAllAsync();
-                var tasks = new ObservableCollection<TaskDetails>();
+                // Fetch tasks with related entities included using the new overload
+                var dbTasks = await _unitOfWork.Tasks.FindAsync(
+                    predicate: t => t.IsExecuted == false || t.IsExecuted == null, // Example: Load only pending tasks
+                    include: query => query
+                        // Cannot include Pallet directly due to key mismatch
+                        .Include(t => t.FingerLocation) // Include Finger based on FingerLocationId
+                        .Include(t => t.CellEndLocation),  // Include Cell based on CellEndLocationId
+                    orderBy: query => query.OrderByDescending(t => t.DownloadDate) // Example ordering
+                );
 
+                var tasks = new ObservableCollection<TaskDetails>();
                 foreach (var task in dbTasks)
                 {
-                    // Load related entities for the task
+                    // Fetch Pallet separately based on string PalletId (likely UldCode)
                     Pallet pallet = null;
-                    if (!string.IsNullOrEmpty(task.PalletId) && int.TryParse(task.PalletId, out int palletId))
+                    if (!string.IsNullOrEmpty(task.PalletId))
                     {
-                        pallet = await _unitOfWork.Pallets.GetByIdAsync(palletId);
+                        // Assuming PalletId in Task is the UldCode in Pallet
+                        // FindAsync returns IEnumerable, use FirstOrDefault
+                        var foundPallets = await _unitOfWork.Pallets.FindAsync(p => p.UldCode == task.PalletId);
+                        pallet = foundPallets.FirstOrDefault();
+                        if (pallet == null)
+                        {
+                             _logger.LogWarning("Could not find Pallet with UldCode {UldCode} for Task {TaskId}", task.PalletId, task.Id);
+                        }
                     }
 
-                    Finger sourceFinger = null;
-                    if (task.FingerLocationId.HasValue)
-                    {
-                        sourceFinger = await _unitOfWork.Fingers.GetByIdAsync(task.FingerLocationId.Value);
-                    }
-
-                    Cell destinationCell = null;
-                    if (task.CellEndLocationId.HasValue)
-                    {
-                        destinationCell = await _unitOfWork.Cells.GetByIdAsync(task.CellEndLocationId.Value);
-                    }
-
-                    // Create the task details
-                    var taskDetails = TaskDetails.FromDbModel(task, pallet, sourceFinger, null, destinationCell);
+                    // Create TaskDetails using the included Finger/Cell and the separately fetched Pallet
+                    var taskDetails = TaskDetails.FromDbModel(task, pallet, task.FingerLocation, null, task.CellEndLocation);
                     tasks.Add(taskDetails);
                 }
 
                 // Update the tasks collection
-                Tasks = tasks;
-                StatusMessage = $"Loaded {tasks.Count} tasks.";
+                Tasks = tasks; // This triggers UpdateFilteredLists
+                StatusMessage = $"Loaded {Tasks.Count} pending tasks.";
             }
             catch (Exception ex)
             {
@@ -436,10 +533,10 @@ namespace EM.Maman.DriverClient.ViewModels
                 return;
             }
 
-            // For an Import task: 
+            // For an Import task:
             //    Step 1: Navigate to the source finger.
             //    Step 2: Navigate to the destination cell.
-            // For an Export task: 
+            // For an Export task:
             //    Step 1: Navigate to the destination cell.
             //    Step 2: Navigate to the source finger.
 
@@ -518,7 +615,7 @@ namespace EM.Maman.DriverClient.ViewModels
         }
 
         // Command execution logic
-        private void CreateStorageTask()
+        private async void CreateStorageTask() // Make async
         {
             // Show the task creation dialog for import
             var dialog = new ImportTaskDialog();
@@ -527,15 +624,15 @@ namespace EM.Maman.DriverClient.ViewModels
 
             if (dialog.ShowDialog() == true && viewModel.TaskDetails != null)
             {
-                // Add the new task to the collection
-                Tasks.Add(viewModel.TaskDetails);
-                SaveTaskToDatabase(viewModel.TaskDetails);
-                UpdateFilteredLists();
+                // Save first, then add to collection if successful
+                await SaveTaskToDatabase(viewModel.TaskDetails); // Make async
+                Tasks.Add(viewModel.TaskDetails); // Add after saving (ID might be updated)
+                // UpdateFilteredLists(); // UpdateFilteredLists is called when Tasks collection is set
                 StatusMessage = "Storage task created.";
             }
         }
 
-        private void CreateRetrievalTask()
+        private async void CreateRetrievalTask() // Make async
         {
             // Show the task creation dialog for export
             var dialog = new ExportTaskDialog();
@@ -544,30 +641,31 @@ namespace EM.Maman.DriverClient.ViewModels
 
             if (dialog.ShowDialog() == true && viewModel.TaskDetails != null)
             {
-                // Add the new task to the collection
-                Tasks.Add(viewModel.TaskDetails);
-                SaveTaskToDatabase(viewModel.TaskDetails);
-                UpdateFilteredLists();
+                // Save first, then add to collection if successful
+                await SaveTaskToDatabase(viewModel.TaskDetails); // Make async
+                Tasks.Add(viewModel.TaskDetails); // Add after saving (ID might be updated)
+                // UpdateFilteredLists(); // UpdateFilteredLists is called when Tasks collection is set
                 StatusMessage = "Retrieval task created.";
             }
         }
 
-        private void CreateManualTask()
+        private async void CreateManualTask() // Make async
         {
             // Show the manual task creation dialog
             var dialog = new ManualTaskDialog();
 
             if (dialog.ShowDialog() == true && dialog.TaskDetails != null)
             {
-                // Add the new task to the collection
-                Tasks.Add(dialog.TaskDetails);
-                SaveTaskToDatabase(dialog.TaskDetails);
-                UpdateFilteredLists();
+                // Save first, then add to collection if successful
+                await SaveTaskToDatabase(dialog.TaskDetails); // Make async
+                Tasks.Add(dialog.TaskDetails); // Add after saving (ID might be updated)
+                // UpdateFilteredLists(); // UpdateFilteredLists is called when Tasks collection is set
                 StatusMessage = dialog.TaskDetails.IsImportTask ? "Storage task created." : "Retrieval task created.";
             }
         }
 
-        private async void SaveTaskToDatabase(TaskDetails taskDetails)
+        // Return bool indicating success - Changed to internal
+        internal async Task<bool> SaveTaskToDatabase(TaskDetails taskDetails)
         {
             try
             {
@@ -587,18 +685,20 @@ namespace EM.Maman.DriverClient.ViewModels
                 // Update the ID in the task details if it was a new task
                 if (taskDetails.Id == 0)
                 {
-                    taskDetails.Id = dbTask.Id;
+                    taskDetails.Id = dbTask.Id; // Update the display model with the new ID
                 }
+                return true; // Indicate success
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saving task to database");
                 MessageBox.Show("Error saving task to database: " + ex.Message, "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+                return false; // Indicate failure
             }
         }
 
-        private void StartTask(object parameter)
+        private async void StartTask(object parameter) // Make async
         {
             // If a task is passed as parameter, set it as the SelectedTask.
             if (parameter is TaskDetails task)
@@ -615,10 +715,28 @@ namespace EM.Maman.DriverClient.ViewModels
 
             // Make the task active and update its status.
             ActiveTask = SelectedTask;
-            ActiveTask.Status = Models.Enums.TaskStatus.InProgress;
-            SaveTaskToDatabase(ActiveTask);
+            ActiveTask.Status = Models.Enums.TaskStatus.InProgress; // Update local object status
 
-            // Initialize the task workflow (set up steps, etc.)
+            // Save the status change to the database
+            bool saved = await SaveTaskToDatabase(ActiveTask);
+
+            if (saved)
+            {
+                // Manually trigger property change for Status if needed, although binding should handle it
+                // ActiveTask.OnPropertyChanged(nameof(ActiveTask.Status)); // If TaskDetails has such a method
+
+                // Update filtered lists if the status change affects its list placement
+                UpdateFilteredLists();
+
+                // Initialize the task workflow (set up steps, etc.)
+                InitializeTaskWorkflow();
+            }
+            else
+            {
+                // Revert status if save failed? Or handle error appropriately
+                ActiveTask.Status = Models.Enums.TaskStatus.Created; // Example revert
+                ActiveTask = null; // Deactivate task
+            }
             InitializeTaskWorkflow();
         }
 
@@ -746,20 +864,61 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
-        private void CompleteTask()
+        private async void CompleteTask() // Make async
         {
             if (ActiveTask == null)
                 return;
 
             try
             {
-                ActiveTask.Status = Models.Enums.TaskStatus.Completed;
+                ActiveTask.Status = Models.Enums.TaskStatus.Completed; // Update local object status
                 ActiveTask.ExecutedDateTime = DateTime.Now;
-                SaveTaskToDatabase(ActiveTask);
 
-                StatusMessage = "Task completed successfully.";
+                // Save the status change to the database
+                bool saved = await SaveTaskToDatabase(ActiveTask);
+
+                if (!saved)
+                {
+                    // Revert status or handle error
+                    ActiveTask.Status = Models.Enums.TaskStatus.InProgress; // Example revert
+                    return; // Stop processing if save failed
+                }
+
+                // --- Handle Storage Task Completion (Requirement #4) ---
+                if (ActiveTask.IsImportTask && _mainVM != null)
+                {
+                    // Find the corresponding item in the MainViewModel's list
+                    var storageItem = _mainVM.PalletsReadyForStorage
+                                             .FirstOrDefault(item => item.StorageTask?.Id == ActiveTask.Id);
+
+                    if (storageItem != null)
+                    {
+                        // Use dispatcher to remove from the collection on the UI thread
+                        _mainVM._dispatcherService.Invoke(() =>
+                        {
+                            _mainVM.PalletsReadyForStorage.Remove(storageItem);
+                            _mainVM.NotifyStorageItemsChanged(); // Notify MainVM property change
+                        });
+                        _logger.LogInformation("Removed completed storage task item (ID: {TaskId}) from PalletsReadyForStorage.", ActiveTask.Id);
+
+                        // Show success message
+                        MessageBox.Show("Task successful!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Could not find corresponding PalletStorageTaskItem for completed Task ID {TaskId} in MainViewModel.", ActiveTask.Id);
+                    }
+                }
+                else
+                {
+                    // For non-storage tasks or if _mainVM is null, just set the status message
+                    StatusMessage = "Task completed successfully.";
+                }
+                // --- End Handle Storage Task Completion ---
+
 
                 // Reset active task
+                var completedTask = ActiveTask; // Keep reference for logging/UI update if needed
                 ActiveTask = null;
                 CurrentStep = 0;
                 TotalSteps = 0;
@@ -776,7 +935,7 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
-        private void CancelTask()
+        private async void CancelTask() // Make async
         {
             if (ActiveTask == null)
                 return;
@@ -784,8 +943,18 @@ namespace EM.Maman.DriverClient.ViewModels
             if (MessageBox.Show("Are you sure you want to cancel this task?", "Cancel Task",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
             {
-                ActiveTask.Status = Models.Enums.TaskStatus.Cancelled;
-                SaveTaskToDatabase(ActiveTask);
+                ActiveTask.Status = Models.Enums.TaskStatus.Cancelled; // Update local object status
+
+                // Save the status change to the database
+                bool saved = await SaveTaskToDatabase(ActiveTask);
+
+                if (!saved)
+                {
+                     // Handle error if save failed
+                     ActiveTask.Status = Models.Enums.TaskStatus.InProgress; // Example revert
+                     return;
+                }
+
                 StatusMessage = "Task cancelled.";
 
                 // Reset active task
@@ -798,10 +967,77 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
-        private void RefreshTasks()
+        private async void RefreshTasks() // Make async
         {
-            LoadTasksAsync();
+            await LoadTasksAsync();
+            await LoadAvailableStorageFingersAsync(); // Load finger info as well
         }
+
+        /// <summary>
+        /// Loads the list of available storage fingers and their pallet counts.
+        /// </summary>
+        private async System.Threading.Tasks.Task LoadAvailableStorageFingersAsync() // Fully qualify Task
+        {
+            try
+            {
+                _logger.LogInformation("Loading available storage fingers...");
+                var storageFingers = new ObservableCollection<FingerStorageInfo>();
+
+                // Get all fingers
+                var allFingers = await _unitOfWork.Fingers.GetAllAsync(); // Assuming GetAllAsync exists
+
+                // Get all cells to match fingers
+                var allCells = await _unitOfWork.Cells.GetAllAsync();
+
+                // Get all current pallet locations
+                var allPalletLocations = await _unitOfWork.PalletInCells.GetAllAsync(); // Use correct repository name
+
+                foreach (var finger in allFingers) // Load all fingers
+                {
+                    int palletCount = 0;
+                    try
+                    {
+                        // Find cells belonging to this finger based on Position and Side
+                        var cellsInFinger = allCells.Where(c => c.Position == finger.Position && c.Side == finger.Side);
+                        var cellIdsInFinger = cellsInFinger.Select(c => (long?)c.Id).ToList(); // Cast CellId to long?
+
+                        // Count pallets located in those cells
+                        if (cellIdsInFinger.Any())
+                        {
+                            // Count PalletInCell entries where CellId matches
+                            palletCount = allPalletLocations.Count(pic => pic.CellId.HasValue && cellIdsInFinger.Contains(pic.CellId.Value));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                         _logger.LogError(ex, "Error counting pallets for finger {FingerId}", finger.Id);
+                         // Continue with count 0 if error occurs for one finger
+                    }
+
+                    storageFingers.Add(new FingerStorageInfo(finger, palletCount));
+                }
+
+                // Use dispatcher if updating from a non-UI thread, otherwise direct assignment is fine
+                 _dispatcherService.Invoke(() => {
+                    AvailableStorageFingers = storageFingers;
+                 });
+
+                _logger.LogInformation("Loaded {Count} storage fingers.", AvailableStorageFingers.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading available storage fingers");
+                StatusMessage = "Error loading finger storage info.";
+                // Optionally clear the list or show an error indicator
+                 _dispatcherService.Invoke(() => {
+                    if (AvailableStorageFingers != null) // Check if null before clearing
+                    {
+                       AvailableStorageFingers.Clear();
+                    }
+                 });
+            }
+        }
+
 
         // Command availability logic
         private bool CanStartTask() => true;
@@ -809,6 +1045,58 @@ namespace EM.Maman.DriverClient.ViewModels
         private bool CanNavigateToSource() => true;
         private bool CanNavigateToDestination() => true;
         private bool CanCancelTask() => ActiveTask != null && !IsNavigating;
+
+        /// <summary>
+        /// Determines if the NavigateToFinger command can execute.
+        /// </summary>
+        private bool CanNavigateToFinger(object parameter)
+        {
+            // Can execute if the parameter is a valid FingerStorageInfo object with a valid Finger
+            return parameter is FingerStorageInfo info && info.Finger != null && info.Finger.Position.HasValue;
+        }
+
+        /// <summary>
+        /// Executes the logic to navigate the trolley to the specified finger.
+        /// </summary>
+        private async void NavigateToFinger(object parameter)
+        {
+            if (parameter is FingerStorageInfo fingerInfo && fingerInfo.Finger != null && fingerInfo.Finger.Position.HasValue)
+            {
+                var targetFinger = fingerInfo.Finger;
+                _logger.LogInformation($"NavigateToFinger command executed for Finger: {targetFinger.DisplayName} (ID: {targetFinger.Id}, Position: {targetFinger.Position})");
+
+                try
+                {
+                    // Assuming Finger.Position holds the combined Level * 100 + Location
+                    short targetPosition = (short)targetFinger.Position.Value;
+                    short commandCode = 1; // Assuming 1 is the 'Go' command code - VERIFY THIS
+
+                    string positionSpNodeId = "ns=2;s=s7.s7 300.maman.PositionRequest"; // Use actual Node IDs
+                    string commandNodeId = "ns=2;s=s7.s7 300.maman.Control";     // Use actual Node IDs
+
+                    _logger.LogInformation($"Writing Position_SP ({positionSpNodeId}): {targetPosition}");
+                    await _opcService.WriteRegisterAsync(positionSpNodeId, targetPosition);
+
+                    _logger.LogInformation($"Writing Command ({commandNodeId}): {commandCode}");
+                    await _opcService.WriteRegisterAsync(commandNodeId, commandCode);
+
+                    _logger.LogInformation($"Navigation command sent for Finger {targetFinger.DisplayName}.");
+                    StatusMessage = $"Navigation command sent to finger {targetFinger.DisplayName}.";
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Error executing NavigateToFinger for Finger ID {targetFinger.Id}");
+                    StatusMessage = $"Error navigating to finger: {ex.Message}";
+                    MessageBox.Show(StatusMessage, "Navigation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            else
+            {
+                _logger.LogWarning("NavigateToFinger command executed with invalid parameter.");
+                StatusMessage = "Cannot navigate: Invalid finger information.";
+            }
+        }
+
 
         public event PropertyChangedEventHandler PropertyChanged;
 

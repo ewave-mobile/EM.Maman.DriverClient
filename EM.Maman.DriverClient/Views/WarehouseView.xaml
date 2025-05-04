@@ -115,7 +115,7 @@
                                         </Grid.Style>
 
                                         <controls:FingerControl FlowDirection="RightToLeft"
-                                                              Finger="{Binding LeftFinger}" 
+                                                              Finger="{Binding LeftFinger}"
                                                               IsSideRight="True"
                                                               CurrentLevel="{Binding DataContext.TrolleyVM.SelectedLevelNumber, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                               PalletCount="{Binding LeftFingerPalletCount}"
@@ -240,7 +240,7 @@
                                 <DataTemplate DataType="{x:Type displaymodels:CompositeRow}">
                                     <controls:TrolleyWithCellsControl 
                                                                    RowPosition="{Binding Position}"
-                                                                   TrolleyPosition="{Binding DataContext.CurrentTrolley.Position, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                   TrolleyPosition="{Binding DataContext.TrolleyVM.CurrentPosition, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                    TrolleyName="{Binding DataContext.TrolleyVM.TrolleyName, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                    LeftCell="{Binding DataContext.TrolleyVM.LeftCell, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                    RightCell="{Binding DataContext.TrolleyVM.RightCell, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -376,7 +376,7 @@
                                         </Grid.Style>
 
                                         <controls:FingerControl  FlowDirection="RightToLeft"
-                                                              Finger="{Binding RightFinger}" 
+                                                              Finger="{Binding RightFinger}"
                                                               IsSideRight="False"
                                                               CurrentLevel="{Binding DataContext.TrolleyVM.SelectedLevelNumber, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                               PalletCount="{Binding RightFingerPalletCount}"

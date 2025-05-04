@@ -47,7 +47,7 @@
 
         <!-- Left Finger - Now in its own column -->
         <local:FingerControl Grid.Column="0" Width="100"
-                      Finger="{Binding RowData.LeftFinger, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                      Finger="{Binding RowData.LeftFinger, RelativeSource={RelativeSource AncestorType=UserControl}}"
                       IsSideRight="False"
                       Visibility="{Binding RowData.LeftFinger, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
 
@@ -108,7 +108,7 @@
       
         <!-- Right Finger - Now in its own column -->
         <local:FingerControl Grid.Column="8"  Width="100"
-                     Finger="{Binding RowData.RightFinger, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                     Finger="{Binding RowData.RightFinger, RelativeSource={RelativeSource AncestorType=UserControl}}"
                      IsSideRight="True"
                      Visibility="{Binding RowData.RightFinger, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
 

@@ -1,7 +1,8 @@
-﻿using EM.Maman.DAL.Test;
-using EM.Maman.Models.CustomModels;
+﻿using EM.Maman.Models.CustomModels;
 using EM.Maman.Models.DisplayModels;
+using EM.Maman.Models.Interfaces;
 using EM.Maman.Models.LocalDbModels;
+using System.Threading.Tasks;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -196,8 +197,12 @@ namespace EM.Maman.DriverClient.ViewModels
 
         #endregion
 
-        public TrolleyViewModel()
+        private readonly IUnitOfWork _unitOfWork;
+
+        public TrolleyViewModel(IUnitOfWork unitOfWork)
         {
+            _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+            
             Rows = new ObservableCollection<CompositeRow>();
             Levels = new ObservableCollection<CompositeLevel>();
             LevelTabs = new ObservableCollection<LevelTab>();
@@ -206,17 +211,27 @@ namespace EM.Maman.DriverClient.ViewModels
             LeftCell = new TrolleyCell { CellPosition = "Left" };
             RightCell = new TrolleyCell { CellPosition = "Right" };
 
-            TestDatabase.TestDataChanged += (s, e) => RefreshTestData();
-
-            // Load test data
-            LoadTestData();
+            // Data loading will be triggered externally via InitializeAsync
+            // LoadDataFromDatabaseAsync().ConfigureAwait(false); // REMOVED FROM CONSTRUCTOR
 
             // Add some test pallets to the trolley cells
             LoadTrolleyPallets();
 
             // Initialize tabs
-            InitializeLevelTabs();
+            InitializeLevelTabs(); // Keep this if it doesn't involve DB access
         }
+
+        /// <summary>
+        /// Asynchronously loads data required by the ViewModel.
+        /// Should be called after the ViewModel is constructed.
+        /// </summary>
+        public async System.Threading.Tasks.Task InitializeAsync() // Fully qualify Task
+        {
+            await LoadDataFromDatabaseAsync();
+            // Any other async init needed for this VM
+            // return System.Threading.Tasks.Task.CompletedTask; // Explicitly return completed task - removed as await handles it implicitly
+        }
+
 
         private void LoadTrolleyPallets()
         {
@@ -228,12 +243,12 @@ namespace EM.Maman.DriverClient.ViewModels
                 UldType = "AKE",
                 UldCode = "AKE2345LT",
                 IsSecure = true
-            };
+        };
 
-            // Initially set the right cell empty
-            LeftCell.Pallet = leftPallet;
-            RightCell.Pallet = null;
-        }
+        // Initialize both cells empty
+        LeftCell.Pallet = null; // Initialize empty
+        RightCell.Pallet = null;
+    }
 
         // Method to load a pallet into the left cell
         public void LoadPalletIntoLeftCell(Pallet pallet)
@@ -348,87 +363,123 @@ namespace EM.Maman.DriverClient.ViewModels
         //        HighestActiveRow = Rows.Max(r => r.Position);
         //    }
         //}
-        private void LoadTestData()
+        private async System.Threading.Tasks.Task LoadDataFromDatabaseAsync()
         {
-            var levels = TestDatabase.Levels;
-            var allCells = TestDatabase.Cells;
-            var allFingers = TestDatabase.Fingers;
-            var cellsWithPallets = TestDatabase.CellWithPalletInfos;
-
-            var palletsByCellId = cellsWithPallets.ToDictionary(cwp => cwp.Cell.Id, cwp => cwp.Pallet);
-
-            foreach (var level in levels)
+            try
             {
-                var compositeLevel = new CompositeLevel
+                // Clear existing data
+                Levels.Clear();
+                Rows.Clear();
+
+                // Get data from repositories
+                var levels = await _unitOfWork.Levels.GetAllAsync();
+                var allCells = await _unitOfWork.Cells.GetAllAsync();
+                var cellsWithPallets = await _unitOfWork.Cells.GetCellsWithPalletsAsync();
+                
+                // Get fingers - assuming there's a repository for them
+                // If there's no repository, we might need to handle this differently
+                var allFingers = await _unitOfWork.Fingers.GetAllAsync();
+
+                // Create a dictionary for quick lookup of pallet info by cell ID
+                var palletsByCellId = cellsWithPallets
+                    .Where(cwp => cwp.Pallet != null)
+                    .ToDictionary(cwp => cwp.Cell.Id, cwp => cwp.Pallet);
+
+                // Organize data by levels
+                foreach (var level in levels)
                 {
-                    Level = level,
-                    Rows = new ObservableCollection<CompositeRow>(),
-                    IsCurrentLevel = false,
-                    HasTrolley = level.Number == 1 || level.Number == 2,
-                    HasSecondTrolley = level.Number == 0
-                };
-
-                var levelCells = allCells.Where(c => c.HeightLevel == level.Number).ToList();
-
-                for (int pos = 0; pos < 23; pos++)
-                {
-                    var leftFinger = allFingers.FirstOrDefault(f => f.Side == 0 && f.Position % 100 == pos);
-                    var rightFinger = allFingers.FirstOrDefault(f => f.Side == 1 && f.Position % 100 == pos);
-
-                    var leftOuter = levelCells.FirstOrDefault(c => c.Side == 2 && c.Order == 1 && c.Position == pos);
-                    var leftInner = levelCells.FirstOrDefault(c => c.Side == 2 && c.Order == 0 && c.Position == pos);
-                    var rightOuter = levelCells.FirstOrDefault(c => c.Side == 1 && c.Order == 1 && c.Position == pos);
-                    var rightInner = levelCells.FirstOrDefault(c => c.Side == 1 && c.Order == 0 && c.Position == pos);
-
-                    if (leftOuter != null || leftInner != null || leftFinger != null ||
-                        rightOuter != null || rightInner != null || rightFinger != null)
+                    var compositeLevel = new CompositeLevel
                     {
-                        var row = new CompositeRow
-                        {
-                            Position = pos,
-                            LeftFinger = leftFinger,
-                            LeftOuterCell = leftOuter,
-                            LeftInnerCell = leftInner,
-                            RightOuterCell = rightOuter,
-                            RightInnerCell = rightInner,
-                            RightFinger = rightFinger,
-                            LeftOuterPallet = leftOuter != null && palletsByCellId.ContainsKey(leftOuter.Id) ? palletsByCellId[leftOuter.Id] : null,
-                            LeftInnerPallet = leftInner != null && palletsByCellId.ContainsKey(leftInner.Id) ? palletsByCellId[leftInner.Id] : null,
-                            RightOuterPallet = rightOuter != null && palletsByCellId.ContainsKey(rightOuter.Id) ? palletsByCellId[rightOuter.Id] : null,
-                            RightInnerPallet = rightInner != null && palletsByCellId.ContainsKey(rightInner.Id) ? palletsByCellId[rightInner.Id] : null,
-                            
-                            // Initialize additional cells (initially null)
-                            LeftCell3 = null,
-                            LeftCell4 = null,
-                            RightCell3 = null,
-                            RightCell4 = null,
-                            
-                            // Initialize finger pallet counts (for level 1 only)
-                            LeftFingerPalletCount = level.Number == 1 && leftFinger != null ? new Random().Next(0, 5) : 0,
-                            RightFingerPalletCount = level.Number == 1 && rightFinger != null ? new Random().Next(0, 5) : 0
-                        };
+                        Level = level,
+                        Rows = new ObservableCollection<CompositeRow>(),
+                        IsCurrentLevel = false,
+                        HasTrolley = level.Number == 1 || level.Number == 2, // Example values
+                        HasSecondTrolley = level.Number == 0 // Example value
+                    };
 
-                        compositeLevel.Rows.Add(row);
+                    // Filter cells for this level
+                    var levelCells = allCells.Where(c => c.HeightLevel == level.Number).ToList();
+
+                    // Create rows for this level
+                    for (int pos = 0; pos < 23; pos++)
+                    {
+                        // For fingers, we include them in every level at the same position
+                        var leftFinger = allFingers.FirstOrDefault(f => f.Side == 0 && f.Position % 100 == pos);
+                        var rightFinger = allFingers.FirstOrDefault(f => f.Side == 1 && f.Position % 100 == pos);
+
+                        var leftOuter = levelCells.FirstOrDefault(c => c.Side == 2 && c.Order == 1 && c.Position == pos);
+                        var leftInner = levelCells.FirstOrDefault(c => c.Side == 2 && c.Order == 0 && c.Position == pos);
+                        var rightOuter = levelCells.FirstOrDefault(c => c.Side == 1 && c.Order == 1 && c.Position == pos);
+                        var rightInner = levelCells.FirstOrDefault(c => c.Side == 1 && c.Order == 0 && c.Position == pos);
+
+                        // Only create a row if there's something to show
+                        if (leftOuter != null || leftInner != null || leftFinger != null ||
+                            rightOuter != null || rightInner != null || rightFinger != null)
+                        {
+                            var row = new CompositeRow
+                            {
+                                Position = pos,
+                                LeftFinger = leftFinger,
+                                LeftOuterCell = leftOuter,
+                                LeftInnerCell = leftInner,
+                                RightOuterCell = rightOuter,
+                                RightInnerCell = rightInner,
+                                RightFinger = rightFinger,
+                                
+                                // Store pallet information
+                                LeftOuterPallet = leftOuter != null && palletsByCellId.ContainsKey(leftOuter.Id) ? palletsByCellId[leftOuter.Id] : null,
+                                LeftInnerPallet = leftInner != null && palletsByCellId.ContainsKey(leftInner.Id) ? palletsByCellId[leftInner.Id] : null,
+                                RightOuterPallet = rightOuter != null && palletsByCellId.ContainsKey(rightOuter.Id) ? palletsByCellId[rightOuter.Id] : null,
+                                RightInnerPallet = rightInner != null && palletsByCellId.ContainsKey(rightInner.Id) ? palletsByCellId[rightInner.Id] : null,
+                                
+                                // Initialize additional cells (initially null)
+                                LeftCell3 = null,
+                                LeftCell4 = null,
+                                RightCell3 = null,
+                                RightCell4 = null,
+                                
+                                // Initialize finger pallet counts (for level 1 only)
+                                LeftFingerPalletCount = level.Number == 1 && leftFinger != null ? 0 : 0,
+                                RightFingerPalletCount = level.Number == 1 && rightFinger != null ? 0 : 0
+                            };
+
+                            compositeLevel.Rows.Add(row);
+                        }
+                    }
+
+                    if (compositeLevel.Rows.Any())
+                    {
+                        Levels.Add(compositeLevel);
                     }
                 }
 
-                if (compositeLevel.Rows.Any())
+                // Set initial current level and position
+                if (Levels.Any())
                 {
-                    Levels.Add(compositeLevel);
+                    CurrentLevelNumber = Levels[0].Level.Number;
+                    SelectedLevelNumber = CurrentLevelNumber; // Initially the same
+                    CurrentPosition = 0;
                 }
-            }
 
-            if (Levels.Any())
-            {
-                CurrentLevelNumber = Levels[0].Level.Number;
-                SelectedLevelNumber = CurrentLevelNumber;
-                CurrentPosition = 0;
+                // For backward compatibility, populate Rows with the first level's rows
+                if (Levels.Any() && Levels[0].Rows.Any())
+                {
+                    Rows = Levels[0].Rows;
+                    HighestActiveRow = Rows.Max(r => r.Position);
+                }
+                
+                // Initialize level tabs
+                InitializeLevelTabs();
             }
-
-            if (Levels.Any() && Levels[0].Rows.Any())
+            catch (Exception ex)
             {
-                Rows = Levels[0].Rows;
-                HighestActiveRow = Rows.Max(r => r.Position);
+                // Log the exception or handle it appropriately
+                System.Diagnostics.Debug.WriteLine($"Error loading data from database: {ex.Message}");
+                
+                // Fallback to empty collections
+                Levels.Clear();
+                Rows.Clear();
+                LevelTabs.Clear();
             }
         }
 
@@ -475,13 +526,12 @@ namespace EM.Maman.DriverClient.ViewModels
                 HighestActiveRow = Rows.Any() ? Rows.Max(r => r.Position) : 0;
             }
         }
-        public void RefreshTestData()
+        public async System.Threading.Tasks.Task RefreshDataAsync()
         {
             Levels.Clear();
             Rows.Clear();
             LevelTabs.Clear();
-            LoadTestData();
-            InitializeLevelTabs();
+            await LoadDataFromDatabaseAsync();
         }
 
         public void UpdateTrolleyPosition(int levelNumber, int position)

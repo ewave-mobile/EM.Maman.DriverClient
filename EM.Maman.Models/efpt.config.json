@@ -3,7 +3,7 @@
    "ContextClassName": "LocalMamanDBContext",
    "ContextNamespace": null,
    "FilterSchemas": false,
-   "IncludeConnectionString": true,
+   "IncludeConnectionString": false,
    "ModelNamespace": null,
    "OutputContextPath": null,
    "OutputPath": "LocalDbModels",

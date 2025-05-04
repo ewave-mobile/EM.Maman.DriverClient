@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:EM.Maman.DriverClient"
+        xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         mc:Ignorable="d"
         Title="LoginWindow" Height="{StaticResource WindowHeight}" Width="{StaticResource WindowWidth}"
@@ -11,39 +12,117 @@
         WindowStyle="SingleBorderWindow"
         DataContext="{Binding RelativeSource={RelativeSource Self}}"
         >
+
+    <Window.Resources>
+        <!-- Standard BoolToVisibilityConverter -->
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+
+        <!-- Style for Workstation RadioButtons to look like buttons -->
+        <Style x:Key="WorkstationRadioButtonStyle" TargetType="RadioButton">
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="LightGray"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="#E3F2FD"/>
+                    <!-- Light blue background when checked -->
+                    <Setter Property="BorderBrush" Value="#2196F3"/>
+                    <!-- Blue border when checked -->
+                    <Setter Property="Foreground" Value="#1976D2"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="Gray"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+    </Window.Resources>
     <Window.Background>
         <ImageBrush ImageSource="/Images/mamanBackground.jpeg" Stretch="UniformToFill"/>
     </Window.Background>
     <Grid>
         <StackPanel Background="White" Margin="1008,0,58,0" VerticalAlignment="Center" Width="600" Height="500" >
             <!-- Logo -->
-            <Image Source="/images/MamanLogo.png" Width="168" Height="141"  Margin="0,55,0,10" Stretch="Fill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Image Source="/images/MamanLogo.png" Width="168" Height="141"  Margin="0,5,0,0" Stretch="Fill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
             <!-- Welcome Text -->
             <TextBlock Text="שמחים לראות אותך פה איתנו" 
                        HorizontalAlignment="Center" TextAlignment="Right" 
-                       FontSize="28" Margin="0,10,0,10"/>
+                       FontSize="28" Margin="0,5,0,5"/>
 
-            <!-- Instruction Text -->
-            <TextBlock Text="כאן מזינים מספר עובד כדי להתחבר"  
-                       HorizontalAlignment="Center" TextAlignment="Right" 
-                       FontSize="24" Margin="0,10,0,10"/>
 
-            <!-- Employee ID Label -->
-            <TextBlock Text=":מספר עובד" 
-                       HorizontalAlignment="Center" TextAlignment="Right" 
-                       FontSize="18" Margin="290,10,10,20" />
 
-            <!-- Input and Button Row -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" FlowDirection="RightToLeft" VerticalAlignment="Center">
-                <TextBox x:Name="EmployeeIdTextBox" Height="40" Width="300" 
-                         Margin="0,0,10,0" FontSize="22" BorderBrush="Gray" 
-                         materialDesign:TextFieldAssist.UnderlineBrush="#329DFF"/>
-                <Button Width="50" Height="40" Background="#329DFF" Click="Button_Click">
-                    <materialDesign:PackIcon Kind="ArrowLeft" Width="24" Height="24" 
-                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </Button>
+            <!-- Employee ID Label (Always Visible) -->
+            <TextBlock Text="הזנת מספר עובד"
+                       HorizontalAlignment="Right" TextAlignment="Right"
+                       FontSize="16" Margin="0,5,125,5" />
+
+            <!-- Employee ID Input (Always Visible) - Using two-way binding to EmployeeId property -->
+            <TextBox Height="40" Width="350"
+Margin="0,5,125,10" FontSize="22" BorderBrush="Gray" HorizontalAlignment="Right"
+materialDesign:TextFieldAssist.UnderlineBrush="#329DFF"
+materialDesign:HintAssist.Foreground="#329DFF"
+materialDesign:TextFieldAssist.HasClearButton="True"
+Foreground="Black"
+CaretBrush="#329DFF"
+SelectionBrush="#329DFF"
+BorderThickness="1"
+TextAlignment="Right"
+Text="{Binding EmployeeId, UpdateSourceTrigger=PropertyChanged}"/>
+            <!-- Initialization Section (Visible only on first run) -->
+            <StackPanel x:Name="InitializationPanel"
+                        Visibility="{Binding IsFirstInitializationMode, Converter={StaticResource BoolToVisibilityConverter}}"
+                        HorizontalAlignment="Center" Margin="0,15,0,10">
+                <TextBlock Text="בחירת עמדת עבודה"
+                           HorizontalAlignment="Right" TextAlignment="Right"
+                           FontSize="18" Margin="0,0,10,10"/>
+                <!-- Use RadioButtons styled as buttons with direct event handlers -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" FlowDirection="RightToLeft" Height="60">
+                    <RadioButton x:Name="LodigaRadioButton" Content="לודיגה" GroupName="WorkstationGroup" Style="{StaticResource WorkstationRadioButtonStyle}"
+                                 Checked="WorkstationRadioButton_Checked" Tag="לודיגה"/>
+                    <RadioButton x:Name="BigBatteryRadioButton" Content="מצבר גדול" GroupName="WorkstationGroup" Style="{StaticResource WorkstationRadioButtonStyle}"
+                                 Checked="WorkstationRadioButton_Checked" Tag="מצבר גדול"/>
+                    <RadioButton x:Name="SmallBatteryRadioButton" Content="מצבר קטן" GroupName="WorkstationGroup" Style="{StaticResource WorkstationRadioButtonStyle}"
+                                 Checked="WorkstationRadioButton_Checked" Tag="מצבר קטן"/>
+                    <RadioButton x:Name="LpvRadioButton" Content="LPV" GroupName="WorkstationGroup" Style="{StaticResource WorkstationRadioButtonStyle}"
+                                 Checked="WorkstationRadioButton_Checked" Tag="LPV"/>
+                </StackPanel>
             </StackPanel>
+
+            <!-- Buttons Section -->
+            <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Margin="0,20,0,0">
+                <!-- Initialization Button (Visible only on first run) -->
+                <Button Content="כניסה" Width="300" Height="45" Background="#329DFF" Foreground="White" FontSize="18"
+                        Click="Button_Click"
+                        Visibility="{Binding IsFirstInitializationMode, Converter={StaticResource BoolToVisibilityConverter}}" ClickMode="Press" />
+
+                <!-- Standard Login Button (Visible only when NOT first initialization) -->
+                <Button Content="כניסה" Width="300" Height="45" Background="#329DFF" Foreground="White" FontSize="18"
+                        Click="LoginButton_Click"
+                        Visibility="{Binding IsNotFirstInitializationMode, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            </StackPanel>
+           
 
         </StackPanel>
         <StackPanel Orientation="Vertical" Height="80" Width="300" VerticalAlignment="Bottom"  >

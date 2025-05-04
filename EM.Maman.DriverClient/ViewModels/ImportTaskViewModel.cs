@@ -61,9 +61,10 @@ namespace EM.Maman.DriverClient.ViewModels
                     _selectedSourceFinger = value;
                     if (TaskDetails != null)
                     {
-                        TaskDetails.SourceFinger = value;
+                        TaskDetails.SourceFinger = value; // Assign selected finger
                     }
                     OnPropertyChanged();
+                    (_saveCommand as RelayCommand)?.RaiseCanExecuteChanged(); // Re-evaluate CanSave
                 }
             }
         }
@@ -113,6 +114,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 Status = Models.Enums.TaskStatus.Created,
                 CreatedDateTime = DateTime.Now,
                 Code = GenerateTaskCode()
+                // Pallet and SourceFinger will be set via binding/selection
             };
 
             // Load fingers
@@ -127,73 +129,58 @@ namespace EM.Maman.DriverClient.ViewModels
 
         private async System.Threading.Tasks.Task LoadFingersAsync()
         {
-            await System.Threading.Tasks.Task.Delay(100);
-            Fingers = new ObservableCollection<Finger>(TestDatabase.Fingers.OrderBy(f => f.Position));
+            try
+            {
+                IsBusy = true;
+                StatusMessage = "Loading fingers...";
+                var fingersFromDb = await _unitOfWork.Fingers.GetAllAsync(); // Fetch from DB
+                Fingers = new ObservableCollection<Finger>(fingersFromDb.OrderBy(f => f.Position));
+                StatusMessage = $"Loaded {Fingers.Count} fingers.";
+            }
+            catch (Exception ex)
+            {
+                // Log the error appropriately
+                StatusMessage = "Error loading fingers.";
+                // Consider showing a message box or logging
+                System.Windows.MessageBox.Show($"Error loading fingers: {ex.Message}", "Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
         }
-
-        private IEnumerable<Finger> GetTestFingers()
-        {
-            return new List<Finger>
-    {
-        // Left side fingers (Side = 0)
-        new Finger { Id = 1, Side = 0, Position = 102, Description = "Finger L1-02", DisplayName = "L02", DisplayColor = "Grey" },
-        new Finger { Id = 3, Side = 0, Position = 105, Description = "Finger L1-05", DisplayName = "L05", DisplayColor = "Grey" },
-        new Finger { Id = 5, Side = 0, Position = 112, Description = "Finger L1-12", DisplayName = "L12", DisplayColor = "Grey" },
-        new Finger { Id = 7, Side = 0, Position = 118, Description = "Finger L1-18", DisplayName = "L18", DisplayColor = "Grey" },
-        
-        // Right side fingers (Side = 1)
-        new Finger { Id = 2, Side = 1, Position = 103, Description = "Finger R1-03", DisplayName = "R03", DisplayColor = "Grey" },
-        new Finger { Id = 4, Side = 1, Position = 108, Description = "Finger R1-08", DisplayName = "R08", DisplayColor = "Grey" },
-        new Finger { Id = 6, Side = 1, Position = 115, Description = "Finger R1-15", DisplayName = "R15", DisplayColor = "Grey" },
-        new Finger { Id = 8, Side = 1, Position = 120, Description = "Finger R1-20", DisplayName = "R20", DisplayColor = "Grey" }
-    };
-        }
-
 
         private void Save()
         {
-            // Validate the task details and save
+            // Validate essential details before closing
             if (TaskDetails == null || string.IsNullOrWhiteSpace(TaskDetails.Code))
             {
                 StatusMessage = "Task code is required.";
                 return;
             }
+             if (string.IsNullOrWhiteSpace(PalletDisplayName) || string.IsNullOrWhiteSpace(UldType))
+             {
+                 StatusMessage = "Pallet Display Name and ULD Type are required.";
+                 return;
+             }
+             if (SelectedSourceFinger == null) // Check the ViewModel's selected finger
+             {
+                 StatusMessage = "Source Finger must be selected.";
+                 return;
+             }
 
-            // If no pallet is selected, create a new one from the input.
-            if (TaskDetails.Pallet == null)
-            {
-                // Create new pallet from UI input
-                TaskDetails.Pallet = CreatePalletFromInput();
+            // Create/Update Pallet object within TaskDetails
+            // IMPORTANT: This pallet won't have a DB ID until saved by TaskViewModel.
+            // The relationship needs to be handled correctly during the actual save.
+             TaskDetails.Pallet = CreatePalletFromInput(); // Assign the newly created/edited pallet info
 
-                // Add it to the test database (simulate a DB insert)
-                TestDatabase.AddPallet(TaskDetails.Pallet);
+            // Assign the selected finger (already done via binding, but ensure it's set)
+            TaskDetails.SourceFinger = SelectedSourceFinger;
 
-                // Determine the cell to update.
-                // For example, you might choose the cell next to the source finger.
-                // Here we assume that if a source finger was selected,
-                // we find a cell on the same level (e.g. Level 1) with a matching position.
-                if (TaskDetails.SourceFinger != null)
-                {
-                    // Calculate a cell position; adjust the logic as needed.
-                    int targetPosition = (TaskDetails.SourceFinger.Position ?? 0) % 100;
-                    // For demo purposes, assume Level 1 (HeightLevel == 1). You could also choose based on other criteria.
-                    var candidateCell = TestDatabase.Cells.FirstOrDefault(c => c.Position == targetPosition && c.HeightLevel == 1);
-                    if (candidateCell != null)
-                    {
-                        // Add the new pallet to the cell.
-                        TestDatabase.AddPalletToCell((int)candidateCell.Id, TaskDetails.Pallet);
-                    }
-                }
-            }
+            // Set a descriptive name
+            TaskDetails.Name = $"Import {TaskDetails.Pallet?.DisplayName ?? "N/A"} from {TaskDetails.SourceFinger?.DisplayName ?? "N/A"}";
 
-            // Set the task name using the pallet info and the source finger (if any)
-            TaskDetails.Name = $"Import {TaskDetails.Pallet.DisplayName} from {TaskDetails.SourceFinger?.DisplayName ?? "manual entry"}";
-
-            // Optionally, after updating the TestDatabase, you may raise an event or call a refresh method on your TrolleyViewModel
-            // so that the UI re-reads the cell–pallet associations. For example:
-            // TrolleyViewModelInstance.RefreshTestData();
-
-            // Close the dialog with success result
+            // Close the dialog, indicating success. TaskViewModel will handle the actual DB save.
             RequestClose?.Invoke(this, new DialogResultEventArgs(true));
         }
 
@@ -202,15 +189,19 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             // Create a new pallet using the data from UI fields
             // These fields would be bound to properties in this view model
+            // IMPORTANT: This Pallet object does NOT have an ID yet.
+            // The actual Pallet creation/linking needs to happen in TaskViewModel.SaveTaskToDatabase
             return new Pallet
             {
+                Id = 0, // Explicitly set ID to 0 for a new pallet
                 DisplayName = PalletDisplayName,
                 UldType = UldType,
                 UldCode = UldCode,
                 UldNumber = UldNumber,
                 UldAirline = UldAirline,
                 Description = PalletDescription,
-                ReceivedDate = DateTime.Now
+                ReceivedDate = DateTime.Now,
+                IsSecure = IsSecurePallet // Assign IsSecure
             };
         }
 
@@ -222,7 +213,9 @@ namespace EM.Maman.DriverClient.ViewModels
 
         private bool CanSave()
         {
+            // Ensure a source finger is selected
             return !IsBusy && TaskDetails != null &&
+                  SelectedSourceFinger != null && // Check ViewModel's property
                   !string.IsNullOrWhiteSpace(PalletDisplayName) &&
                   !string.IsNullOrWhiteSpace(UldType);
         }
@@ -339,6 +332,7 @@ namespace EM.Maman.DriverClient.ViewModels
         }
     }
 
+    // Restore DialogResultEventArgs as it's used by RequestClose event
     public class DialogResultEventArgs : EventArgs
     {
         public bool Result { get; }
@@ -349,4 +343,3 @@ namespace EM.Maman.DriverClient.ViewModels
         }
     }
 }
-

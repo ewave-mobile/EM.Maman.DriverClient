@@ -4,6 +4,7 @@ using EM.Maman.Models.LocalDbModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EM.Maman.Models.Migrations
 {
     [DbContext(typeof(LocalMamanDBContext))]
-    partial class LocalMamanDBContextModelSnapshot : ModelSnapshot
+    [Migration("20250420112059_InitialSchema")]
+    partial class InitialSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -155,15 +158,6 @@ namespace EM.Maman.Models.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("InitializedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("InitializedByEmployeeId")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("WorkstationType")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id")
                         .HasName("PK__Configur__3214EC079B1E2953");
@@ -553,10 +547,6 @@ namespace EM.Maman.Models.Migrations
                     b.HasKey("Id")
                         .HasName("PK__Tasks__3214EC0749F74CCB");
 
-                    b.HasIndex("CellEndLocationId");
-
-                    b.HasIndex("FingerLocationId");
-
                     b.ToTable("Tasks");
                 });
 
@@ -823,21 +813,6 @@ namespace EM.Maman.Models.Migrations
                         .HasConstraintName("FK_Cells_Levels");
 
                     b.Navigation("HeightLevelNavigation");
-                });
-
-            modelBuilder.Entity("EM.Maman.Models.LocalDbModels.Task", b =>
-                {
-                    b.HasOne("EM.Maman.Models.LocalDbModels.Cell", "Cell")
-                        .WithMany()
-                        .HasForeignKey("CellEndLocationId");
-
-                    b.HasOne("EM.Maman.Models.LocalDbModels.Finger", "Finger")
-                        .WithMany()
-                        .HasForeignKey("FingerLocationId");
-
-                    b.Navigation("Cell");
-
-                    b.Navigation("Finger");
                 });
 
             modelBuilder.Entity("EM.Maman.Models.LocalDbModels.Level", b =>

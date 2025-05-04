@@ -19,6 +19,9 @@ using System.Windows.Controls;
 using System.Windows;
 using Microsoft.EntityFrameworkCore;
 using EM.Maman.DriverClient.Extensions;
+using EM.Maman.Models.Interfaces;
+using EM.Maman.Models.LocalDbModels;
+using System.Linq;
 
 namespace EM.Maman.DriverClient
 {
@@ -27,6 +30,7 @@ namespace EM.Maman.DriverClient
         public IServiceProvider ServiceProvider { get; private set; }
         public IConfiguration Configuration { get; private set; }
         private ILogger<App> _logger;
+        public static bool IsFirstInitialization { get; private set; } = false; // Default to false
 
         public App()
         {
@@ -36,7 +40,7 @@ namespace EM.Maman.DriverClient
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
         }
 
-        protected override void OnStartup(StartupEventArgs e)
+        protected override async void OnStartup(StartupEventArgs e)
         {
             try
             {
@@ -61,7 +65,7 @@ namespace EM.Maman.DriverClient
                 _logger = ServiceProvider.GetRequiredService<ILogger<App>>();
 
                 // Database initialization with robust error handling
-                InitializeDatabase();
+                await InitializeDatabase(); // This now sets IsFirstInitialization
 
                 // Start with Login Window
                 StartApplication();
@@ -109,7 +113,8 @@ namespace EM.Maman.DriverClient
             _logger = loggerFactory.CreateLogger<App>();
         }
 
-        private void InitializeDatabase()
+        // Mark method as async
+        private async System.Threading.Tasks.Task InitializeDatabase()
         {
             try
             {
@@ -117,7 +122,24 @@ namespace EM.Maman.DriverClient
                 using (var scope = ServiceProvider.CreateScope())
                 {
                     var dbContext = scope.ServiceProvider.GetRequiredService<LocalMamanDBContext>();
-                    ApplyDatabaseMigrations(dbContext);
+                    var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>(); // Resolve UnitOfWork
+
+                   // ApplyDatabaseMigrations(dbContext);
+
+                    // Check if configuration exists AFTER migration using the new repository
+                    try
+                    {
+                        _logger.LogInformation("Checking for existing configuration via repository...");
+                        // Use the new Configurations repository from UnitOfWork
+                        bool configurationExists = await unitOfWork.Configurations.AnyAsync();
+                        IsFirstInitialization = !configurationExists;
+                        _logger.LogInformation("IsFirstInitialization set to: {IsFirstInit}", IsFirstInitialization);
+                    }
+                    catch (Exception configEx)
+                    {
+                        _logger.LogError(configEx, "Error checking configuration table. Assuming not first initialization.");
+                        IsFirstInitialization = false; // Safer default if check fails
+                    }
                 }
                 _logger.LogInformation("Database initialization completed.");
             }
@@ -382,19 +404,34 @@ namespace EM.Maman.DriverClient
             services.AddScoped<IUserManager, UserManager>();
 
             // Register Data Access Layer
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddTransient<IUnitOfWork, UnitOfWork>();
             services.AddScoped<ITrolleyRepository, TrolleyRepository>();
             services.AddScoped<ICellRepository, CellRepository>();
             services.AddScoped<IFingerRepository, FingerRepository>();
+            services.AddScoped<ILevelRepository, LevelRepository>(); // Register LevelRepository
             services.AddScoped<ITaskRepository, TaskRepository>();
             services.AddScoped<IOperationRepository, OperationRepository>();
             services.AddScoped<IPalletRepository, PalletRepository>();
+            services.AddScoped<IPalletInCellRepository, PalletInCellRepository>(); // Register PalletInCellRepository
             services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<IConfigurationRepository, ConfigurationRepository>(); // Register ConfigurationRepository
+            services.AddScoped<ITaskTypeRepository, TaskTypeRepository>(); // Added TaskType repository registration
 
             // Register ViewModels
-            services.AddTransient<MainViewModel>();
+            services.AddTransient<ImportTaskViewModel>(provider => new ImportTaskViewModel(
+                provider.GetRequiredService<IUnitOfWork>()));
+            
+            services.AddTransient<TrolleyViewModel>(provider => new TrolleyViewModel(provider.GetRequiredService<IUnitOfWork>()));
+            services.AddTransient<WarehouseViewModel>(provider => new WarehouseViewModel(provider.GetRequiredService<IUnitOfWork>()));
+            services.AddTransient<MainViewModel>(provider => new MainViewModel(
+                provider.GetRequiredService<IOpcService>(),
+                provider.GetRequiredService<IUnitOfWork>(),
+                provider.GetRequiredService<IConnectionManager>(),
+                provider.GetRequiredService<IDispatcherService>(),
+                provider.GetRequiredService<ILoggerFactory>(),
+                provider.GetRequiredService<TrolleyViewModel>()
+            ));
             services.AddTransient<LoginViewModel>();
-            services.AddTransient<TrolleyViewModel>();
             services.AddTransient<TaskViewModel>();
 
             // Register Views

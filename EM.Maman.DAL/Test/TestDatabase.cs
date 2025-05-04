@@ -53,7 +53,8 @@ namespace EM.Maman.DAL.Test
         // Mimic Cells. For each level we create 23 positions, each with 4 cells.
         public static List<Cell> Cells { get; set; } = CreateCells();
 
-        private static List<Cell> CreateCells()
+        // Make this public so it can be called from LoginWindow initialization
+        public static List<Cell> CreateCells()
         {
             var cells = new List<Cell>();
 

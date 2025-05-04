@@ -1,4 +1,5 @@
 using EM.Maman.Models.DisplayModels;
+using EM.Maman.Models.Interfaces;
 using EM.Maman.Models.LocalDbModels;
 using System;
 using System.Collections.Generic;
@@ -101,16 +102,30 @@ namespace EM.Maman.DriverClient.ViewModels
 
         #region Constructor
 
+        private readonly IUnitOfWork _unitOfWork;
+
         /// <summary>
         /// Initializes a new instance of the WarehouseViewModel class
         /// </summary>
-        public WarehouseViewModel()
+        public WarehouseViewModel(IUnitOfWork unitOfWork)
         {
+            _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+            
             Rows = new ObservableCollection<CompositeRow>();
             Levels = new ObservableCollection<CompositeLevel>();
-            
-            // Initialize with test data
-            LoadTestData();
+
+            // Data loading will be triggered externally via InitializeAsync
+            // LoadDataFromDatabaseAsync().ConfigureAwait(false); // REMOVED FROM CONSTRUCTOR
+        }
+
+        /// <summary>
+        /// Asynchronously loads data required by the ViewModel.
+        /// Should be called after the ViewModel is constructed.
+        /// </summary>
+        public async System.Threading.Tasks.Task InitializeAsync() // Fully qualify Task
+        {
+            await LoadDataFromDatabaseAsync();
+            // Any other async init needed for this VM
         }
 
         #endregion
@@ -118,46 +133,94 @@ namespace EM.Maman.DriverClient.ViewModels
         #region Methods
 
         /// <summary>
-        /// Loads test data for the warehouse
+        /// Loads data from the database for the warehouse
         /// </summary>
-        private void LoadTestData()
+        private async System.Threading.Tasks.Task LoadDataFromDatabaseAsync()
         {
-            // This would be replaced with actual data loading from a repository
-            // For now, just create some test levels and rows
-            
-            // Create levels
-            for (int i = 1; i <= 4; i++)
+            try
             {
-                var level = new CompositeLevel
-                {
-                    Level = new Level { Id = i, Number = i, DisplayName = $"Level {i}" },
-                    Rows = new ObservableCollection<CompositeRow>(),
-                    IsCurrentLevel = i == 1,
-                    HasTrolley = i == 1 || i == 2,
-                    HasSecondTrolley = i == 0
-                };
+                // Clear existing data
+                Levels.Clear();
+                Rows.Clear();
+
+                // Get data from repositories
+                var levels = await _unitOfWork.Levels.GetAllAsync();
+                var allCells = await _unitOfWork.Cells.GetAllAsync();
+                var cellsWithPallets = await _unitOfWork.Cells.GetCellsWithPalletsAsync();
                 
-                // Create rows for this level
-                for (int j = 0; j < 23; j++)
+                // Create a dictionary for quick lookup of pallet info by cell ID
+                var palletsByCellId = cellsWithPallets
+                    .Where(cwp => cwp.Pallet != null)
+                    .ToDictionary(cwp => cwp.Cell.Id, cwp => cwp.Pallet);
+
+                // Organize data by levels
+                foreach (var level in levels)
                 {
-                    var row = new CompositeRow
+                    var compositeLevel = new CompositeLevel
                     {
-                        Position = j,
-                        // Add cells and other properties as needed
+                        Level = level,
+                        Rows = new ObservableCollection<CompositeRow>(),
+                        IsCurrentLevel = level.Number == 1, // Default to level 1 as current
+                        HasTrolley = level.Number == 1 || level.Number == 2, // Example values
+                        HasSecondTrolley = level.Number == 0 // Example value
                     };
+
+                    // Filter cells for this level
+                    var levelCells = allCells.Where(c => c.HeightLevel == level.Number).ToList();
+
+                    // Create rows for this level
+                    for (int pos = 0; pos < 23; pos++)
+                    {
+                        // Get cells for this position
+                        var leftOuter = levelCells.FirstOrDefault(c => c.Side == 2 && c.Order == 1 && c.Position == pos);
+                        var leftInner = levelCells.FirstOrDefault(c => c.Side == 2 && c.Order == 0 && c.Position == pos);
+                        var rightOuter = levelCells.FirstOrDefault(c => c.Side == 1 && c.Order == 1 && c.Position == pos);
+                        var rightInner = levelCells.FirstOrDefault(c => c.Side == 1 && c.Order == 0 && c.Position == pos);
+
+                        // Create a row even if there are no cells, to ensure consistent row count
+                        var row = new CompositeRow
+                        {
+                            Position = pos,
+                            LeftOuterCell = leftOuter,
+                            LeftInnerCell = leftInner,
+                            RightOuterCell = rightOuter,
+                            RightInnerCell = rightInner,
+                            
+                            // Store pallet information
+                            LeftOuterPallet = leftOuter != null && palletsByCellId.ContainsKey(leftOuter.Id) ? palletsByCellId[leftOuter.Id] : null,
+                            LeftInnerPallet = leftInner != null && palletsByCellId.ContainsKey(leftInner.Id) ? palletsByCellId[leftInner.Id] : null,
+                            RightOuterPallet = rightOuter != null && palletsByCellId.ContainsKey(rightOuter.Id) ? palletsByCellId[rightOuter.Id] : null,
+                            RightInnerPallet = rightInner != null && palletsByCellId.ContainsKey(rightInner.Id) ? palletsByCellId[rightInner.Id] : null,
+                            
+                            // Initialize additional cells (initially null)
+                            LeftCell3 = null,
+                            LeftCell4 = null,
+                            RightCell3 = null,
+                            RightCell4 = null
+                        };
+                        
+                        compositeLevel.Rows.Add(row);
+                    }
                     
-                    level.Rows.Add(row);
+                    Levels.Add(compositeLevel);
                 }
                 
-                Levels.Add(level);
+                // Set initial values
+                CurrentLevelNumber = 1;
+                SelectedLevelNumber = 1;
+                
+                // Update rows for the selected level
+                UpdateRowsForSelectedLevel();
             }
-            
-            // Set initial values
-            CurrentLevelNumber = 1;
-            SelectedLevelNumber = 1;
-            
-            // Update rows for the selected level
-            UpdateRowsForSelectedLevel();
+            catch (Exception ex)
+            {
+                // Log the exception or handle it appropriately
+                System.Diagnostics.Debug.WriteLine($"Error loading data from database: {ex.Message}");
+                
+                // Fallback to empty collections
+                Levels.Clear();
+                Rows.Clear();
+            }
         }
 
         /// <summary>

@@ -54,7 +54,7 @@
 
         <!-- Right Finger -->
         <local:FingerControl Grid.Column="3" Width="100"
-                     Finger="{Binding RowData.RightFinger, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                     Finger="{Binding RowData.RightFinger, RelativeSource={RelativeSource AncestorType=UserControl}}"
                      IsSideRight="True"
                      Visibility="{Binding RowData.RightFinger, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToCollapseConverter}}"/>
     </Grid>

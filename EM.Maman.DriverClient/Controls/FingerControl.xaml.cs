@@ -51,8 +51,8 @@ namespace EM.Maman.DriverClient.Controls
         public int CurrentLevel
         {
             get { return (int)GetValue(CurrentLevelProperty); }
-            set 
-            { 
+            set
+            {
                 SetValue(CurrentLevelProperty, value);
                 // Update IsLowestLevel when CurrentLevel changes
                 IsLowestLevel = value == 1; // Assuming level 1 is the lowest level

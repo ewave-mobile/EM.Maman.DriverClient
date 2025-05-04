@@ -1,3 +1,8 @@
+using EM.Maman.Models.LocalDbModels; // Added for Finger
+using Microsoft.Extensions.Logging; // Added for ILogger extensions
+using System;                       // Added for Exception
+using System.Windows;               // Added for MessageBox
+
 namespace EM.Maman.DriverClient.ViewModels
 {
     // Partial class containing navigation methods for MainViewModel
@@ -46,5 +51,7 @@ namespace EM.Maman.DriverClient.ViewModels
             (_showMapViewCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (_showTasksListViewCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
+
+        // Removed CanNavigateToFinger and NavigateToFinger methods
     }
 }

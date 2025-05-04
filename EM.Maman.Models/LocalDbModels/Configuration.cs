@@ -8,4 +8,10 @@ namespace EM.Maman.Models.LocalDbModels;
 public partial class Configuration
 {
     public int Id { get; set; }
+
+    public DateTime InitializedAt { get; set; }
+
+    public string InitializedByEmployeeId { get; set; }
+
+    public string WorkstationType { get; set; }
 }
