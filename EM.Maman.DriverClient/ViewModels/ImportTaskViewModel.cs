@@ -118,9 +118,11 @@ namespace EM.Maman.DriverClient.ViewModels
             };
 
             // Load fingers
-            LoadFingersAsync();
+            //LoadFingersAsync();
         }
-
+        public async System.Threading.Tasks.Task InitializeAsync() {
+            await LoadFingersAsync();
+        }
         private string GenerateTaskCode()
         {
             // Generate a unique code for the task - starting with IMP for import

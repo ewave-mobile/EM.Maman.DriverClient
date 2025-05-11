@@ -11,5 +11,10 @@ namespace EM.Maman.DriverClient.Views
         {
             InitializeComponent();
         }
+
+        private void Button_ColorChanged(object sender, System.Windows.RoutedPropertyChangedEventArgs<System.Windows.Media.Color> e)
+        {
+
+        }
     }
 }

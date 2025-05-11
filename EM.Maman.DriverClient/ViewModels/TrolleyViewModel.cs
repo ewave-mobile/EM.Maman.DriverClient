@@ -492,7 +492,7 @@ namespace EM.Maman.DriverClient.ViewModels
             {
                 var tab = new LevelTab(level.Level, level.Level.Number == SelectedLevelNumber)
                 {
-                    DisplayName = $"Level {level.Level.Number}"
+                    DisplayName = level.Level.DisplayName
                 };
                 LevelTabs.Add(tab);
             }

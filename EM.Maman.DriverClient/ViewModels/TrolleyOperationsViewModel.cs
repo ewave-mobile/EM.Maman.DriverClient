@@ -14,7 +14,12 @@ namespace EM.Maman.DriverClient.ViewModels
     {
         private TrolleyViewModel _trolleyVM;
         private Trolley _currentTrolley;
+        private MainViewModel _mainViewModel;
 
+        public void SetMainViewModel(MainViewModel mainViewModel)
+        {
+            _mainViewModel = mainViewModel;
+        }
         public TrolleyViewModel TrolleyVM
         {
             get => _trolleyVM;
@@ -582,8 +587,10 @@ namespace EM.Maman.DriverClient.ViewModels
         }
 
         // Method to check if left cell can be unloaded
-        private bool CanUnloadLeftCell() => TrolleyVM?.LeftCell?.IsOccupied == true;
-        
+       // private bool CanUnloadLeftCell() => TrolleyVM?.LeftCell?.IsOccupied == true;
+
+        private bool CanUnloadLeftCell() =>  true;
+
         // Method to check if right cell can be unloaded
         private bool CanUnloadRightCell() => TrolleyVM?.RightCell?.IsOccupied == true;
         

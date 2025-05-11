@@ -418,9 +418,11 @@ namespace EM.Maman.DriverClient
             services.AddScoped<ITaskTypeRepository, TaskTypeRepository>(); // Added TaskType repository registration
 
             // Register ViewModels
-            services.AddTransient<ImportTaskViewModel>(provider => new ImportTaskViewModel(
-                provider.GetRequiredService<IUnitOfWork>()));
-            
+            //services.AddTransient<ImportTaskViewModel>(provider => new ImportTaskViewModel(
+            //    provider.GetRequiredService<IUnitOfWork>()));
+            //services.AddTransient<ImportTaskViewModel>(provider => new ImportTaskViewModel(
+            //   provider.GetRequiredService<IUnitOfWork>()));
+           
             services.AddTransient<TrolleyViewModel>(provider => new TrolleyViewModel(provider.GetRequiredService<IUnitOfWork>()));
             services.AddTransient<WarehouseViewModel>(provider => new WarehouseViewModel(provider.GetRequiredService<IUnitOfWork>()));
             services.AddTransient<MainViewModel>(provider => new MainViewModel(
@@ -433,10 +435,26 @@ namespace EM.Maman.DriverClient
             ));
             services.AddTransient<LoginViewModel>();
             services.AddTransient<TaskViewModel>();
+            services.AddTransient<ImportTaskViewModel>(provider =>
+     new ImportTaskViewModel(provider.GetRequiredService<IUnitOfWork>()));
 
+            services.AddTransient<ExportTaskViewModel>(provider =>
+                new ExportTaskViewModel(provider.GetRequiredService<IUnitOfWork>()));
+
+            services.AddTransient<ManualTaskViewModel>((provider) => {
+                var unitOfWork = provider.GetRequiredService<IUnitOfWork>();
+                var importVM = provider.GetRequiredService<ImportTaskViewModel>();
+                var exportVM = provider.GetRequiredService<ExportTaskViewModel>();
+                return new ManualTaskViewModel(unitOfWork, importVM, exportVM);
+            });
             // Register Views
             services.AddTransient<MainWindow>();
             services.AddTransient<LoginWindow>();
+            services.AddTransient<ManualTaskDialog>(provider =>
+    new ManualTaskDialog(
+        provider.GetRequiredService<IUnitOfWork>(),
+        provider.GetRequiredService<ManualTaskViewModel>()));
+
         }
     }
 }

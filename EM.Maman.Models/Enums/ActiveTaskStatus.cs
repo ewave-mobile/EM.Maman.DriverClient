@@ -1,0 +1,16 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace EM.Maman.Models.Enums
+{
+    public enum ActiveTaskStatus
+    {
+        retrieval = 1,
+        transit = 2,
+        storing = 3,
+        finished = 4,
+    }
+}

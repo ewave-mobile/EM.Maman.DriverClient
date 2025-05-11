@@ -23,7 +23,8 @@ using EM.Maman.Models.Enums; // Added for TaskStatus, TaskType
 using EM.Maman.DriverClient; // Added for AuthenticationDialog (future)
 using DbTask = EM.Maman.Models.LocalDbModels.Task; // Alias for DB Task model
 using TaskStatusEnum = EM.Maman.Models.Enums.TaskStatus; // Alias for Enum TaskStatus
-using TaskTypeEnum = EM.Maman.Models.Enums.TaskType; // Alias for Enum TaskType
+using TaskTypeEnum = EM.Maman.Models.Enums.TaskType;
+using Microsoft.Extensions.DependencyInjection; // Alias for Enum TaskType
 
 namespace EM.Maman.DriverClient.ViewModels
 {
@@ -43,6 +44,7 @@ namespace EM.Maman.DriverClient.ViewModels
         private bool _isMapViewActive = false;
         private bool _isFingerAuthenticationViewActive = false; // Added
         private int? _currentFingerPositionValue = null; // Added - Store the raw OPC value for the current finger
+        private string _currentFingerDisplayName; // Display name of finger im currently on
         private RelayCommand _showWarehouseViewCommand;
         private RelayCommand _showTasksViewCommand;
         private RelayCommand _showMapViewCommand;
@@ -126,6 +128,18 @@ namespace EM.Maman.DriverClient.ViewModels
                 {
                     _currentTrolley = value;
                     OnPropertyChanged(nameof(CurrentTrolley));
+                }
+            }
+        }
+        public string CurrentFingerDisplayName
+        {
+            get => _currentFingerDisplayName;
+            set
+            {
+                if (_currentFingerDisplayName != value)
+                {
+                    _currentFingerDisplayName = value;
+                    OnPropertyChanged(nameof(CurrentFingerDisplayName));
                 }
             }
         }
@@ -266,6 +280,7 @@ namespace EM.Maman.DriverClient.ViewModels
 
             // Initialize TrolleyOperationsViewModel
             TrolleyOperationsVM = new TrolleyOperationsViewModel(TrolleyVM, CurrentTrolley);
+            TrolleyOperationsVM.SetMainViewModel(this); // Pass the MainViewModel instance to TrolleyOperationsVM
 
             // Initialize TaskViewModel with all required dependencies
             // Pass the MainViewModel logger factory, TaskViewModel will create its own logger
@@ -352,6 +367,7 @@ namespace EM.Maman.DriverClient.ViewModels
         /// </summary>
         private async void OnPositionChanged(object sender, int positionValue) // Made async
         {
+            CheckForArrivalAtDestination(positionValue);
             // Extract level and position
             int level = positionValue / 100; // Assuming level is encoded in hundreds
             int position = positionValue % 100;
@@ -386,6 +402,11 @@ namespace EM.Maman.DriverClient.ViewModels
                     _logger.LogInformation("Arrived at finger location (PositionValue: {PositionValue}). Loading pallets for authentication.", positionValue);
                     _currentFingerPositionValue = positionValue; // Store the current finger position value
                     await LoadPalletsForFingerAuthenticationAsync(positionValue);
+                }
+                var finger = (await _unitOfWork.Fingers.FindAsync(f => f.Position == positionValue)).FirstOrDefault();
+                if (finger!= null)
+                {
+                    CurrentFingerDisplayName = finger.DisplayName;
                 }
                 // Else: Already at this finger, do nothing, keep current view state.
             }
@@ -573,7 +594,7 @@ namespace EM.Maman.DriverClient.ViewModels
             }
 
             // Verify entered code against Pallet's UldCode (case-insensitive comparison)
-            if (string.Equals(dialogVM.EnteredUldCode?.Trim(), itemToAuth.PalletDetails.UldCode?.Trim(), StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(dialogVM.EnteredUldCode?.Trim(), itemToAuth.PalletDetails.ImportUnit?.Trim(), StringComparison.OrdinalIgnoreCase))
             {
                 _logger.LogInformation("Authentication successful for Pallet ULD: {UldCode}", itemToAuth.PalletDetails.UldCode);
                 MessageBox.Show($"Pallet {itemToAuth.PalletDetails.UldCode} authenticated successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -720,6 +741,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 }
 
                 var storageTaskDetails = TaskDetails.FromDbModel(newTask, authenticatedItem.PalletDetails, sourceFinger, null, destinationCell);
+                
                 var storageItem = new PalletStorageTaskItem(authenticatedItem.PalletDetails, storageTaskDetails)
                 {
                     // Assign commands
@@ -788,6 +810,9 @@ namespace EM.Maman.DriverClient.ViewModels
                     await _opcService.WriteRegisterAsync(commandNodeId, commandCode);
 
                     _logger.LogInformation("Navigation command sent for Task ID {TaskId}.", item.StorageTask.Id);
+                item.StorageTask.ActiveTaskStatus = ActiveTaskStatus.transit; // Update task status
+                OnPropertyChanged(nameof(PalletsReadyForStorage)); // Notify UI of changes
+
                 // Optionally remove the item from PalletsReadyForStorage after sending command? Or wait for confirmation?
                 // _dispatcherService.Invoke(() => PalletsReadyForStorage.Remove(item));
             }
@@ -836,82 +861,99 @@ namespace EM.Maman.DriverClient.ViewModels
         /// Opens the manual task creation dialog.
         /// Adds newly created tasks for the current finger to the auth list.
         /// </summary>
-        private async void ExecuteOpenCreateTaskDialog(object parameter) // Changed signature, made async void
+        private async void ExecuteOpenCreateTaskDialog(object parameter)
         {
-             _logger.LogInformation("ExecuteOpenCreateTaskDialog called.");
-             // Show the manual task creation dialog
-             var dialog = new ManualTaskDialog();
-             var manualTaskVM = new ManualTaskViewModel(); // Corrected: No arguments needed
-             dialog.DataContext = manualTaskVM;
+            _logger.LogInformation("ExecuteOpenCreateTaskDialog called.");
 
-             if (dialog.ShowDialog() == true) // Check dialog result first
-             {
-                 // Determine which VM holds the details based on selection
-                 TaskDetails newTaskDetails = manualTaskVM.IsImportSelected ? manualTaskVM.ImportVM?.TaskDetails : manualTaskVM.ExportVM?.TaskDetails;
+            try
+            {
+                // Get the dialog directly from DI container - no need to manually get the view model
+                var dialog = (App.Current as App)?.ServiceProvider.GetRequiredService<ManualTaskDialog>();
 
-                 if (newTaskDetails == null)
-                 {
-                     _logger.LogWarning("Manual task dialog closed with OK, but TaskDetails were null.");
-                     return;
-                 }
+                if (dialog == null)
+                {
+                    _logger.LogError("Failed to resolve ManualTaskDialog from service provider");
+                    return;
+                }
 
-                 // Save the task first
-                 // TODO: Make TaskViewModel.SaveTaskToDatabase public/internal or add wrapper
-                 // TODO: Make TaskViewModel.SaveTaskToDatabase public/internal or add wrapper
-                 // Assuming accessible for now
-                 bool saved = await TaskVM.SaveTaskToDatabase(newTaskDetails);
+                // No need to set the DataContext - it's already set by DI in the constructor
 
-                 if (saved)
-                 {
-                     _logger.LogInformation("Manual task (ID: {TaskId}) created and saved.", newTaskDetails.Id);
-                     // Add to the main TaskVM list
-                     TaskVM.Tasks.Add(newTaskDetails);
-                     // TaskVM.UpdateFilteredLists(); // This is called when TaskVM.Tasks is set/modified
+                if (dialog.ShowDialog() == true) // Check dialog result first
+                {
+                    // Get the view model from the dialog's DataContext
+                    if (dialog.DataContext is ManualTaskViewModel manualTaskVM)
+                    {
+                        // Determine which VM holds the details based on selection
+                        TaskDetails newTaskDetails = manualTaskVM.IsImportSelected ?
+                            manualTaskVM.ImportVM?.TaskDetails : manualTaskVM.ExportVM?.TaskDetails;
 
-                     // Check if the new task is a storage task originating from the currently active finger
-                     if (newTaskDetails.IsImportTask &&
-                         newTaskDetails.SourceFinger?.Id != null && // Use SourceFinger property
-                         _currentFingerPositionValue.HasValue)
-                     {
-                         // Get the finger object for the new task's source (already have it in newTaskDetails.SourceFinger)
-                         // var sourceFinger = await _unitOfWork.Fingers.GetByIdAsync(newTaskDetails.SourceFinger.Id); // No need to re-fetch
-                         if (newTaskDetails.SourceFinger?.Position == _currentFingerPositionValue)
-                         {
-                             _logger.LogInformation("Newly created manual task (ID: {TaskId}) is for the current finger. Adding to authentication list.", newTaskDetails.Id);
-                             // Ensure Pallet data is loaded for the new task details if not already
-                             string palletUldCode = newTaskDetails.Pallet?.UldCode; // Get UldCode for checking
-                             if (newTaskDetails.Pallet == null && !string.IsNullOrEmpty(palletUldCode))
-                             {
-                                 // Attempt to load if Pallet object is null but UldCode might exist (unlikely scenario here, but safe check)
-                                 newTaskDetails.Pallet = (await _unitOfWork.Pallets.FindAsync(p => p.UldCode == palletUldCode)).FirstOrDefault();
-                             }
+                        if (newTaskDetails == null)
+                        {
+                            _logger.LogWarning("Manual task dialog closed with OK, but TaskDetails were null.");
+                            return;
+                        }
 
-                             if (newTaskDetails.Pallet != null)
-                             {
-                                 var authItem = new PalletAuthenticationItem(newTaskDetails.Pallet, newTaskDetails)
-                                 {
-                                     AuthenticateCommand = this.ShowAuthenticationDialogCommand
-                                 };
-                                 _dispatcherService.Invoke(() => PalletsToAuthenticate.Add(authItem));
-                                 IsFingerAuthenticationViewActive = true; // Ensure view is active
-                             }
-                             else
-                             {
-                                 _logger.LogWarning("Could not find Pallet details for newly created manual task (ID: {TaskId}, Pallet ULD: {PalletUldCode}). Cannot add to auth list.", newTaskDetails.Id, palletUldCode ?? "N/A");
-                             }
-                         }
-                     }
-                 }
-                 else
-                 {
-                      _logger.LogError("Failed to save manually created task.");
-                 }
-             }
-             else
-             {
-                  _logger.LogInformation("Manual task creation cancelled or failed.");
-             }
-         }
+                        // Save the task first
+                        bool saved = await TaskVM.SaveTaskToDatabase(newTaskDetails);
+
+                        if (saved)
+                        {
+                            _logger.LogInformation("Manual task (ID: {TaskId}) created and saved.", newTaskDetails.Id);
+                            // Add to the main TaskVM list
+                            TaskVM.Tasks.Add(newTaskDetails);
+
+                            // The rest of your existing code for handling the created task
+                            if (newTaskDetails.IsImportTask &&
+                                newTaskDetails.SourceFinger?.Id != null &&
+                                _currentFingerPositionValue.HasValue)
+                            {
+                                if (newTaskDetails.SourceFinger?.Position == _currentFingerPositionValue)
+                                {
+                                    _logger.LogInformation("Newly created manual task (ID: {TaskId}) is for the current finger. Adding to authentication list.", newTaskDetails.Id);
+
+                                    string palletUldCode = newTaskDetails.Pallet?.UldCode;
+                                    if (newTaskDetails.Pallet == null && !string.IsNullOrEmpty(palletUldCode))
+                                    {
+                                        newTaskDetails.Pallet = (await _unitOfWork.Pallets.FindAsync(p => p.UldCode == palletUldCode)).FirstOrDefault();
+                                    }
+
+                                    if (newTaskDetails.Pallet != null)
+                                    {
+                                        var authItem = new PalletAuthenticationItem(newTaskDetails.Pallet, newTaskDetails)
+                                        {
+                                            AuthenticateCommand = this.ShowAuthenticationDialogCommand
+                                        };
+                                        _dispatcherService.Invoke(() => PalletsToAuthenticate.Add(authItem));
+                                        IsFingerAuthenticationViewActive = true;
+                                    }
+                                    else
+                                    {
+                                        _logger.LogWarning("Could not find Pallet details for newly created manual task (ID: {TaskId}, Pallet ULD: {PalletUldCode}). Cannot add to auth list.", newTaskDetails.Id, palletUldCode ?? "N/A");
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogError("Failed to save manually created task.");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogError("Dialog's DataContext is not of type ManualTaskViewModel");
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("Manual task creation cancelled or failed.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in ExecuteOpenCreateTaskDialog");
+                MessageBox.Show($"Error creating task: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
 
         #endregion

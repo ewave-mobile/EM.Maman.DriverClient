@@ -114,15 +114,7 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <!-- Placeholder for potential overall title or filters if needed later -->
-            <Button Grid.Column="1"
-                    Style="{StaticResource MaterialDesignRaisedButton}"
-                    Command="{Binding TaskVM.CreateManualTaskCommand}"
-                    Background="#2196F3" BorderBrush="#1976D2">
-                <StackPanel Orientation="Horizontal">
-                    <materialDesign:PackIcon Kind="Plus" Width="18" Height="18" VerticalAlignment="Center" />
-                    <TextBlock Text="יצירת משימה ידנית" Margin="5,0,0,0" VerticalAlignment="Center" />
-                </StackPanel>
-            </Button>
+          
         </Grid>
 
         <!-- Main Content Area with Two Columns -->
@@ -255,7 +247,7 @@
                             <!-- New DataTemplate for FingerStorageInfo - Revised Mockup Layout -->
                             <DataTemplate DataType="{x:Type vm:FingerStorageInfo}">
                                 <Border Style="{StaticResource StorageTaskCardStyle}">
-                                    <Grid>
+                                    <Grid FlowDirection="RightToLeft">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>   <!-- GO Button -->
                                             <ColumnDefinition Width="*"/>    <!-- Spacer -->
@@ -263,23 +255,23 @@
                                         </Grid.ColumnDefinitions>
 
                                         <!-- GO Button (Column 0 = Visually Left because parent FlowDirection is RightToLeft) -->
-                                        <Button Grid.Column="0" Style="{StaticResource GoButtonStyle}" VerticalAlignment="Center" Margin="10,0,0,0" Content="GO"
+                                        <Button Grid.Column="3" Style="{StaticResource GoButtonStyle}" VerticalAlignment="Center" Margin="10,0,0,0" Content="GO"
                                                 Command="{Binding DataContext.TaskVM.GoToFingerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}" />
 
                                         <!-- Finger Details (Column 2 = Visually Right) -->
-                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Right">
                                             <!-- Top Row: Finger Number and Pallet Count Text (Stacked Vertically) -->
-                                            <StackPanel Orientation="Vertical" HorizontalAlignment="Right">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                                 <!-- Finger Name/Number -->
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                    <TextBlock Text="פינגר" Style="{StaticResource DetailTextStyle}" VerticalAlignment="Bottom" Margin="5,0,0,2"/>
-                                                    <TextBlock Text="{Binding Finger.DisplayName}" Style="{StaticResource ValueTextStyle}" FontSize="18"/>
+                                                <StackPanel Orientation="Vertical" HorizontalAlignment="Right">
+                                                    <TextBlock Text="פינגר" Style="{StaticResource DetailTextStyle}" VerticalAlignment="Bottom" Margin="7,0,20,2"/>
+                                                    <TextBlock Text="{Binding Finger.DisplayName}" Style="{StaticResource ValueTextStyle}" FontSize="18" Margin="5,2,0,0"/>
                                                 </StackPanel>
                                                 <!-- Pallet Count Text (Conditional) -->
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,2,0,0">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,0">
                                                     <!-- StackPanel for Count > 0 -->
-                                                    <StackPanel Orientation="Horizontal">
+                                                    <StackPanel Orientation="Vertical">
                                                         <StackPanel.Style>
                                                             <Style TargetType="StackPanel">
                                                                 <Setter Property="Visibility" Value="Visible"/>
@@ -290,8 +282,23 @@
                                                                 </Style.Triggers>
                                                             </Style>
                                                         </StackPanel.Style>
+                                                        <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="{Binding PalletCount}" Style="{StaticResource ValueTextStyle}" Margin="0,0,5,0"/>
                                                         <TextBlock Text="פלטים בפינגר" Style="{StaticResource DetailTextStyle}"/>
+                                                            </StackPanel>
+                                                        <ItemsControl ItemsSource="{Binding PalletPlaceholders}" Margin="0,5,0,0" HorizontalAlignment="Left">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <!-- Use WrapPanel for better alignment if many squares -->
+                                                                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Width="12" Height="12" Background="LightGray" BorderBrush="Gray" BorderThickness="1" Margin="1"/>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
                                                     </StackPanel>
                                                     <!-- TextBlock for Count == 0 -->
                                                     <TextBlock Text="אין פלטים בפינגר" Foreground="Gray">
@@ -310,19 +317,7 @@
                                             </StackPanel>
 
                                             <!-- Pallet Indicator Squares (Below the text) -->
-                                            <ItemsControl ItemsSource="{Binding PalletPlaceholders}" Margin="0,5,0,0">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <!-- Use WrapPanel for better alignment if many squares -->
-                                                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right"/>
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Border Width="12" Height="12" Background="LightGray" BorderBrush="Gray" BorderThickness="1" Margin="1"/>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
+                                            
                                         </StackPanel>
                                     </Grid>
                                 </Border>

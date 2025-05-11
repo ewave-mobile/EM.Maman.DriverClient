@@ -1,4 +1,7 @@
+using EM.Maman.DAL;
 using EM.Maman.Models.CustomModels;
+using EM.Maman.Models.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -14,7 +17,7 @@ namespace EM.Maman.DriverClient.ViewModels
         private ExportTaskViewModel _exportVM;
         private RelayCommand _selectImportCommand;
         private RelayCommand _selectExportCommand;
-
+        private readonly IUnitOfWork _unitOfWork;
         public bool IsImportSelected
         {
             get => _isImportSelected;
@@ -57,11 +60,12 @@ namespace EM.Maman.DriverClient.ViewModels
         public ICommand SelectImportCommand => _selectImportCommand ??= new RelayCommand(_ => IsImportSelected = true);
         public ICommand SelectExportCommand => _selectExportCommand ??= new RelayCommand(_ => IsImportSelected = false);
 
-        public ManualTaskViewModel()
+        public ManualTaskViewModel(IUnitOfWork unitOfWork, ImportTaskViewModel importVM, ExportTaskViewModel exportVM)
         {
-            // Initialize the import and export view models
-            ImportVM = new ImportTaskViewModel(null);
-            ExportVM = new ExportTaskViewModel(null);
+            // Store the injected dependencies
+            _unitOfWork = unitOfWork;
+            ImportVM = importVM;
+            ExportVM = exportVM;
 
             // Generate a unique task code
             string taskCode = $"TASK-{DateTime.Now:yyyyMMdd-HHmmss}";
@@ -71,8 +75,16 @@ namespace EM.Maman.DriverClient.ViewModels
             // Set the task creation date
             ImportVM.TaskDetails.CreatedDateTime = DateTime.Now;
             ExportVM.TaskDetails.CreatedDateTime = DateTime.Now;
+        
         }
+        public async Task InitializeAsync()
+        {
+            // Initialize import view model first
+            await ImportVM.InitializeAsync();
 
+            // Then initialize export view model 
+            await ExportVM.InitializeAsync();
+        }
         public bool Validate()
         {
             if (IsImportSelected)

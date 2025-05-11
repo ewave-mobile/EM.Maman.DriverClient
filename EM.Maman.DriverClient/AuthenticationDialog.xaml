@@ -80,14 +80,14 @@
 
                      <!-- Values -->
                      <Border Grid.Row="1" Grid.Column="0" Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="2">
-                         <TextBlock Text="{Binding ItemToAuthenticate.PalletDetails.UldCode}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
+                         <TextBlock Text="{Binding ItemToAuthenticate.PalletDetails.ImportUnit}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
                      </Border>
-                     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ItemToAuthenticate.PalletDetails.Instance}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/>
-                     <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding ItemToAuthenticate.PalletDetails.DeclarationNumber}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/>
+                     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ItemToAuthenticate.PalletDetails.ImportAppearance}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/>
+                     <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding ItemToAuthenticate.PalletDetails.ImportManifest}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/>
                      <Border Grid.Row="1" Grid.Column="3" Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="2">
-                         <TextBlock Text="{Binding ItemToAuthenticate.PalletDetails.PalletType}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
+                         <TextBlock Text="{Binding ItemToAuthenticate.PalletDetails.CargoTypeId}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
                      </Border>
-                     <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding ItemToAuthenticate.PalletDetails.Height}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/>
+                     <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding ItemToAuthenticate.PalletDetails.HeightLevel}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/>
                      <TextBlock Grid.Row="1" Grid.Column="5" Text="{Binding ItemToAuthenticate.OriginalTask.CreatedDateTime, StringFormat='HH:mm'}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/>
                      <!-- <TextBlock Grid.Row="1" Grid.Column="6" Text="{Binding ItemToAuthenticate.OriginalTask.IsPriority}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/> -->
 
@@ -106,7 +106,8 @@
                           Margin="10,0"
                           HorizontalAlignment="Stretch"
                           TextAlignment="Center"
-                          FontSize="16"/>
+                          FontSize="16"
+                          />
              </StackPanel>
          </Border>
 

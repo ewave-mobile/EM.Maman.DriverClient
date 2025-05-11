@@ -18,6 +18,7 @@ namespace EM.Maman.Models.CustomModels
         private string _description;
         private Enums.TaskType _taskType;
         private Enums.TaskStatus _status;
+        private Enums.ActiveTaskStatus _activeTaskStatus;
         private DateTime _createdDateTime;
         private DateTime? _executedDateTime;
         private int? _sourceFingerPosition;
@@ -105,6 +106,18 @@ namespace EM.Maman.Models.CustomModels
                 if (_status != value)
                 {
                     _status = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+        public Enums.ActiveTaskStatus ActiveTaskStatus
+        {
+            get => _activeTaskStatus;
+            set
+            {
+                if (_activeTaskStatus != value)
+                {
+                    _activeTaskStatus = value;
                     OnPropertyChanged();
                 }
             }
@@ -324,7 +337,9 @@ namespace EM.Maman.Models.CustomModels
                 DestinationFinger = destFinger,
                 Pallet = pallet,
                 DestinationCell = destCell,
-                IsUploaded = task.IsUploaded ?? false
+                IsUploaded = task.IsUploaded ?? false,
+                ActiveTaskStatus = Enums.ActiveTaskStatus.retrieval,
+
             };
 
             return details;

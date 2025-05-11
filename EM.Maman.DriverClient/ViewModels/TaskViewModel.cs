@@ -15,7 +15,8 @@ using System.Windows.Input;
 using System.Windows;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel; // Required for INotifyPropertyChanged
-using System.Runtime.CompilerServices; // Required for CallerMemberName
+using System.Runtime.CompilerServices;
+using Microsoft.Extensions.DependencyInjection; // Required for CallerMemberName
 
 namespace EM.Maman.DriverClient.ViewModels
 {
@@ -652,7 +653,7 @@ namespace EM.Maman.DriverClient.ViewModels
         private async void CreateManualTask() // Make async
         {
             // Show the manual task creation dialog
-            var dialog = new ManualTaskDialog();
+            var dialog = (App.Current as App)?.ServiceProvider.GetRequiredService<ManualTaskDialog>();
 
             if (dialog.ShowDialog() == true && dialog.TaskDetails != null)
             {
@@ -986,31 +987,21 @@ namespace EM.Maman.DriverClient.ViewModels
                 // Get all fingers
                 var allFingers = await _unitOfWork.Fingers.GetAllAsync(); // Assuming GetAllAsync exists
 
-                // Get all cells to match fingers
-                var allCells = await _unitOfWork.Cells.GetAllAsync();
-
-                // Get all current pallet locations
-                var allPalletLocations = await _unitOfWork.PalletInCells.GetAllAsync(); // Use correct repository name
+                // Get all pending tasks
+                // We can use the already filtered PendingTasks collection
+                var pendingTasks = PendingTasks;
 
                 foreach (var finger in allFingers) // Load all fingers
                 {
                     int palletCount = 0;
                     try
                     {
-                        // Find cells belonging to this finger based on Position and Side
-                        var cellsInFinger = allCells.Where(c => c.Position == finger.Position && c.Side == finger.Side);
-                        var cellIdsInFinger = cellsInFinger.Select(c => (long?)c.Id).ToList(); // Cast CellId to long?
-
-                        // Count pallets located in those cells
-                        if (cellIdsInFinger.Any())
-                        {
-                            // Count PalletInCell entries where CellId matches
-                            palletCount = allPalletLocations.Count(pic => pic.CellId.HasValue && cellIdsInFinger.Contains(pic.CellId.Value));
-                        }
+                        // Count pending tasks where the SourceFingerPosition matches the finger's Position
+                        palletCount = pendingTasks.Count(task => task.SourceFingerPosition.HasValue && task.SourceFingerPosition.Value == finger.Position);
                     }
                     catch (Exception ex)
                     {
-                         _logger.LogError(ex, "Error counting pallets for finger {FingerId}", finger.Id);
+                         _logger.LogError(ex, "Error counting tasks for finger {FingerId}", finger.Id);
                          // Continue with count 0 if error occurs for one finger
                     }
 

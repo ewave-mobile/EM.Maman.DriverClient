@@ -32,7 +32,7 @@
 
     <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft" Height="950" VerticalAlignment="Top">
         <StackPanel Orientation="Horizontal" Width="1150">
-            <ScrollViewer Height="auto" Width="200">
+            <ScrollViewer Height="auto" Width="250">
                 <!-- Content for side panel -->
             </ScrollViewer>
 
@@ -393,7 +393,7 @@
                             ItemsSource="{Binding TrolleyVM.LevelTabs}" Margin="0,30,0,0">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" FlowDirection="RightToLeft"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>

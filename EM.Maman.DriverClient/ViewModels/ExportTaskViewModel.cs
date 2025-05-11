@@ -178,10 +178,14 @@ namespace EM.Maman.DriverClient.ViewModels
             };
 
             // Load data
-            LoadFingersAsync();
-            LoadPalletsAsync(); // Keep loading pallets (assuming this might be correct or needs separate review)
+            //LoadFingersAsync();
+          //  LoadPalletsAsync(); // Keep loading pallets (assuming this might be correct or needs separate review)
         }
-
+        public async System.Threading.Tasks.Task InitializeAsync()
+        {
+            await LoadFingersAsync();
+            await LoadPalletsAsync();
+        }
         private string GenerateTaskCode()
         {
             // Generate a unique code for the task - starting with EXP for export

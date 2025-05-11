@@ -34,40 +34,12 @@
 
     <DockPanel Background="White">
         <!-- Bottom Navigation Bar - Using DockPanel.Dock="Bottom" to ensure it stays at the bottom -->
-        <materialDesign:Card BorderBrush="#CDCDCD" BorderThickness="1" HorizontalContentAlignment="Right" DockPanel.Dock="Bottom" Margin="0" Padding="8" UniformCornerRadius="0">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- Navigation buttons -->
-                <Button Grid.Column="1" Style="{StaticResource MaterialDesignFlatButton}" 
-                        Command="{Binding ShowWarehouseViewCommand}" 
-                        Foreground="#CDCDCD" BorderBrush="#CDCDCD" BorderThickness="1"
-                        Visibility="{Binding IsWarehouseViewActive, Converter={StaticResource BoolInverterConverter}, ConverterParameter=Visibility}">
-                    <StackPanel Orientation="Horizontal">
-                        <materialDesign:PackIcon Kind="Warehouse" Width="24" Height="24" Margin="0,0,0,0"/>
-                    </StackPanel>
-                </Button>
-
-                <Button Grid.Column="2" Style="{StaticResource MaterialDesignFlatButton}" 
-                       Foreground="#CDCDCD" BorderBrush="#CDCDCD" BorderThickness="1"
-                        Command="{Binding ShowTasksViewCommand}"
-                        Visibility="{Binding IsWarehouseViewActive, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <StackPanel Orientation="Horizontal">
-                        <materialDesign:PackIcon Kind="ClipboardListOutline" Width="24" Height="24" Margin="0,0,0,0"/>
-                    </StackPanel>
-                </Button>
-            </Grid>
-        </materialDesign:Card>
+        <controls:BottomNavigationBarControl DockPanel.Dock="Bottom" Margin="0" Padding="8"/>
 
         <!-- Main Content Area - Takes all remaining space -->
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="350" />
+                <ColumnDefinition Width="700" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             

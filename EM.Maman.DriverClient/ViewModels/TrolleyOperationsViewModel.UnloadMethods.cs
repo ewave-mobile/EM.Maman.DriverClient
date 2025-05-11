@@ -1,6 +1,7 @@
 using EM.Maman.Models.LocalDbModels;
 using EM.Maman.Models.DisplayModels;
 using System.Windows;
+using EM.Maman.Models.Enums;
 
 namespace EM.Maman.DriverClient.ViewModels
 {
@@ -48,6 +49,11 @@ namespace EM.Maman.DriverClient.ViewModels
                 
                 MessageBox.Show($"Unloaded pallet {palletDisplayName} to left finger. Finger pallet count: {currentRow.LeftFingerPalletCount}");
                 return;
+            }
+            string palletUldCode = null;
+            if (TrolleyVM.LeftCell.IsOccupied && TrolleyVM.LeftCell.Pallet != null)
+            {
+                palletUldCode = TrolleyVM.LeftCell.Pallet.UldCode;
             }
 
             // Regular cell handling for non-lowest levels
@@ -137,6 +143,10 @@ namespace EM.Maman.DriverClient.ViewModels
 
                 // Remove the pallet from the trolley
                 TrolleyVM.RemovePalletFromLeftCell();
+                if (!string.IsNullOrEmpty(palletUldCode) && _mainViewModel != null)
+                {
+                    UpdateTaskStatus(palletUldCode);
+                }
             }
         }
 
@@ -181,6 +191,11 @@ namespace EM.Maman.DriverClient.ViewModels
                 
                 MessageBox.Show($"Unloaded pallet {palletDisplayName} to right finger. Finger pallet count: {currentRow.RightFingerPalletCount}");
                 return;
+            }
+            string palletUldCode = null;
+            if (TrolleyVM.RightCell.IsOccupied && TrolleyVM.RightCell.Pallet != null)
+            {
+                palletUldCode = TrolleyVM.RightCell.Pallet.UldCode;
             }
 
             // Regular cell handling for non-lowest levels
@@ -270,6 +285,45 @@ namespace EM.Maman.DriverClient.ViewModels
 
                 // Remove the pallet from the trolley
                 TrolleyVM.RemovePalletFromRightCell();
+                if (!string.IsNullOrEmpty(palletUldCode) && _mainViewModel != null)
+                {
+                    UpdateTaskStatus(palletUldCode);
+                }
+            }
+        }
+
+        private void UpdateTaskStatus(string palletUldCode)
+        {
+            if (_mainViewModel == null || string.IsNullOrEmpty(palletUldCode)) return;
+
+            // Find the task for this pallet in the PalletsReadyForStorage collection
+            var taskItem = _mainViewModel.PalletsReadyForStorage.FirstOrDefault(
+                item => item.PalletDetails?.UldCode == palletUldCode);
+
+            if (taskItem != null)
+            {
+                // Update the task status to finished
+                taskItem.StorageTask.ActiveTaskStatus = ActiveTaskStatus.finished;
+                _mainViewModel.OnPropertyChanged(nameof(_mainViewModel.PalletsReadyForStorage));
+
+                // Show a message to confirm the task is complete
+                MessageBox.Show($"Storage task for pallet {palletUldCode} has been completed.",
+                               "Task Completed", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Set up a timer to remove the task after 5 seconds
+                var timer = new System.Timers.Timer(5000); // 5 seconds
+                timer.Elapsed += (sender, e) =>
+                {
+                    timer.Stop();
+                    _mainViewModel._dispatcherService.Invoke(() =>
+                    {
+                        // Remove the task from UI collection
+                        _mainViewModel.PalletsReadyForStorage.Remove(taskItem);
+                        _mainViewModel.OnPropertyChanged(nameof(_mainViewModel.HasPalletsReadyForStorage));
+                    });
+                };
+                timer.AutoReset = false; // Only fire once
+                timer.Start();
             }
         }
     }
