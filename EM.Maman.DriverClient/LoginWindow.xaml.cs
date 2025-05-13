@@ -1,4 +1,4 @@
-﻿﻿﻿using EM.Maman.Models.Interfaces;
+﻿﻿using EM.Maman.Models.Interfaces;
 using EM.Maman.Models.LocalDbModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -25,7 +25,7 @@ namespace EM.Maman.DriverClient
     public partial class LoginWindow : Window, INotifyPropertyChanged
     {
         private readonly IServiceProvider _serviceProvider;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IUnitOfWorkFactory _unitOfWorkFactory;
 
         private readonly ILogger<LoginWindow> _logger;
 
@@ -81,10 +81,10 @@ namespace EM.Maman.DriverClient
         // private RadioButton _smallBatteryRadioButton; // No longer needed
         // private RadioButton _lpvRadioButton; // No longer needed
 
-        public LoginWindow(IServiceProvider serviceProvider, IUnitOfWork unitOfWork, ILogger<LoginWindow> logger)
+        public LoginWindow(IServiceProvider serviceProvider, IUnitOfWorkFactory unitOfWorkFactory, ILogger<LoginWindow> logger)
         {
             _serviceProvider = serviceProvider;
-            _unitOfWork = unitOfWork;
+            _unitOfWorkFactory = unitOfWorkFactory;
             _logger = logger;
 
             InitializeComponent(); // This might still cause compile error until user fixes build issue
@@ -210,31 +210,8 @@ namespace EM.Maman.DriverClient
 
         private async System.Threading.Tasks.Task InitializeWorkstationAsync(string workstationType)
         {
-            // Check DB connection within a scope
-             using (var checkScope = _serviceProvider.CreateScope())
-             {
-                 var context = checkScope.ServiceProvider.GetRequiredService<LocalMamanDBContext>();
-                 bool canConnect = false;
-                 try
-                 {
-                     canConnect = await context.Database.CanConnectAsync();
-                     _logger.LogInformation("Database connection test: {CanConnect}", canConnect);
-                 }
-                 catch (Exception dbEx)
-                 {
-                     _logger.LogError(dbEx, "Database connection test failed.");
-                     MessageBox.Show($"Cannot connect to database. Please check connection settings.\nError: {dbEx.Message}",
-                         "Database Connection Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                     return;
-                 }
-
-                 if (!canConnect)
-                 {
-                     MessageBox.Show("Cannot connect to database. Please check connection settings.",
-                         "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                     return;
-                 }
-             }
+            // Database connection check has been removed as it was not correctly checking the connection
+            // Any actual database connection errors will be caught by the try-catch blocks in the subsequent operations
 
             _logger.LogInformation("Starting first-time initialization for Workstation: {WorkstationType}, Employee ID: {EmployeeId}", workstationType, EmployeeId);
 
@@ -242,11 +219,9 @@ namespace EM.Maman.DriverClient
 
             try
             {
-                // Create a *new* scope specifically for this potentially long-running operation.
-                using (var scope = _serviceProvider.CreateScope())
+                // Create a new UnitOfWork for this operation
+                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
                 {
-                    var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
                     _logger.LogInformation("Clearing existing data before seeding...");
                     bool cleared = await ClearAllDataAsync(unitOfWork); // Use the return value
 
@@ -285,7 +260,7 @@ namespace EM.Maman.DriverClient
 
                     // Finally, add the configuration
                     await AddConfigurationAsync(unitOfWork); // This uses SelectedWorkstationType and EmployeeId from the class properties
-                } // Scope disposed here, UnitOfWork and its DbContext are disposed.
+                } // UnitOfWork disposed here, along with its DbContext
 
                 _logger.LogInformation("Initialization completed successfully.");
                 NavigateToMainWindow(); // Navigate only after successful initialization
@@ -783,9 +758,34 @@ namespace EM.Maman.DriverClient
             return TestDatabase.Pallets.Select(p => new Pallet
             {
                 DisplayName = p.DisplayName,
+                Description = p.Description, // Assuming Description might be set in TestDatabase
+                UldCode = p.UldCode,
+                AwbCode = p.AwbCode,
+                ReceivedDate = p.ReceivedDate,
+                LastModifiedDate = p.LastModifiedDate,
+                RefrigerationType = p.RefrigerationType,
+                HeightLevel = p.HeightLevel,
+                IsCheckedOut = p.IsCheckedOut,
+                CheckedOutDate = p.CheckedOutDate,
+                LocationId = p.LocationId,
+                IsSecure = p.IsSecure,
+                CargoType = p.CargoType,
+                UpdateType = p.UpdateType,
+                StorageType = p.StorageType,
+                HeightType = p.HeightType,
+                CargoHeight = p.CargoHeight,
+                ReportType = p.ReportType,
+                ImportManifest = p.ImportManifest,
+                ImportUnit = p.ImportUnit,
+                ImportAppearance = p.ImportAppearance,
+                ExportSwbPrefix = p.ExportSwbPrefix,
+                ExportAwbNumber = p.ExportAwbNumber,
+                ExportAwbAppearance = p.ExportAwbAppearance,
+                ExportAwbStorage = p.ExportAwbStorage,
+                ExportBarcode = p.ExportBarcode,
                 UldType = p.UldType,
-                UldCode = p.UldCode, // Assuming UldCode is unique enough for later lookup
-                IsSecure = p.IsSecure
+                UldNumber = p.UldNumber,
+                UldAirline = p.UldAirline
             }).ToList();
         }
 
@@ -834,42 +834,119 @@ namespace EM.Maman.DriverClient
             _logger.LogInformation("Creating sample Tasks using SAVED entities.");
             var tasks = new List<DbTask>();
             var testCells = TestDatabase.CreateCells(); // Get template cells for lookup info
-            var testPallets = TestDatabase.Pallets; // Get template pallets
-            var testFingers = TestDatabase.Fingers; // Get template fingers
+            var testPallets = TestDatabase.Pallets; // Get template pallets for reference
+            var testFingers = TestDatabase.Fingers; // Get template fingers for reference
 
-            // Example: Find saved entities corresponding to test data ID 1000, Pallet 1, Finger 1
-            var templateCell1000 = testCells.First(c => c.Id == 1000);
-            var templatePallet1 = testPallets.First(p => p.Id == 1);
-            var templateFinger1 = testFingers.First(f => f.Id == 1);
+            // Ensure we have enough saved entities to create diverse tasks
+            if (savedPallets.Count < 4 || savedCells.Count < 4 || savedFingers.Count < 4)
+            {
+                _logger.LogWarning("Not enough saved entities to create all predefined tasks.");
+                return tasks; // Return empty or partially filled list
+            }
 
-            var cell1000 = savedCells.FirstOrDefault(c => c.DisplayName == templateCell1000.DisplayName && c.Position == templateCell1000.Position && c.HeightLevel == templateCell1000.HeightLevel);
-            var pallet1 = savedPallets.FirstOrDefault(p => p.UldCode == templatePallet1.UldCode);
-            var finger1 = savedFingers.FirstOrDefault(f => f.DisplayName == templateFinger1.DisplayName && f.Position == templateFinger1.Position);
+            // --- Retrieval Tasks (TaskType 1) ---
+            // Task 1: Retrieve Pallet 0 (Import ULD) from Cell 0 to Finger 0
+            var palletForRetrieval1 = savedPallets[0]; // PLT-A001-IMP-ULD
+            var sourceCellForRetrieval1 = savedCells.FirstOrDefault(c => c.DisplayName == TestDatabase.Cells.First(tc => tc.Id == 1000).DisplayName && c.Position == TestDatabase.Cells.First(tc => tc.Id == 1000).Position); // Cell Id 1000
+            var destFingerForRetrieval1 = savedFingers[0]; // Finger L02 (Id 1 in TestDatabase)
 
-
-            if (pallet1 != null && cell1000 != null && finger1 != null)
+            if (palletForRetrieval1 != null && sourceCellForRetrieval1 != null && destFingerForRetrieval1 != null)
             {
                 tasks.Add(new DbTask
                 {
-                    Name = "Move PLT-A001 to Finger L02", // Example name
-                    Description = $"Move {pallet1.DisplayName} from Cell {cell1000.DisplayName} to Finger {finger1.DisplayName}",
+                    Name = $"Retrieve {palletForRetrieval1.DisplayName}",
+                    Description = $"Move {palletForRetrieval1.DisplayName} from Cell {sourceCellForRetrieval1.DisplayName} (Pos:{sourceCellForRetrieval1.Position}, Lvl:{sourceCellForRetrieval1.HeightLevel}) to Finger {destFingerForRetrieval1.DisplayName}",
                     DownloadDate = DateTime.UtcNow,
-                    IsExecuted = false,
-                    IsUploaded = false,
-                    TaskTypeId = 1, // Assuming 1 is Move/Export
-                    // CurrentTrolleyLocationId = cell1000.Id, // Source Cell ID for Export
-                    CellEndLocationId = cell1000.Id, // Source Cell ID for Export
-                    FingerLocationId = finger1.Id, // Destination Finger ID for Export
-                    PalletId = pallet1.UldCode // Link by UldCode
+                    TaskTypeId = (int)EM.Maman.Models.Enums.TaskType.Retrieval,
+                    CellEndLocationId = sourceCellForRetrieval1.Id, // Source for retrieval
+                    FingerLocationId = destFingerForRetrieval1.Id,  // Destination for retrieval
+                    PalletId = palletForRetrieval1.UldCode ?? palletForRetrieval1.AwbCode ?? palletForRetrieval1.DisplayName, // Link by UldCode or AwbCode
+                    Status = (int?)EM.Maman.Models.Enums.TaskStatus.Created,
+                    ActiveTaskStatus = (int?)EM.Maman.Models.Enums.ActiveTaskStatus.New // Changed to New and cast
                 });
             }
             else
             {
-                 _logger.LogWarning("Could not find required SAVED entities for creating sample task 1.");
+                _logger.LogWarning($"Could not create Retrieval Task 1. Missing: Pallet={palletForRetrieval1 == null}, Cell={sourceCellForRetrieval1 == null}, Finger={destFingerForRetrieval1 == null}");
             }
 
-            // Add other task creations similarly, always looking up the SAVED entities first...
+            // Task 2: Retrieve Pallet 2 (Export ULD) from Cell 2 to Finger 1
+            var palletForRetrieval2 = savedPallets[2]; // PLT-B002-EXP-ULD
+            var sourceCellForRetrieval2 = savedCells.FirstOrDefault(c => c.DisplayName == TestDatabase.Cells.First(tc => tc.Id == 2003).DisplayName && c.Position == TestDatabase.Cells.First(tc => tc.Id == 2003).Position); // Cell Id 2003
+            var destFingerForRetrieval2 = savedFingers[1]; // Finger R03 (Id 2 in TestDatabase)
 
+            if (palletForRetrieval2 != null && sourceCellForRetrieval2 != null && destFingerForRetrieval2 != null)
+            {
+                tasks.Add(new DbTask
+                {
+                    Name = $"Retrieve {palletForRetrieval2.DisplayName}",
+                    Description = $"Move {palletForRetrieval2.DisplayName} from Cell {sourceCellForRetrieval2.DisplayName} (Pos:{sourceCellForRetrieval2.Position}, Lvl:{sourceCellForRetrieval2.HeightLevel}) to Finger {destFingerForRetrieval2.DisplayName}",
+                    DownloadDate = DateTime.UtcNow,
+                    TaskTypeId = (int)EM.Maman.Models.Enums.TaskType.Retrieval,
+                    CellEndLocationId = sourceCellForRetrieval2.Id,
+                    FingerLocationId = destFingerForRetrieval2.Id,
+                    PalletId = palletForRetrieval2.UldCode ?? palletForRetrieval2.AwbCode ?? palletForRetrieval2.DisplayName,
+                    Status = (int?)EM.Maman.Models.Enums.TaskStatus.Created,
+                    ActiveTaskStatus = (int?)EM.Maman.Models.Enums.ActiveTaskStatus.New // Changed to New and cast
+                });
+            }
+            else
+            {
+                _logger.LogWarning($"Could not create Retrieval Task 2. Missing: Pallet={palletForRetrieval2 == null}, Cell={sourceCellForRetrieval2 == null}, Finger={destFingerForRetrieval2 == null}");
+            }
+
+            // --- Storage Tasks (TaskType 2) ---
+            // Task 3: Store Pallet 4 (Import AWB) from Finger 2 to Cell 4
+            var palletForStorage1 = savedPallets[4]; // PLT-E005-IMP-AWB
+            var sourceFingerForStorage1 = savedFingers[2]; // Finger L05 (Id 3 in TestDatabase)
+            var destCellForStorage1 = savedCells.FirstOrDefault(c => c.DisplayName == TestDatabase.Cells.First(tc => tc.Id == 3008).DisplayName && c.Position == TestDatabase.Cells.First(tc => tc.Id == 3008).Position); // Cell Id 3008
+
+            if (palletForStorage1 != null && sourceFingerForStorage1 != null && destCellForStorage1 != null)
+            {
+                tasks.Add(new DbTask
+                {
+                    Name = $"Store {palletForStorage1.DisplayName}",
+                    Description = $"Move {palletForStorage1.DisplayName} from Finger {sourceFingerForStorage1.DisplayName} to Cell {destCellForStorage1.DisplayName} (Pos:{destCellForStorage1.Position}, Lvl:{destCellForStorage1.HeightLevel})",
+                    DownloadDate = DateTime.UtcNow,
+                    TaskTypeId = (int)EM.Maman.Models.Enums.TaskType.Storage,
+                    FingerLocationId = sourceFingerForStorage1.Id,  // Source for storage
+                    CellEndLocationId = destCellForStorage1.Id,    // Destination for storage
+                    PalletId = palletForStorage1.AwbCode ?? palletForStorage1.UldCode ?? palletForStorage1.DisplayName,
+                    Status = (int?)EM.Maman.Models.Enums.TaskStatus.Created,
+                    ActiveTaskStatus = (int?)EM.Maman.Models.Enums.ActiveTaskStatus.New // Changed to New and cast
+                });
+            }
+            else
+            {
+                _logger.LogWarning($"Could not create Storage Task 1. Missing: Pallet={palletForStorage1 == null}, Finger={sourceFingerForStorage1 == null}, Cell={destCellForStorage1 == null}");
+            }
+
+            // Task 4: Store Pallet 6 (Export AWB) from Finger 3 to Cell 6
+            var palletForStorage2 = savedPallets[6]; // PLT-F006-EXP-AWB
+            var sourceFingerForStorage2 = savedFingers[3]; // Finger R08 (Id 4 in TestDatabase)
+            var destCellForStorage2 = savedCells.FirstOrDefault(c => c.DisplayName == TestDatabase.Cells.First(tc => tc.Id == 4000).DisplayName && c.Position == TestDatabase.Cells.First(tc => tc.Id == 4000).Position); // Cell Id 4000
+
+            if (palletForStorage2 != null && sourceFingerForStorage2 != null && destCellForStorage2 != null)
+            {
+                tasks.Add(new DbTask
+                {
+                    Name = $"Store {palletForStorage2.DisplayName}",
+                    Description = $"Move {palletForStorage2.DisplayName} from Finger {sourceFingerForStorage2.DisplayName} to Cell {destCellForStorage2.DisplayName} (Pos:{destCellForStorage2.Position}, Lvl:{destCellForStorage2.HeightLevel})",
+                    DownloadDate = DateTime.UtcNow,
+                    TaskTypeId = (int)EM.Maman.Models.Enums.TaskType.Storage,
+                    FingerLocationId = sourceFingerForStorage2.Id,
+                    CellEndLocationId = destCellForStorage2.Id,
+                    PalletId = palletForStorage2.AwbCode ?? palletForStorage2.UldCode ?? palletForStorage2.DisplayName,
+                    Status = (int?)EM.Maman.Models.Enums.TaskStatus.Created,
+                    ActiveTaskStatus = (int?)EM.Maman.Models.Enums.ActiveTaskStatus.New // Changed to New and cast
+                });
+            }
+            else
+            {
+                _logger.LogWarning($"Could not create Storage Task 2. Missing: Pallet={palletForStorage2 == null}, Finger={sourceFingerForStorage2 == null}, Cell={destCellForStorage2 == null}");
+            }
+
+            _logger.LogInformation($"Created {tasks.Count} predefined tasks.");
             return tasks;
         }
 

@@ -111,7 +111,9 @@ namespace EM.Maman.DriverClient.ViewModels
                         item.AuthenticateCommand = ShowAuthenticationDialogCommand;
                         PalletsToAuthenticate.Add(item);
                     }
-                    IsFingerAuthenticationViewActive = PalletsToAuthenticate.Any();
+                    // Always set IsFingerAuthenticationViewActive to true when at a finger location,
+                    // regardless of whether there are pallets to authenticate
+                    IsFingerAuthenticationViewActive = true;
                     _logger.LogInformation("Loaded {Count} pallets for authentication at finger {FingerId}.",
                         PalletsToAuthenticate.Count, capturedFingerId);
                 });

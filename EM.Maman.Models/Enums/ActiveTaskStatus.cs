@@ -8,6 +8,7 @@ namespace EM.Maman.Models.Enums
 {
     public enum ActiveTaskStatus
     {
+        New = 0, // Added New status
         retrieval = 1,
         transit = 2,
         storing = 3,

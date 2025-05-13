@@ -9,6 +9,6 @@ namespace EM.Maman.Models.Enums
     public enum UpdateType
     {
         Import = 1,
-        Export = 2
+        Export = 2,
     }
 }

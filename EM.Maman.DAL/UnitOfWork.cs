@@ -21,6 +21,7 @@ namespace EM.Maman.DAL
 
         // Lazy-loaded repositories
         private ITrolleyRepository _trolleyRepository;
+        private ITrolleyCellRepository _trolleyCellRepository;
         private ICellRepository _cellRepository;
         private IFingerRepository _fingerRepository;
         private ILevelRepository _levelRepository;
@@ -82,6 +83,7 @@ namespace EM.Maman.DAL
 
         // Lazy-loaded repository properties
         public ITrolleyRepository Trolleys => _trolleyRepository ??= new TrolleyRepository(_context);
+        public ITrolleyCellRepository TrolleyCells => _trolleyCellRepository ??= new TrolleyCellRepository(_context);
         public ICellRepository Cells => _cellRepository ??= new CellRepository(_context);
         public IFingerRepository Fingers => _fingerRepository ??= new FingerRepository(_context);
         public ILevelRepository Levels => _levelRepository ??= new LevelRepository(_context);

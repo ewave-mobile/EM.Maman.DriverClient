@@ -453,10 +453,18 @@ namespace EM.Maman.DriverClient
                 );
             });
 
+            services.AddTransient<ManualInputViewModel>(provider =>
+            {
+                return new ManualInputViewModel(
+                    provider.GetRequiredService<IUnitOfWork>()
+                );
+            });
+
             // Register Views
             services.AddTransient<MainWindow>();
             services.AddTransient<LoginWindow>();
             services.AddTransient<ManualTaskDialog>();
+            services.AddTransient<ManualInputDialog>();
         }
 
         // Updated initialization method to use factory

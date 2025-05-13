@@ -1,10 +1,13 @@
 using EM.Maman.Models.LocalDbModels;
 using EM.Maman.Models.DisplayModels;
+using EM.Maman.Models.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 
@@ -15,6 +18,7 @@ namespace EM.Maman.DriverClient.ViewModels
         private TrolleyViewModel _trolleyVM;
         private Trolley _currentTrolley;
         private MainViewModel _mainViewModel;
+        private readonly IUnitOfWorkFactory _unitOfWorkFactory;
 
         public void SetMainViewModel(MainViewModel mainViewModel)
         {
@@ -61,44 +65,174 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             TrolleyVM = trolleyVM;
             CurrentTrolley = currentTrolley;
+            
+            // Get the UnitOfWorkFactory from the App's ServiceProvider
+            _unitOfWorkFactory = (App.Current as App)?.ServiceProvider.GetRequiredService<IUnitOfWorkFactory>();
+            if (_unitOfWorkFactory == null)
+            {
+                throw new InvalidOperationException("Could not resolve IUnitOfWorkFactory from ServiceProvider");
+            }
         }
 
         // Method to add a pallet to the trolley's left cell
-        public void AddPalletToTrolleyLeftCell(Pallet pallet)
+        public async System.Threading.Tasks.Task AddPalletToTrolleyLeftCellAsync(Pallet pallet)
         {
-            if (TrolleyVM != null)
+            if (TrolleyVM != null && pallet != null)
             {
+                // Update UI
                 TrolleyVM.LoadPalletIntoLeftCell(pallet);
+                
+                // Persist to database
+                try
+                {
+                    using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                    {
+                            await unitOfWork.TrolleyCells.AddPalletToTrolleyCellAsync(
+                                CurrentTrolley.Id, 
+                                EM.Maman.Common.Constants.TrolleyConstants.LeftCellPosition, 
+                                (int)pallet.Id);
+                        await unitOfWork.CompleteAsync();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log the error
+                    System.Diagnostics.Debug.WriteLine($"Error persisting pallet to left trolley cell: {ex.Message}");
+                    MessageBox.Show($"Error saving trolley state: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
         // Method to add a pallet to the trolley's right cell
-        public void AddPalletToTrolleyRightCell(Pallet pallet)
+        public async System.Threading.Tasks.Task AddPalletToTrolleyRightCellAsync(Pallet pallet)
         {
-            if (TrolleyVM != null)
+            if (TrolleyVM != null && pallet != null)
             {
+                // Update UI
                 TrolleyVM.LoadPalletIntoRightCell(pallet);
+                
+                // Persist to database
+                try
+                {
+                    using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                    {
+                        await unitOfWork.TrolleyCells.AddPalletToTrolleyCellAsync(
+                            CurrentTrolley.Id, 
+                            EM.Maman.Common.Constants.TrolleyConstants.RightCellPosition, 
+                            (int)pallet.Id);
+                        await unitOfWork.CompleteAsync();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log the error
+                    System.Diagnostics.Debug.WriteLine($"Error persisting pallet to right trolley cell: {ex.Message}");
+                    MessageBox.Show($"Error saving trolley state: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
         // Method to remove a pallet from the trolley's left cell
-        public Pallet RemovePalletFromTrolleyLeftCell()
+        public async System.Threading.Tasks.Task<Pallet> RemovePalletFromTrolleyLeftCellAsync()
         {
             if (TrolleyVM != null)
             {
-                return TrolleyVM.RemovePalletFromLeftCell();
+                // Get the pallet before removing it
+                var pallet = TrolleyVM.LeftCell.Pallet;
+                
+                // Update UI
+                TrolleyVM.RemovePalletFromLeftCell();
+                
+                // Persist to database
+                if (pallet != null)
+                {
+                    try
+                    {
+                        using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                        {
+                            await unitOfWork.TrolleyCells.RemovePalletFromTrolleyCellAsync(
+                                CurrentTrolley.Id, 
+                                EM.Maman.Common.Constants.TrolleyConstants.LeftCellPosition);
+                            await unitOfWork.CompleteAsync();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log the error
+                        System.Diagnostics.Debug.WriteLine($"Error removing pallet from left trolley cell: {ex.Message}");
+                        MessageBox.Show($"Error saving trolley state: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+                
+                return pallet;
             }
             return null;
         }
 
         // Method to remove a pallet from the trolley's right cell
-        public Pallet RemovePalletFromTrolleyRightCell()
+        public async System.Threading.Tasks.Task<Pallet> RemovePalletFromTrolleyRightCellAsync()
         {
             if (TrolleyVM != null)
             {
-                return TrolleyVM.RemovePalletFromRightCell();
+                // Get the pallet before removing it
+                var pallet = TrolleyVM.RightCell.Pallet;
+                
+                // Update UI
+                TrolleyVM.RemovePalletFromRightCell();
+                
+                // Persist to database
+                if (pallet != null)
+                {
+                    try
+                    {
+                        using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                        {
+                            await unitOfWork.TrolleyCells.RemovePalletFromTrolleyCellAsync(
+                                CurrentTrolley.Id, 
+                                EM.Maman.Common.Constants.TrolleyConstants.RightCellPosition);
+                            await unitOfWork.CompleteAsync();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log the error
+                        System.Diagnostics.Debug.WriteLine($"Error removing pallet from right trolley cell: {ex.Message}");
+                        MessageBox.Show($"Error saving trolley state: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+                
+                return pallet;
             }
             return null;
+        }
+        
+        // Non-async versions for backward compatibility
+        public void AddPalletToTrolleyLeftCell(Pallet pallet)
+        {
+            // Call the async version without awaiting
+            _ = AddPalletToTrolleyLeftCellAsync(pallet);
+        }
+        
+        public void AddPalletToTrolleyRightCell(Pallet pallet)
+        {
+            // Call the async version without awaiting
+            _ = AddPalletToTrolleyRightCellAsync(pallet);
+        }
+        
+        public Pallet RemovePalletFromTrolleyLeftCell()
+        {
+            // Call the async version and wait for the result
+            var task = RemovePalletFromTrolleyLeftCellAsync();
+            task.Wait();
+            return task.Result;
+        }
+        
+        public Pallet RemovePalletFromTrolleyRightCell()
+        {
+            // Call the async version and wait for the result
+            var task = RemovePalletFromTrolleyRightCellAsync();
+            task.Wait();
+            return task.Result;
         }
 
         // Helper method to get the current composite row based on trolley position

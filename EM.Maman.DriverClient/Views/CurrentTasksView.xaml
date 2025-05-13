@@ -76,142 +76,141 @@
     </UserControl.Resources>
 
      <Border Background="White" BorderBrush="#DDDDDD" BorderThickness="0,0,1,0">
-         <!-- Main Grid to switch between Default View and Finger Auth View -->
-         <Grid  >
-             <!-- Default View (Active Task / Empty State) -->
-             <DockPanel Margin="10"
-                        Visibility="{Binding IsDefaultTaskViewActive, Converter={StaticResource BooleanToVisibilityConverter}}" HorizontalAlignment="Center">
-                 <Grid DockPanel.Dock="Top">
-         
-                
-                <StackPanel  Orientation="Horizontal" >
+         <Grid>
+             <!-- Header -->
+             <Grid DockPanel.Dock="Top" Margin="10,10,10,0">
+                <StackPanel Orientation="Vertical">
+                    <StackPanel Orientation="Horizontal">
                     <Ellipse Width="10" Height="10" Fill="#4CAF50" Margin="0,0,5,0" VerticalAlignment="Center" />
                     <TextBlock Text="עכשיו בעבודה" VerticalAlignment="Center" FontSize="14" />
-                     </StackPanel>
-                 </Grid>
-
-                 <!-- Empty state for when no tasks are active -->
-                 <Grid Visibility="{Binding TaskVM.IsTaskActive, Converter={StaticResource BoolInverterConverter}, ConverterParameter=Visibility}">
-                     <!-- Default message when no tasks are active but not showing default photo -->
-                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" >
-                         <Image Source="/Images/taskMessagesIcon.png" Width="150" Height="150" Margin="0,0,0,20" />
-                         <TextBlock Text="אין משימות בעבודה" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#2196F3" />
-                         <TextBlock Text="בחר משימה מהרשימה כדי להתחיל לעבוד" FontSize="14" HorizontalAlignment="Center" Foreground="#757575" Margin="0,10,0,0" TextWrapping="Wrap" TextAlignment="Center" />
-                     </StackPanel>
-                     
-                     <!-- Default photo when no tasks are active and not at a finger -->
-                     <!--<Image Source="/Images/mamanBackground.jpeg" Stretch="Uniform" 
-                            Visibility="{Binding ShouldShowDefaultPhoto, Converter={StaticResource BooleanToVisibilityConverter}}" />-->
-                 </Grid>
-            
-                <!-- Active task area (visible only when a task is active) -->
-                <StackPanel Visibility="{Binding HasPalletsReadyForStorage, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <!-- Storage Task Section Header -->
-                    <TextBlock Text="אחסון פלט" FontSize="18" FontWeight="Bold" Margin="0,20,0,10" HorizontalAlignment="Center"/>
-
-                    <!-- Storage Task List -->
-                    <ItemsControl ItemsSource="{Binding PalletsReadyForStorage}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <localControls:StorageTaskItemControl />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    </StackPanel>
                 </StackPanel>
-                <!-- End of Storage Task Section StackPanel -->
-            </DockPanel>
+             </Grid>
 
-             <!-- Finger Authentication View -->
-            <Border Background="#F5F5F5" Padding="10"  Visibility="{Binding IsFingerAuthenticationViewActive, Converter={StaticResource BooleanToVisibilityConverter}}"
-                     >
+             <!-- Empty state for when no tasks are active -->
+             <Grid Visibility="{Binding ShouldShowDefaultPhoto, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,30,0,0">
+                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                     <Image Source="/Images/taskMessagesIcon.png" Width="150" Height="150" Margin="0,0,0,20" />
+                     <TextBlock Text="אין משימות בעבודה" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#2196F3" />
+                     <TextBlock Text="בחר משימה מהרשימה כדי להתחיל לעבוד" FontSize="14" HorizontalAlignment="Center" Foreground="#757575" Margin="0,10,0,0" TextWrapping="Wrap" TextAlignment="Center" />
+                 </StackPanel>
+             </Grid>
+
+             <!-- Tasks Panel - Visible when at finger, has storage tasks, has retrieval tasks, or at cell with retrieval task -->
+             <Border Background="#F5F5F5" Padding="10" Margin="0,30,0,0"
+                     Visibility="{Binding ShouldShowTasksPanel, Converter={StaticResource BooleanToVisibilityConverter}}">
                  <ScrollViewer VerticalScrollBarVisibility="Auto">
                      <StackPanel>
-                        <Border BorderThickness="1" BorderBrush="#E0E0E0" CornerRadius="10" Padding="10" Background="white">
-                         <!-- Finger Authentication View (Only visible when active) -->
-                         <StackPanel Visibility="{Binding IsFingerAuthenticationViewActive, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                     Background="White">
-                             <!-- Authentication Section Header -->
-                                <Border Background="#F6F9FF" Margin="5,0,0,5" CornerRadius="5">
-                                    <StackPanel>
-                                    <TextBlock Text="פעולה נדרשת" Padding="20,20,0,0"/>
-                                    <TextBlock Text="אימות פלטים לפני שליפה" FontSize="18" FontWeight="Bold" Margin="20,5,0,10" HorizontalAlignment="Left"/>
-                                    </StackPanel>
-                                </Border>
-                                <StackPanel Margin="10">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <!-- Authenticate Button -->
-                                            <ColumnDefinition Width="*"/>
-                                            <!-- Details -->
-                                            <ColumnDefinition Width="Auto"/>
-                                            <!-- Add Button -->
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0" Margin="10,0,0,0" >
-                                            <TextBlock Text="פינגר" FontSize="12"/>
-                                            <TextBlock Text="{Binding CurrentFingerDisplayName}" FontWeight="Heavy"/>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" Margin="20,0,0,0">
-                                            <TextBlock Text="פלטים בפינגר" FontSize="12"/>
-                                            
-                                                <ItemsControl  ItemsSource="{Binding PalletsToAuthenticate}"  >
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <StackPanel Orientation="Horizontal" />
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate >
-                                                        <DataTemplate >
-                                                            <Border BorderThickness="1" Background="Gray" BorderBrush="Gray" Margin="0,2,5,0" Height="12" Width="12"/>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            
-                                        </StackPanel>
-                                        <Button Grid.Column="2"  Background="White" BorderThickness="1" BorderBrush="Gray"
-        Command="{Binding DataContext.OpenCreateTaskDialogCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-        ToolTip="הוסף פלט ידנית" VerticalAlignment="Center" Margin="10,0,10,0"  >
-                                            <Button.Style>
-                                                <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatButton}">
-                                                    <Setter Property="Background" Value="White"/>
-                                                    <Setter Property="Foreground" Value="Gray"/>
-                                                    <Setter Property="materialDesign:RippleAssist.Feedback" Value="#1976D2"/>
-                                                    <Style.Triggers>
-                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Background" Value="#E3F2FD"/>
-                                                            <Setter Property="BorderBrush" Value="Blue"/>
-                                                            <Setter Property="Foreground" Value="#1976D2"/>
-                                                        </Trigger>
-                                                        <Trigger Property="IsPressed" Value="True">
-                                                            <Setter Property="Background" Value="#E3F2FD"/>
-                                                            <Setter Property="BorderBrush" Value="Blue"/>
-                                                            <Setter Property="Foreground" Value="#1976D2"/>
-                                                        </Trigger>
-                                                        
-                                                        
-                                                        
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                            <materialDesign:PackIcon Kind="Plus"  />
-                                        </Button>
-                                    </Grid>
-                                </StackPanel>
-                                <!-- Authentication List -->
-                         <ItemsControl ItemsSource="{Binding PalletsToAuthenticate}">
-                             <ItemsControl.ItemTemplate>
-                                 <DataTemplate>
-                                     <localControls:PalletAuthenticationItemControl />
-                                 </DataTemplate>
-                             </ItemsControl.ItemTemplate>
-                         </ItemsControl>
-                         </StackPanel> <!-- End of Finger Authentication View StackPanel -->
-                        </Border>
+                         <!-- Authentication Section - Only visible when at a finger -->
+                         <Border BorderThickness="1" BorderBrush="#E0E0E0" CornerRadius="10" Padding="10" Background="White" Margin="0,0,0,10"
+                                 Visibility="{Binding IsFingerAuthenticationViewActive, Converter={StaticResource BooleanToVisibilityConverter}}">
+                             <StackPanel>
+                                 <!-- Authentication Section Header -->
+                                 <Border Background="#F6F9FF" Margin="5,0,0,5" CornerRadius="5">
+                                     <StackPanel>
+                                         <TextBlock Text="פעולה נדרשת" Padding="20,20,0,0"/>
+                                         <TextBlock Text="אימות פלטים לפני שליפה" FontSize="18" FontWeight="Bold" Margin="20,5,0,10" HorizontalAlignment="Left"/>
+                                     </StackPanel>
+                                 </Border>
+                                 <StackPanel Margin="10">
+                                     <Grid>
+                                         <Grid.ColumnDefinitions>
+                                             <ColumnDefinition Width="Auto"/> <!-- Finger Info -->
+                                             <ColumnDefinition Width="*"/> <!-- Pallet Indicators -->
+                                             <ColumnDefinition Width="Auto"/> <!-- Add Button -->
+                                         </Grid.ColumnDefinitions>
+                                         <StackPanel Grid.Column="0" Margin="10,0,0,0">
+                                             <TextBlock Text="פינגר" FontSize="12"/>
+                                             <TextBlock Text="{Binding CurrentFingerDisplayName}" FontWeight="Heavy"/>
+                                         </StackPanel>
+                                         <StackPanel Grid.Column="1" Margin="20,0,0,0">
+                                             <TextBlock Text="פלטים בפינגר" FontSize="12"/>
+                                             <ItemsControl ItemsSource="{Binding PalletsToAuthenticate}">
+                                                 <ItemsControl.ItemsPanel>
+                                                     <ItemsPanelTemplate>
+                                                         <StackPanel Orientation="Horizontal" />
+                                                     </ItemsPanelTemplate>
+                                                 </ItemsControl.ItemsPanel>
+                                                 <ItemsControl.ItemTemplate>
+                                                     <DataTemplate>
+                                                         <Border BorderThickness="1" Background="Gray" BorderBrush="Gray" Margin="0,2,5,0" Height="12" Width="12"/>
+                                                     </DataTemplate>
+                                                 </ItemsControl.ItemTemplate>
+                                             </ItemsControl>
+                                         </StackPanel>
+                                         <Button Grid.Column="2" Background="White" BorderThickness="1" BorderBrush="Gray"
+                                                 Command="{Binding DataContext.OpenCreateTaskDialogCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                 ToolTip="הוסף פלט ידנית" VerticalAlignment="Center" Margin="10,0,10,0">
+                                             <Button.Style>
+                                                 <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatButton}">
+                                                     <Setter Property="Background" Value="White"/>
+                                                     <Setter Property="Foreground" Value="Gray"/>
+                                                     <Setter Property="materialDesign:RippleAssist.Feedback" Value="#1976D2"/>
+                                                     <Style.Triggers>
+                                                         <Trigger Property="IsMouseOver" Value="True">
+                                                             <Setter Property="Background" Value="#E3F2FD"/>
+                                                             <Setter Property="BorderBrush" Value="Blue"/>
+                                                             <Setter Property="Foreground" Value="#1976D2"/>
+                                                         </Trigger>
+                                                         <Trigger Property="IsPressed" Value="True">
+                                                             <Setter Property="Background" Value="#E3F2FD"/>
+                                                             <Setter Property="BorderBrush" Value="Blue"/>
+                                                             <Setter Property="Foreground" Value="#1976D2"/>
+                                                         </Trigger>
+                                                     </Style.Triggers>
+                                                 </Style>
+                                             </Button.Style>
+                                             <materialDesign:PackIcon Kind="Plus" />
+                                         </Button>
+                                     </Grid>
+                                 </StackPanel>
+                                 <!-- Authentication List -->
+                                 <ItemsControl ItemsSource="{Binding PalletsToAuthenticate}">
+                                     <ItemsControl.ItemTemplate>
+                                         <DataTemplate>
+                                             <localControls:PalletAuthenticationItemControl />
+                                         </DataTemplate>
+                                     </ItemsControl.ItemTemplate>
+                                 </ItemsControl>
+                             </StackPanel>
+                         </Border>
 
-                        <!-- Storage Task Section (Visible whenever there are items) -->
-                        
+                         <!-- Storage Tasks Section - Visible when there are storage tasks -->
+                         <Border BorderThickness="1" BorderBrush="#E0E0E0" CornerRadius="10" Padding="10" Background="White" Margin="0,0,0,10"
+                                 Visibility="{Binding HasPalletsReadyForStorage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                             <StackPanel>
+                                 <!-- Storage Task Section Header -->
+                                 <TextBlock Text="אחסון פלט" FontSize="18" FontWeight="Bold" Margin="0,10,0,10" HorizontalAlignment="Center"/>
 
-                     </StackPanel> <!-- End of Main ScrollViewer StackPanel -->
+                                 <!-- Storage Task List -->
+                                 <ItemsControl ItemsSource="{Binding PalletsReadyForStorage}">
+                                     <ItemsControl.ItemTemplate>
+                                         <DataTemplate>
+                                             <localControls:StorageTaskItemControl />
+                                         </DataTemplate>
+                                     </ItemsControl.ItemTemplate>
+                                 </ItemsControl>
+                             </StackPanel>
+                         </Border>
+
+                         <!-- Retrieval Tasks Section - Visible when there are retrieval tasks -->
+                         <Border BorderThickness="1" BorderBrush="#E0E0E0" CornerRadius="10" Padding="10" Background="White" Margin="0,0,0,10"
+                                 Visibility="{Binding HasPalletsForRetrieval, Converter={StaticResource BooleanToVisibilityConverter}}">
+                             <StackPanel>
+                                 <!-- Retrieval Task Section Header -->
+                                 <TextBlock Text="שליפת פלט" FontSize="18" FontWeight="Bold" Margin="0,10,0,10" HorizontalAlignment="Center"/>
+
+                                 <!-- Retrieval Task List -->
+                                 <ItemsControl ItemsSource="{Binding PalletsForRetrieval}">
+                                     <ItemsControl.ItemTemplate>
+                                         <DataTemplate>
+                                             <localControls:RetrievalTaskItemControl />
+                                         </DataTemplate>
+                                     </ItemsControl.ItemTemplate>
+                                 </ItemsControl>
+                             </StackPanel>
+                         </Border>
+                     </StackPanel>
                  </ScrollViewer>
              </Border>
          </Grid>

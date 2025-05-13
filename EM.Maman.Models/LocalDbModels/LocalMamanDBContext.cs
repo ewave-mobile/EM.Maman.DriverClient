@@ -49,6 +49,8 @@ public partial class LocalMamanDBContext : DbContext
 
     public virtual DbSet<Trolley> Trolleys { get; set; }
 
+    public virtual DbSet<TrolleyCell> TrolleyCells { get; set; }
+
     public virtual DbSet<TrolleyLoadingLocation> TrolleyLoadingLocations { get; set; }
 
     public virtual DbSet<TrolleyMovementLog> TrolleyMovementLogs { get; set; }
@@ -271,6 +273,25 @@ public partial class LocalMamanDBContext : DbContext
 
             entity.Property(e => e.Description).HasMaxLength(200);
             entity.Property(e => e.DisplayName).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<TrolleyCell>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__TrolleyC__3214EC07XXXXXXXX");
+
+            entity.Property(e => e.Position).HasMaxLength(50);
+            entity.Property(e => e.StorageDate).HasColumnType("datetime");
+
+            entity.HasOne(d => d.Trolley)
+                .WithMany(p => p.TrolleyCells)
+                .HasForeignKey(d => d.TrolleyId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_TrolleyCells_Trolleys");
+
+            entity.HasOne(d => d.Pallet)
+                .WithMany()
+                .HasForeignKey(d => d.PalletId)
+                .HasConstraintName("FK_TrolleyCells_Pallets");
         });
 
         modelBuilder.Entity<TrolleyLoadingLocation>(entity =>

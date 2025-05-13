@@ -246,24 +246,23 @@ namespace EM.Maman.DriverClient.ViewModels
 
             try
             {
-                var dialog = (App.Current as App)?.ServiceProvider.GetRequiredService<ManualTaskDialog>();
+                var dialog = (App.Current as App)?.ServiceProvider.GetRequiredService<ManualInputDialog>();
 
                 if (dialog == null)
                 {
-                    _logger.LogError("Failed to resolve ManualTaskDialog from service provider");
+                    _logger.LogError("Failed to resolve ManualInputDialog from service provider");
                     return;
                 }
 
                 if (dialog.ShowDialog() == true)
                 {
-                    if (dialog.DataContext is ManualTaskViewModel manualTaskVM)
+                    if (dialog.DataContext is ManualInputViewModel manualInputVM)
                     {
-                        TaskDetails newTaskDetails = manualTaskVM.IsImportSelected ?
-                            manualTaskVM.ImportVM?.TaskDetails : manualTaskVM.ExportVM?.TaskDetails;
+                        TaskDetails newTaskDetails = manualInputVM.TaskDetails;
 
                         if (newTaskDetails == null)
                         {
-                            _logger.LogWarning("Manual task dialog closed with OK, but TaskDetails were null.");
+                            _logger.LogWarning("Manual input dialog closed with OK, but TaskDetails were null.");
                             return;
                         }
 
@@ -281,17 +280,6 @@ namespace EM.Maman.DriverClient.ViewModels
                                 if (newTaskDetails.SourceFinger?.Position == _currentFingerPositionValue)
                                 {
                                     _logger.LogInformation("Adding new task to authentication list.");
-
-                                    string palletUldCode = newTaskDetails.Pallet?.UldCode;
-                                    if (newTaskDetails.Pallet == null && !string.IsNullOrEmpty(palletUldCode))
-                                    {
-                                        // Create a new UnitOfWork instance for this operation
-                                        using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
-                                        {
-                                            newTaskDetails.Pallet = (await unitOfWork.Pallets
-                                                .FindAsync(p => p.UldCode == palletUldCode)).FirstOrDefault();
-                                        }
-                                    }
 
                                     if (newTaskDetails.Pallet != null)
                                     {

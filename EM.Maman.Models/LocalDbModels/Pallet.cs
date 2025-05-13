@@ -2,12 +2,14 @@
 #nullable disable
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using EM.Maman.Models.Enums;
 
 namespace EM.Maman.Models.LocalDbModels;
 
 public partial class Pallet
 {
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
 
     public string DisplayName { get; set; }

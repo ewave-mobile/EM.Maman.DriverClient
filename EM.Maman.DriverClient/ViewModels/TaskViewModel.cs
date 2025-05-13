@@ -614,8 +614,8 @@ namespace EM.Maman.DriverClient.ViewModels
                                     // Create a PalletRetrievalTaskItem and add it to the retrieval collection
                                     var retrievalItem = new PalletRetrievalTaskItem(pallet, task)
                                     {
-                                        GoToRetrievalCommand = _mainVM.GoToStorageLocationCommand, // Reuse existing command for now
-                                        ChangeSourceCommand = _mainVM.ChangeDestinationCommand // Reuse existing command for now
+                                        GoToRetrievalCommand = _mainVM.GoToRetrievalLocationCommand, // Use the correct command
+                                        ChangeSourceCommand = _mainVM.ChangeSourceCommand // Use the correct command
                                     };
 
                                     _dispatcherService.Invoke(() =>
@@ -1031,37 +1031,64 @@ namespace EM.Maman.DriverClient.ViewModels
                     return; // Stop processing if save failed
                 }
 
-                // --- Handle Storage Task Completion (Requirement #4) ---
-                if (ActiveTask.IsImportTask && _mainVM != null)
+                // --- Handle Task Completion ---
+                if (_mainVM != null)
                 {
-                    // Find the corresponding item in the MainViewModel's list
-                    var storageItem = _mainVM.PalletsReadyForStorage
-                                             .FirstOrDefault(item => item.StorageTask?.Id == ActiveTask.Id);
-
-                    if (storageItem != null)
+                    if (ActiveTask.IsImportTask)
                     {
-                        // Use dispatcher to remove from the collection on the UI thread
-                        _mainVM._dispatcherService.Invoke(() =>
+                        // Find the corresponding item in the MainViewModel's storage list
+                        var storageItem = _mainVM.PalletsReadyForStorage
+                                                 .FirstOrDefault(item => item.StorageTask?.Id == ActiveTask.Id);
+
+                        if (storageItem != null)
                         {
-                            _mainVM.PalletsReadyForStorage.Remove(storageItem);
-                            _mainVM.NotifyStorageItemsChanged(); // Notify MainVM property change
-                        });
-                        _logger.LogInformation("Removed completed storage task item (ID: {TaskId}) from PalletsReadyForStorage.", ActiveTask.Id);
+                            // Use dispatcher to remove from the collection on the UI thread
+                            _mainVM._dispatcherService.Invoke(() =>
+                            {
+                                _mainVM.PalletsReadyForStorage.Remove(storageItem);
+                                _mainVM.NotifyStorageItemsChanged(); // Notify MainVM property change
+                            });
+                            _logger.LogInformation("Removed completed storage task item (ID: {TaskId}) from PalletsReadyForStorage.", ActiveTask.Id);
 
-                        // Show success message
-                        MessageBox.Show("Task successful!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                            // Show success message
+                            MessageBox.Show("Storage task completed successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Could not find corresponding PalletStorageTaskItem for completed Task ID {TaskId} in MainViewModel.", ActiveTask.Id);
+                        }
                     }
-                    else
+                    else // Retrieval task
                     {
-                        _logger.LogWarning("Could not find corresponding PalletStorageTaskItem for completed Task ID {TaskId} in MainViewModel.", ActiveTask.Id);
+                        // Find the corresponding item in the MainViewModel's retrieval list
+                        var retrievalItem = _mainVM.PalletsForRetrieval
+                                                  .FirstOrDefault(item => item.RetrievalTask?.Id == ActiveTask.Id);
+
+                        if (retrievalItem != null)
+                        {
+                            // Use dispatcher to remove from the collection on the UI thread
+                            _mainVM._dispatcherService.Invoke(() =>
+                            {
+                                _mainVM.PalletsForRetrieval.Remove(retrievalItem);
+                                _mainVM.NotifyRetrievalItemsChanged(); // Notify MainVM property change
+                            });
+                            _logger.LogInformation("Removed completed retrieval task item (ID: {TaskId}) from PalletsForRetrieval.", ActiveTask.Id);
+
+                            // Show success message
+                            MessageBox.Show("Retrieval task completed successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Could not find corresponding PalletRetrievalTaskItem for completed Task ID {TaskId} in MainViewModel.", ActiveTask.Id);
+                        }
                     }
                 }
                 else
                 {
-                    // For non-storage tasks or if _mainVM is null, just set the status message
+                    // If _mainVM is null, just set the status message
                     StatusMessage = "Task completed successfully.";
                 }
-                // --- End Handle Storage Task Completion ---
+                // --- End Handle Task Completion ---
 
 
                 // Reset active task

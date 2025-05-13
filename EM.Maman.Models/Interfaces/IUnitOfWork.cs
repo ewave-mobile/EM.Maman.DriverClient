@@ -8,6 +8,7 @@ namespace EM.Maman.Models.Interfaces
     {
         // Repository properties
         ITrolleyRepository Trolleys { get; }
+        ITrolleyCellRepository TrolleyCells { get; }
         ICellRepository Cells { get; }
         IFingerRepository Fingers { get; }
         ILevelRepository Levels { get; }

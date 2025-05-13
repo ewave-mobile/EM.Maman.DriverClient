@@ -149,7 +149,7 @@
                                             </Grid.ColumnDefinitions>
 
                                             <!-- Left Cell 1 (Outermost) with visibility style -->
-                                            <Grid Grid.Column="0">
+                                            <Grid Grid.Column="1">
                                                 <Grid.Style>
                                                     <Style TargetType="Grid">
                                                         <Setter Property="Visibility" Value="Visible"/>
@@ -166,7 +166,7 @@
                                             </Grid>
 
                                             <!-- Left Cell 2 with visibility style -->
-                                            <Grid Grid.Column="1">
+                                            <Grid Grid.Column="0">
                                                 <Grid.Style>
                                                     <Style TargetType="Grid">
                                                         <Setter Property="Visibility" Value="Visible"/>

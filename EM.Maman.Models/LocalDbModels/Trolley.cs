@@ -16,4 +16,9 @@ public partial class Trolley
     public int? Capacity { get; set; }
 
     public int? Position { get; set; }
+    
+    /// <summary>
+    /// Navigation property to the trolley cells
+    /// </summary>
+    public virtual ICollection<TrolleyCell> TrolleyCells { get; set; } = new List<TrolleyCell>();
 }

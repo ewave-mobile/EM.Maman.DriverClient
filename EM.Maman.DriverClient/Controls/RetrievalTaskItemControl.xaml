@@ -1,0 +1,123 @@
+<UserControl x:Class="EM.Maman.DriverClient.Controls.RetrievalTaskItemControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:vm="clr-namespace:EM.Maman.DriverClient.ViewModels"
+             xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:local="clr-namespace:EM.Maman.DriverClient.Views"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:PalletRetrievalTaskItem}"
+             d:DesignHeight="Auto" d:DesignWidth="330"
+             FlowDirection="RightToLeft">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <converters:ActiveTaskStatusToColorConverter x:Key="ActiveTaskStatusToColorConverter"/>
+            <converters:ActiveTaskStatusToTextConverter x:Key="ActiveTaskStatusToTextConverter"/>
+            <Style TargetType="TextBlock" x:Key="LabelStyle">
+                <Setter Property="Foreground" Value="Gray"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Margin" Value="0,0,0,2"/>
+            </Style>
+            <Style TargetType="TextBlock" x:Key="ValueStyle">
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="FontSize" Value="14"/>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Border Background="White" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Margin="0,0,0,10" Padding="10">
+        <StackPanel>
+            <!-- Top Row: Task Type, Source, Go/Change Buttons -->
+            <Border Background="#F6F9FF" CornerRadius="8" Padding="5" >
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <!-- Task Type -->
+                        <ColumnDefinition Width="*"/>
+                        <!-- Source -->
+                        <ColumnDefinition Width="Auto"/>
+                        <!-- Buttons -->
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Grid.Row="0" Text="פעולה נדרשת" Style="{StaticResource LabelStyle}" Margin="10,0,60,0"/>
+                            <TextBlock Grid.Column="0" Grid.Row="1" Text="שליפת פלט" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,60,0"/>
+
+                            <TextBlock Text="קומה"  Grid.Column="1" Grid.Row="0" Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
+                            <TextBlock  Grid.Column="1" Grid.Row="1" Text="{Binding RetrievalTask.SourceCell.HeightLevel}" Style="{StaticResource ValueStyle}" Margin="0,0,30,0" VerticalAlignment="Center"/>
+                            <TextBlock  Grid.Column="2" Grid.Row="0" Text="שורה" Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
+                            <TextBlock  Grid.Column="2" Grid.Row="1" Text="{Binding RetrievalTask.SourceCell.Position}" Style="{StaticResource ValueStyle}" Margin="0,0,30,0" VerticalAlignment="Center"/>
+                            <TextBlock  Grid.Column="3" Grid.Row="0" Text="מיקום" Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
+                            <TextBlock  Grid.Column="3" Grid.Row="1"  Style="{StaticResource ValueStyle}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                            <!-- Add Finger Position Indicator if needed -->
+                        </Grid>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="שינוי"
+                                Command="{Binding DataContext.ChangeSourceCommand, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:CurrentTasksView}}}"
+                                CommandParameter="{Binding}"
+                                IsEnabled="{Binding CanExecuteChangeSourceCommand}"
+                                Style="{StaticResource MaterialDesignOutlinedButton}" Width="100" Margin="0,0,20,0" />
+                        <Button Content="GO"
+                                Command="{Binding DataContext.GoToRetrievalLocationCommand, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:CurrentTasksView}}}"
+                                CommandParameter="{Binding}"
+                                Style="{StaticResource MaterialDesignRaisedButton}" Background="#2196F3" Width="100" Margin="0,0,20,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            <!-- Bottom Row: Pallet Details -->
+            <Grid Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="70"/>
+                    <ColumnDefinition Width="70"/>
+                    <ColumnDefinition Width="70"/>
+                    <ColumnDefinition Width="70"/>
+                    <ColumnDefinition Width="70"/>
+                    <ColumnDefinition Width="70"/>
+                    <ColumnDefinition Width="90"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <!-- Labels -->
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="פרט" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="מופע" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="מצהר" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
+                <TextBlock Grid.Row="0" Grid.Column="3" Text="סוג פלט" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
+                <TextBlock Grid.Row="0" Grid.Column="4" Text="גובה" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
+                <TextBlock Grid.Row="0" Grid.Column="5" Text="שעה" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
+                <TextBlock Grid.Row="0" Grid.Column="6" Text="סטטוס" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
+                <!-- Values -->
+                <Border Grid.Row="1" Grid.Column="0" Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="2">
+                    <TextBlock Text="{Binding PalletDetails.ImportAppearance}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
+                </Border>
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PalletDetails.ImportAppearance}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="5,2"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding PalletDetails.ImportManifest}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="5,2"/>
+                <Border Grid.Row="1" Grid.Column="3" Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="2">
+                    <TextBlock Text="{Binding PalletDetails.CargoTypeId}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
+                </Border>
+                <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding PalletDetails.HeightLevel}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="5,2"/>
+                <TextBlock Grid.Row="1" Grid.Column="5" Text="{Binding RetrievalTask.CreatedDateTime, StringFormat='HH:mm'}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="5,2"/>
+                <Border Grid.Row="1" Grid.Column="6"  CornerRadius="4" Padding="5,2" Margin="2" Background="{Binding RetrievalTask.ActiveTaskStatus, Converter={StaticResource ActiveTaskStatusToColorConverter}}">
+                    <TextBlock Text="{Binding RetrievalTask.ActiveTaskStatus, Converter={StaticResource ActiveTaskStatusToTextConverter} }" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="5,0"/>
+                </Border>
+            </Grid>
+        </StackPanel>
+    </Border>
+</UserControl>

@@ -8,7 +8,7 @@ namespace EM.Maman.DriverClient.Controls
     public partial class TrolleyCellControl : UserControl
     {
         public static readonly DependencyProperty TrolleyCellProperty =
-            DependencyProperty.Register("TrolleyCell", typeof(TrolleyCell), typeof(TrolleyCellControl),
+            DependencyProperty.Register("TrolleyCell", typeof(Models.DisplayModels.TrolleyCell), typeof(TrolleyCellControl),
                 new PropertyMetadata(null, OnTrolleyCellChanged));
 
         public static readonly DependencyProperty IsOccupiedProperty =
@@ -27,9 +27,9 @@ namespace EM.Maman.DriverClient.Controls
             DependencyProperty.Register("CellPosition", typeof(string), typeof(TrolleyCellControl),
                 new PropertyMetadata(string.Empty));
 
-        public TrolleyCell TrolleyCell
+        public Models.DisplayModels.TrolleyCell TrolleyCell
         {
-            get { return (TrolleyCell)GetValue(TrolleyCellProperty); }
+            get { return (Models.DisplayModels.TrolleyCell)GetValue(TrolleyCellProperty); }
             set { SetValue(TrolleyCellProperty, value); }
         }
 
@@ -67,7 +67,7 @@ namespace EM.Maman.DriverClient.Controls
             var control = d as TrolleyCellControl;
             if (control != null)
             {
-                var cell = e.NewValue as TrolleyCell;
+                var cell = e.NewValue as Models.DisplayModels.TrolleyCell;
                 if (cell != null)
                 {
                     control.UpdateProperties(cell);
@@ -86,7 +86,7 @@ namespace EM.Maman.DriverClient.Controls
         private void Cell_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             // Update properties when the TrolleyCell changes
-            if (sender is TrolleyCell cell)
+            if (sender is Models.DisplayModels.TrolleyCell cell)
             {
                 if (e.PropertyName == nameof(TrolleyCell.Pallet) ||
                     e.PropertyName == nameof(TrolleyCell.IsOccupied))
@@ -100,7 +100,7 @@ namespace EM.Maman.DriverClient.Controls
             }
         }
 
-        private void UpdateProperties(TrolleyCell cell)
+        private void UpdateProperties(Models.DisplayModels.TrolleyCell cell)
         {
             IsOccupied = cell.IsOccupied;
             IsNotOccupied = !cell.IsOccupied;

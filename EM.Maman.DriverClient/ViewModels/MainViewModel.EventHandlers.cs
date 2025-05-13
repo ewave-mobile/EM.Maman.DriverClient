@@ -66,7 +66,8 @@ namespace EM.Maman.DriverClient.ViewModels
                 }
             }
             
-            // Notify that ShouldShowDefaultPhoto property might have changed
+            // Notify that task panel visibility properties might have changed
+            OnPropertyChanged(nameof(ShouldShowTasksPanel));
             OnPropertyChanged(nameof(ShouldShowDefaultPhoto));
         }
 
@@ -75,11 +76,15 @@ namespace EM.Maman.DriverClient.ViewModels
         public void NotifyStorageItemsChanged()
         {
             OnPropertyChanged(nameof(HasPalletsReadyForStorage));
+            OnPropertyChanged(nameof(ShouldShowTasksPanel));
+            OnPropertyChanged(nameof(ShouldShowDefaultPhoto));
         }
 
         public void NotifyRetrievalItemsChanged()
         {
             OnPropertyChanged(nameof(HasPalletsForRetrieval));
+            OnPropertyChanged(nameof(ShouldShowTasksPanel));
+            OnPropertyChanged(nameof(ShouldShowDefaultPhoto));
         }
     }
 }

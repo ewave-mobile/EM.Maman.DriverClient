@@ -24,7 +24,7 @@ namespace EM.Maman.DriverClient.ViewModels
         public void Execute(object parameter) => _execute(parameter);
 
         public void RaiseCanExecuteChanged() =>
-            CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+            CanExecuteChanged?.Invoke(this, System.EventArgs.Empty);
     }
 
 }

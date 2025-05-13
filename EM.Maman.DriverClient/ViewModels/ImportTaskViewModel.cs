@@ -1,4 +1,5 @@
 ﻿using EM.Maman.DAL.Test;
+using EM.Maman.DriverClient.EventArgs;
 using EM.Maman.Models.CustomModels;
 using EM.Maman.Models.Interfaces;
 using EM.Maman.Models.LocalDbModels;
@@ -348,14 +349,5 @@ namespace EM.Maman.DriverClient.ViewModels
         }
     }
 
-    // Restore DialogResultEventArgs as it's used by RequestClose event
-    public class DialogResultEventArgs : EventArgs
-    {
-        public bool Result { get; }
-
-        public DialogResultEventArgs(bool result)
-        {
-            Result = result;
-        }
-    }
+    // Using the shared DialogResultEventArgs class from EM.Maman.DriverClient.EventArgs namespace
 }

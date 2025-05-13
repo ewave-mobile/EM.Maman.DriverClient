@@ -28,8 +28,8 @@ namespace EM.Maman.DriverClient.ViewModels
         private RelayCommand _selectLevelCommand;
 
         // New properties for trolley cells
-        private TrolleyCell _leftCell;
-        private TrolleyCell _rightCell;
+        private Models.DisplayModels.TrolleyCell _leftCell;
+        private Models.DisplayModels.TrolleyCell _rightCell;
         private string _trolleyName = "Main Trolley";
         
         #region Properties
@@ -155,7 +155,7 @@ namespace EM.Maman.DriverClient.ViewModels
         }
 
         // New properties for trolley cells
-        public TrolleyCell LeftCell
+        public Models.DisplayModels.TrolleyCell LeftCell
         {
             get => _leftCell;
             set
@@ -168,7 +168,7 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
-        public TrolleyCell RightCell
+        public Models.DisplayModels.TrolleyCell RightCell
         {
             get => _rightCell;
             set
@@ -217,8 +217,8 @@ namespace EM.Maman.DriverClient.ViewModels
             LevelTabs = new ObservableCollection<LevelTab>();
 
             // Initialize trolley cells
-            LeftCell = new TrolleyCell { CellPosition = "Left" };
-            RightCell = new TrolleyCell { CellPosition = "Right" };
+            LeftCell = new Models.DisplayModels.TrolleyCell { CellPosition = "Left" };
+            RightCell = new Models.DisplayModels.TrolleyCell { CellPosition = "Right" };
 
             // Data loading will be triggered externally via InitializeAsync
             // LoadDataFromDatabaseAsync().ConfigureAwait(false); // REMOVED FROM CONSTRUCTOR
@@ -237,8 +237,46 @@ namespace EM.Maman.DriverClient.ViewModels
         public async System.Threading.Tasks.Task InitializeAsync() // Fully qualify Task
         {
             await LoadDataFromDatabaseAsync();
+            
+            // Load trolley cell data
+            await LoadTrolleyCellsFromDatabaseAsync();
+            
             // Any other async init needed for this VM
             // return System.Threading.Tasks.Task.CompletedTask; // Explicitly return completed task - removed as await handles it implicitly
+        }
+
+        /// <summary>
+        /// Loads trolley cells and their pallets from the database
+        /// </summary>
+        private async System.Threading.Tasks.Task LoadTrolleyCellsFromDatabaseAsync()
+        {
+            try
+            {
+                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                {
+                    var trolleyCells = await unitOfWork.TrolleyCells.GetByTrolleyIdAsync(EM.Maman.Common.Constants.TrolleyConstants.DefaultTrolleyId);
+                    
+                    foreach (var cell in trolleyCells)
+                    {
+                        if (cell.PalletId.HasValue && cell.Pallet != null)
+                        {
+                            if (cell.Position == EM.Maman.Common.Constants.TrolleyConstants.LeftCellPosition)
+                            {
+                                LoadPalletIntoLeftCell(cell.Pallet);
+                            }
+                            else if (cell.Position == EM.Maman.Common.Constants.TrolleyConstants.RightCellPosition)
+                            {
+                                LoadPalletIntoRightCell(cell.Pallet);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the exception or handle it appropriately
+                System.Diagnostics.Debug.WriteLine($"Error loading trolley cells from database: {ex.Message}");
+            }
         }
 
 

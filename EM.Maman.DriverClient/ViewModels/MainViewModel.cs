@@ -65,7 +65,27 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
-        public bool IsDefaultTaskViewActive => !IsFingerAuthenticationViewActive;
+        public bool IsDefaultTaskViewActive => !ShouldShowTasksPanel;
+
+        /// <summary>
+        /// Determines whether to show the tasks panel (gray background) in the current task view.
+        /// Shows the panel when: 1) At a finger location, 2) Has active storage tasks, 3) Has active retrieval tasks, 4) At a cell with retrieval task
+        /// </summary>
+        public bool ShouldShowTasksPanel
+        {
+            get
+            {
+                // Show tasks panel when:
+                // 1. At a finger location
+                // 2. Has active storage tasks
+                // 3. Has active retrieval tasks
+                // 4. At a cell with retrieval task
+                return IsFingerAuthenticationViewActive || 
+                       HasPalletsReadyForStorage || 
+                       HasPalletsForRetrieval || 
+                       IsAtCellWithRetrievalTask;
+            }
+        }
 
         /// <summary>
         /// Determines whether to show the default photo in the current task view.
@@ -75,13 +95,8 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             get
             {
-                // Show default photo when:
-                // 1. No active tasks
-                // 2. Not at a finger location
-                // 3. Not at a cell with retrieval task (future implementation)
-                return !TaskVM.IsTaskActive && 
-                       _currentFingerPositionValue == null && 
-                       !IsAtCellWithRetrievalTask;
+                // Show default photo when not showing tasks panel
+                return !ShouldShowTasksPanel;
             }
         }
 

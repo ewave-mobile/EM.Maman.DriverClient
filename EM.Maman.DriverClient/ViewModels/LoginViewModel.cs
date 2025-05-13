@@ -156,7 +156,7 @@ namespace EM.Maman.DriverClient.ViewModels
         }
     }
 
-    public class LoginSuccessEventArgs : EventArgs
+    public class LoginSuccessEventArgs : System.EventArgs
     {
         public int UserId { get; }
 

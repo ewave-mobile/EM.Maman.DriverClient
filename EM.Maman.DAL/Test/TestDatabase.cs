@@ -4,6 +4,7 @@ using System.Linq;
 using EM.Maman.Models.CustomModels;
 using EM.Maman.Models.LocalDbModels;
 using EM.Maman.Models.DisplayModels;
+using EM.Maman.Models.Enums;
 
 namespace EM.Maman.DAL.Test
 {
@@ -18,14 +19,50 @@ namespace EM.Maman.DAL.Test
         // Mimic a Pallets table
         public static List<Pallet> Pallets { get; set; } = new List<Pallet>
         {
-            new Pallet { Id = 1, DisplayName = "PLT-A001", UldType = "AKE", UldCode = "AKE1234AX", IsSecure = true },
-            new Pallet { Id = 2, DisplayName = "PLT-B002", UldType = "PAG", UldCode = "PAG5678BX", IsSecure = false },
-            new Pallet { Id = 3, DisplayName = "PLT-C003", UldType = "AKE", UldCode = "AKE9012CX", IsSecure = false },
-            new Pallet { Id = 4, DisplayName = "PLT-D004", UldType = "PAJ", UldCode = "PAJ3456DX", IsSecure = true },
-            new Pallet { Id = 5, DisplayName = "PLT-E005", UldType = "AKE", UldCode = "AKE7890EX", IsSecure = false },
-            new Pallet { Id = 6, DisplayName = "PLT-F006", UldType = "PAG", UldCode = "PAG1234FX", IsSecure = false },
-            new Pallet { Id = 7, DisplayName = "PLT-G007", UldType = "PMC", UldCode = "PMC5678GX", IsSecure = true },
-            new Pallet { Id = 8, DisplayName = "PLT-H008", UldType = "AKE", UldCode = "AKE9012HX", IsSecure = false }
+            // Import ULD Pallets
+            new Pallet {
+                DisplayName = "PLT-A001-IMP-ULD", UldType = "AKE", UldCode = "AKE1234AX", UldNumber = "1234", UldAirline = "AX", IsSecure = false,
+                UpdateType = UpdateType.Import, CargoType = CargoType.ULD,
+                ImportManifest = "MANIFEST001", ImportUnit = "UNIT01", ImportAppearance = "Good"
+            },
+            new Pallet {
+                DisplayName = "PLT-C003-IMP-ULD", UldType = "AKE", UldCode = "AKE9012CX", UldNumber = "9012", UldAirline = "CX", IsSecure = false,
+                UpdateType = UpdateType.Import, CargoType = CargoType.ULD,
+                ImportManifest = "MANIFEST003", ImportUnit = "UNIT03", ImportAppearance = "Scratched"
+            },
+            // Export ULD Pallets
+            new Pallet {
+                DisplayName = "PLT-B002-EXP-ULD", UldType = "PAG", UldCode = "PAG5678BX", UldNumber = "5678", UldAirline = "BX", IsSecure = false,
+                UpdateType = UpdateType.Export, CargoType = CargoType.ULD,
+                ExportSwbPrefix = "SWB002", ExportAwbNumber = "AWB5678", ExportAwbAppearance = "Excellent", ExportAwbStorage = "Temp Control", ExportBarcode = "BARCODE002"
+            },
+            new Pallet {
+                DisplayName = "PLT-D004-EXP-ULD", UldType = "PAJ", UldCode = "PAJ3456DX", UldNumber = "3456", UldAirline = "DX", IsSecure = false,
+                UpdateType = UpdateType.Export, CargoType = CargoType.ULD,
+                ExportSwbPrefix = "SWB004", ExportAwbNumber = "AWB3456", ExportAwbAppearance = "Fair", ExportAwbStorage = "General", ExportBarcode = "BARCODE004"
+            },
+            // Import AWB Pallets
+            new Pallet {
+                DisplayName = "PLT-E005-IMP-AWB", AwbCode = "AWB7890E", IsSecure = false,
+                UpdateType = UpdateType.Import, CargoType = CargoType.AWB,
+                ImportManifest = "MANIFEST005", ImportUnit = "UNIT05", ImportAppearance = "New"
+            },
+            new Pallet {
+                DisplayName = "PLT-G007-IMP-AWB", AwbCode = "AWB5678G", IsSecure = true, // Example of secure AWB
+                UpdateType = UpdateType.Import, CargoType = CargoType.AWB,
+                ImportManifest = "MANIFEST007", ImportUnit = "UNIT07", ImportAppearance = "Sealed"
+            },
+            // Export AWB Pallets
+            new Pallet {
+                DisplayName = "PLT-F006-EXP-AWB", AwbCode = "AWB1234F", IsSecure = false,
+                UpdateType = UpdateType.Export, CargoType = CargoType.AWB,
+                ExportSwbPrefix = "SWB006", ExportAwbNumber = "AWB1234F", ExportAwbAppearance = "Used", ExportAwbStorage = "Ambient", ExportBarcode = "BARCODE006"
+            },
+            new Pallet {
+                DisplayName = "PLT-H008-EXP-AWB", AwbCode = "AWB9012H", IsSecure = false,
+                UpdateType = UpdateType.Export, CargoType = CargoType.AWB,
+                ExportSwbPrefix = "SWB008", ExportAwbNumber = "AWB9012H", ExportAwbAppearance = "Good", ExportAwbStorage = "General", ExportBarcode = "BARCODE008"
+            }
         };
 
         // Mimic a Fingers table
@@ -44,10 +81,10 @@ namespace EM.Maman.DAL.Test
         // Mimic Levels (4 levels)
         public static List<Level> Levels { get; set; } = new List<Level>
         {
-            new Level { Id = 1, Number = 1, DisplayName = "Level 0" },
-            new Level { Id = 2, Number = 2, DisplayName = "Level 1" },
-            new Level { Id = 3, Number = 3, DisplayName = "Level 2" },
-            new Level { Id = 4, Number = 4, DisplayName = "Level 3" }
+            new Level { Id = 1, Number = 1, DisplayName = "קומה 0" },
+            new Level { Id = 2, Number = 2, DisplayName = "קומה 1" },
+            new Level { Id = 3, Number = 3, DisplayName = "קומה 2" },
+            new Level { Id = 4, Number = 4, DisplayName = "קומה 3" }
         };
 
         // Mimic Cells. For each level we create 23 positions, each with 4 cells.
@@ -117,7 +154,10 @@ namespace EM.Maman.DAL.Test
         // Methods to mimic add/remove operations
         public static void AddPallet(Pallet pallet)
         {
-            pallet.Id = Pallets.Any() ? Pallets.Max(p => p.Id) + 1 : 1;
+            // ID is now database-generated, so we don't set it here.
+            // For testing purposes, if you need a temporary ID before DB save,
+            // you might assign one, but it will be overwritten by the DB.
+            // For this TestDatabase, we'll assume EF Core handles ID assignment on save.
             Pallets.Add(pallet);
             OnTestDataChanged();
         }
