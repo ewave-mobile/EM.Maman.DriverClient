@@ -1,26 +1,30 @@
 ﻿using EM.Maman.Models.Interfaces.Repositories;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace EM.Maman.Models.Interfaces
 {
     public interface IUnitOfWork : IDisposable
     {
+        // Repository properties
         ITrolleyRepository Trolleys { get; }
         ICellRepository Cells { get; }
         IFingerRepository Fingers { get; }
-        ILevelRepository Levels { get; } // Add Level repository
+        ILevelRepository Levels { get; }
         ITaskRepository Tasks { get; }
         IOperationRepository Operations { get; }
         IPalletRepository Pallets { get; }
+        IPalletInCellRepository PalletInCells { get; }
         IUserRepository Users { get; }
         IConfigurationRepository Configurations { get; }
-        IPalletInCellRepository PalletInCells { get; } // Add PalletInCell repository
-        ITaskTypeRepository TaskTypes { get; } // Added TaskType repository
+        ITaskTypeRepository TaskTypes { get; }
 
+        // Save changes
         Task<int> CompleteAsync();
+
+        // Transaction management
+        Task BeginTransactionAsync();
+        Task CommitTransactionAsync();
+        Task RollbackTransactionAsync();
     }
 }

@@ -2,6 +2,7 @@
 using EM.Maman.Models.CustomModels;
 using EM.Maman.Models.Interfaces;
 using EM.Maman.Models.LocalDbModels;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -16,7 +17,8 @@ namespace EM.Maman.DriverClient.ViewModels
 {
     public class ExportTaskViewModel : INotifyPropertyChanged
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IUnitOfWork _unitOfWork; // Keep for backward compatibility
+        private readonly IUnitOfWorkFactory _unitOfWorkFactory;
         private TaskDetails _taskDetails;
         private ObservableCollection<Pallet> _availablePallets;
         private ObservableCollection<Finger> _fingers;
@@ -164,13 +166,20 @@ namespace EM.Maman.DriverClient.ViewModels
         public ExportTaskViewModel(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
+            
+            // Get the UnitOfWorkFactory from the App's ServiceProvider
+            _unitOfWorkFactory = (App.Current as App)?.ServiceProvider.GetRequiredService<IUnitOfWorkFactory>();
+            if (_unitOfWorkFactory == null)
+            {
+                throw new InvalidOperationException("Could not resolve IUnitOfWorkFactory from ServiceProvider");
+            }
             AvailablePallets = new ObservableCollection<Pallet>();
             Fingers = new ObservableCollection<Finger>();
 
             // Initialize a new task details object
             TaskDetails = new TaskDetails
             {
-                TaskType = Models.Enums.TaskType.Export,
+                TaskType = Models.Enums.TaskType.Retrieval,
                 Status = Models.Enums.TaskStatus.Created,
                 CreatedDateTime = DateTime.Now,
                 Code = GenerateTaskCode(),
@@ -198,9 +207,14 @@ namespace EM.Maman.DriverClient.ViewModels
             {
                 IsBusy = true; // Use IsBusy for feedback
                 StatusMessage = "Loading fingers...";
-                var fingersFromDb = await _unitOfWork.Fingers.GetAllAsync(); // Fetch from DB
-                Fingers = new ObservableCollection<Finger>(fingersFromDb.OrderBy(f => f.Position));
-                StatusMessage = $"Loaded {Fingers.Count} fingers.";
+                
+                // Create a new UnitOfWork instance for this operation
+                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                {
+                    var fingersFromDb = await unitOfWork.Fingers.GetAllAsync(); // Fetch from DB
+                    Fingers = new ObservableCollection<Finger>(fingersFromDb.OrderBy(f => f.Position));
+                    StatusMessage = $"Loaded {Fingers.Count} fingers.";
+                }
             }
             catch (Exception ex)
             {
@@ -217,8 +231,30 @@ namespace EM.Maman.DriverClient.ViewModels
 
         private async System.Threading.Tasks.Task LoadPalletsAsync()
         {
-            await System.Threading.Tasks.Task.Delay(100);
-            AvailablePallets = new ObservableCollection<Pallet>(TestDatabase.Pallets.OrderBy(p => p.DisplayName));
+            try
+            {
+                IsBusy = true;
+                StatusMessage = "Loading pallets...";
+                
+                // Create a new UnitOfWork instance for this operation
+                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                {
+                    var palletsFromDb = await unitOfWork.Pallets.GetAllAsync(); // Fetch from DB
+                    AvailablePallets = new ObservableCollection<Pallet>(palletsFromDb.OrderBy(p => p.DisplayName));
+                    StatusMessage = $"Loaded {AvailablePallets.Count} pallets.";
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the error appropriately
+                StatusMessage = "Error loading pallets.";
+                // Consider showing a message box or logging
+                System.Windows.MessageBox.Show($"Error loading pallets: {ex.Message}", "Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
         }
 
         private void UpdatePalletProperties(Pallet pallet)

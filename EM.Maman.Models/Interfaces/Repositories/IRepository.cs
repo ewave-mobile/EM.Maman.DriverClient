@@ -31,5 +31,7 @@ namespace EM.Maman.Models.Interfaces.Repositories
         void Update(TEntity entity);
         void Remove(TEntity entity);
         void RemoveRange(IEnumerable<TEntity> entities);
+        //anyasync
+        Task<bool> AnyAsync();
     }
 }

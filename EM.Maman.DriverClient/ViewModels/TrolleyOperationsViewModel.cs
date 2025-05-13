@@ -589,7 +589,59 @@ namespace EM.Maman.DriverClient.ViewModels
         // Method to check if left cell can be unloaded
        // private bool CanUnloadLeftCell() => TrolleyVM?.LeftCell?.IsOccupied == true;
 
-        private bool CanUnloadLeftCell() =>  true;
+        private bool CanUnloadLeftCell() => true;
+
+        // Navigation methods
+        public void ExecuteGoToStorageLocation(object parameter)
+        {
+            if (_mainViewModel != null)
+            {
+                _mainViewModel.ExecuteGoToStorageLocation(parameter);
+            }
+        }
+
+        public bool CanExecuteGoToStorageLocation(object parameter)
+        {
+            if (_mainViewModel != null)
+            {
+                return _mainViewModel.CanExecuteGoToStorageLocation(parameter);
+            }
+            return false;
+        }
+
+        public void ExecuteChangeDestination(object parameter)
+        {
+            if (_mainViewModel != null)
+            {
+                _mainViewModel.ExecuteChangeDestination(parameter);
+            }
+        }
+
+        public bool CanExecuteChangeDestination(object parameter)
+        {
+            if (_mainViewModel != null)
+            {
+                return _mainViewModel.CanExecuteChangeDestination(parameter);
+            }
+            return false;
+        }
+
+        // Trolley movement methods
+        public void TrolleyMethods_MoveTrolleyUp()
+        {
+            if (_mainViewModel != null)
+            {
+                _mainViewModel.TrolleyMethods_MoveTrolleyUp();
+            }
+        }
+
+        public void TrolleyMethods_MoveTrolleyDown()
+        {
+            if (_mainViewModel != null)
+            {
+                _mainViewModel.TrolleyMethods_MoveTrolleyDown();
+            }
+        }
 
         // Method to check if right cell can be unloaded
         private bool CanUnloadRightCell() => TrolleyVM?.RightCell?.IsOccupied == true;

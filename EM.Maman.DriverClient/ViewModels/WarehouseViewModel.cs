@@ -1,6 +1,7 @@
 using EM.Maman.Models.DisplayModels;
 using EM.Maman.Models.Interfaces;
 using EM.Maman.Models.LocalDbModels;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -102,7 +103,8 @@ namespace EM.Maman.DriverClient.ViewModels
 
         #region Constructor
 
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IUnitOfWork _unitOfWork; // Keep for backward compatibility
+        private readonly IUnitOfWorkFactory _unitOfWorkFactory;
 
         /// <summary>
         /// Initializes a new instance of the WarehouseViewModel class
@@ -110,6 +112,13 @@ namespace EM.Maman.DriverClient.ViewModels
         public WarehouseViewModel(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+            
+            // Get the UnitOfWorkFactory from the App's ServiceProvider
+            _unitOfWorkFactory = (App.Current as App)?.ServiceProvider.GetRequiredService<IUnitOfWorkFactory>();
+            if (_unitOfWorkFactory == null)
+            {
+                throw new InvalidOperationException("Could not resolve IUnitOfWorkFactory from ServiceProvider");
+            }
             
             Rows = new ObservableCollection<CompositeRow>();
             Levels = new ObservableCollection<CompositeLevel>();
@@ -143,19 +152,22 @@ namespace EM.Maman.DriverClient.ViewModels
                 Levels.Clear();
                 Rows.Clear();
 
-                // Get data from repositories
-                var levels = await _unitOfWork.Levels.GetAllAsync();
-                var allCells = await _unitOfWork.Cells.GetAllAsync();
-                var cellsWithPallets = await _unitOfWork.Cells.GetCellsWithPalletsAsync();
-                
-                // Create a dictionary for quick lookup of pallet info by cell ID
-                var palletsByCellId = cellsWithPallets
-                    .Where(cwp => cwp.Pallet != null)
-                    .ToDictionary(cwp => cwp.Cell.Id, cwp => cwp.Pallet);
-
-                // Organize data by levels
-                foreach (var level in levels)
+                // Create a new UnitOfWork instance for this operation
+                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
                 {
+                    // Get data from repositories
+                    var levels = await unitOfWork.Levels.GetAllAsync();
+                    var allCells = await unitOfWork.Cells.GetAllAsync();
+                    var cellsWithPallets = await unitOfWork.Cells.GetCellsWithPalletsAsync();
+                
+                    // Create a dictionary for quick lookup of pallet info by cell ID
+                    var palletsByCellId = cellsWithPallets
+                        .Where(cwp => cwp.Pallet != null)
+                        .ToDictionary(cwp => cwp.Cell.Id, cwp => cwp.Pallet);
+
+                    // Organize data by levels
+                    foreach (var level in levels)
+                    {
                     var compositeLevel = new CompositeLevel
                     {
                         Level = level,
@@ -202,15 +214,16 @@ namespace EM.Maman.DriverClient.ViewModels
                         compositeLevel.Rows.Add(row);
                     }
                     
-                    Levels.Add(compositeLevel);
+                        Levels.Add(compositeLevel);
+                    }
+                    
+                    // Set initial values
+                    CurrentLevelNumber = 1;
+                    SelectedLevelNumber = 1;
+                    
+                    // Update rows for the selected level
+                    UpdateRowsForSelectedLevel();
                 }
-                
-                // Set initial values
-                CurrentLevelNumber = 1;
-                SelectedLevelNumber = 1;
-                
-                // Update rows for the selected level
-                UpdateRowsForSelectedLevel();
             }
             catch (Exception ex)
             {

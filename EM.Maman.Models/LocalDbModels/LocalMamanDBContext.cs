@@ -125,6 +125,11 @@ public partial class LocalMamanDBContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK__Pallets__3214EC075B4002B5");
 
             entity.Property(e => e.AwbCode).HasMaxLength(50);
+            entity.Property(e => e.CargoType).HasConversion<int>();
+            entity.Property(e => e.UpdateType).HasConversion<int>();
+            entity.Property(e => e.StorageType).HasConversion<int>();
+            entity.Property(e => e.HeightType).HasConversion<int>();
+            entity.Property(e => e.ReportType).HasConversion<int>().HasDefaultValue(Enums.ReportType.REQ);
             entity.Property(e => e.CheckedOutDate).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(200);
             entity.Property(e => e.DisplayName).HasMaxLength(200);
@@ -218,6 +223,8 @@ public partial class LocalMamanDBContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(50);
             entity.Property(e => e.PalletId).HasMaxLength(50);
             entity.Property(e => e.UploadDate).HasColumnType("datetime");
+            entity.Property(e => e.Status).HasDefaultValue(1); // Default to Created (1)
+            entity.Property(e => e.ActiveTaskStatus).HasDefaultValue(1); // Default to retrieval (1)
 
             entity.HasOne(d => d.CellEndLocation).WithMany(p => p.Tasks).HasForeignKey(d => d.CellEndLocationId);
 

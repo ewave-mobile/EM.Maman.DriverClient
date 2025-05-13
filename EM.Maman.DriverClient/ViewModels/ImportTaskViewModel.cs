@@ -2,6 +2,7 @@
 using EM.Maman.Models.CustomModels;
 using EM.Maman.Models.Interfaces;
 using EM.Maman.Models.LocalDbModels;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -16,7 +17,8 @@ namespace EM.Maman.DriverClient.ViewModels
 {
     public class ImportTaskViewModel : INotifyPropertyChanged
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IUnitOfWork _unitOfWork; // Keep for backward compatibility
+        private readonly IUnitOfWorkFactory _unitOfWorkFactory;
         private TaskDetails _taskDetails;
         private ObservableCollection<Finger> _fingers;
         private Finger _selectedSourceFinger;
@@ -105,12 +107,19 @@ namespace EM.Maman.DriverClient.ViewModels
         public ImportTaskViewModel(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
+            
+            // Get the UnitOfWorkFactory from the App's ServiceProvider
+            _unitOfWorkFactory = (App.Current as App)?.ServiceProvider.GetRequiredService<IUnitOfWorkFactory>();
+            if (_unitOfWorkFactory == null)
+            {
+                throw new InvalidOperationException("Could not resolve IUnitOfWorkFactory from ServiceProvider");
+            }
             Fingers = new ObservableCollection<Finger>();
 
             // Initialize a new task details object
             TaskDetails = new TaskDetails
             {
-                TaskType = Models.Enums.TaskType.Import,
+                TaskType = Models.Enums.TaskType.Storage,
                 Status = Models.Enums.TaskStatus.Created,
                 CreatedDateTime = DateTime.Now,
                 Code = GenerateTaskCode()
@@ -135,9 +144,14 @@ namespace EM.Maman.DriverClient.ViewModels
             {
                 IsBusy = true;
                 StatusMessage = "Loading fingers...";
-                var fingersFromDb = await _unitOfWork.Fingers.GetAllAsync(); // Fetch from DB
-                Fingers = new ObservableCollection<Finger>(fingersFromDb.OrderBy(f => f.Position));
-                StatusMessage = $"Loaded {Fingers.Count} fingers.";
+                
+                // Create a new UnitOfWork instance for this operation
+                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                {
+                    var fingersFromDb = await unitOfWork.Fingers.GetAllAsync(); // Fetch from DB
+                    Fingers = new ObservableCollection<Finger>(fingersFromDb.OrderBy(f => f.Position));
+                    StatusMessage = $"Loaded {Fingers.Count} fingers.";
+                }
             }
             catch (Exception ex)
             {

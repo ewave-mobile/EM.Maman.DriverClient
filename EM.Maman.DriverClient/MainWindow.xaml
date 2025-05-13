@@ -14,7 +14,7 @@
         xmlns:views="clr-namespace:EM.Maman.DriverClient.Views"
         d:DataContext="{d:DesignInstance Type=viewmodels:MainViewModel}"
         mc:Ignorable="d"
-        Title="MainWindow" Height="{StaticResource WindowHeight}" Width="{StaticResource WindowWidth}" Background="White">
+        Title="מסך עבודה" Height="{StaticResource WindowHeight}" Width="{StaticResource WindowWidth}" Background="White">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>

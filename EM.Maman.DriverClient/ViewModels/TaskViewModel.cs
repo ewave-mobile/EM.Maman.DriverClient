@@ -1,4 +1,4 @@
-﻿﻿using EM.Maman.Models.CustomModels;
+﻿﻿﻿using EM.Maman.Models.CustomModels;
 using EM.Maman.Models.Interfaces.Services;
 using EM.Maman.Models.Interfaces;
 using EM.Maman.Models.LocalDbModels;
@@ -16,7 +16,8 @@ using System.Windows;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel; // Required for INotifyPropertyChanged
 using System.Runtime.CompilerServices;
-using Microsoft.Extensions.DependencyInjection; // Required for CallerMemberName
+using Microsoft.Extensions.DependencyInjection;
+using EM.Maman.Common.Constants; // Required for CallerMemberName
 
 namespace EM.Maman.DriverClient.ViewModels
 {
@@ -74,7 +75,7 @@ namespace EM.Maman.DriverClient.ViewModels
 
     public class TaskViewModel : INotifyPropertyChanged
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IUnitOfWorkFactory _unitOfWorkFactory;
         private readonly IConnectionManager _connectionManager;
         private readonly IOpcService _opcService;
         public readonly IDispatcherService _dispatcherService; // Keep this for local use if needed
@@ -342,14 +343,20 @@ namespace EM.Maman.DriverClient.ViewModels
 
 
         public TaskViewModel(
-            IUnitOfWork unitOfWork,
+            IUnitOfWork unitOfWork, // Keep parameter for backward compatibility
             IConnectionManager connectionManager,
             IOpcService opcService,
             IDispatcherService dispatcherService, // Keep parameter
             ILogger<TaskViewModel> logger,
             MainViewModel mainViewModel) // Added parameter
         {
-            _unitOfWork = unitOfWork;
+            // Get the UnitOfWorkFactory from the App's ServiceProvider
+            _unitOfWorkFactory = (App.Current as App)?.ServiceProvider.GetRequiredService<IUnitOfWorkFactory>();
+            if (_unitOfWorkFactory == null)
+            {
+                throw new InvalidOperationException("Could not resolve IUnitOfWorkFactory from ServiceProvider");
+            }
+            
             _connectionManager = connectionManager;
             _opcService = opcService;
             _dispatcherService = dispatcherService; // Assign injected dispatcher
@@ -454,41 +461,73 @@ namespace EM.Maman.DriverClient.ViewModels
                 IsLoading = true;
                 StatusMessage = "Loading tasks...";
 
-                // Fetch tasks with related entities included using the new overload
-                var dbTasks = await _unitOfWork.Tasks.FindAsync(
-                    predicate: t => t.IsExecuted == false || t.IsExecuted == null, // Example: Load only pending tasks
-                    include: query => query
-                        // Cannot include Pallet directly due to key mismatch
-                        .Include(t => t.FingerLocation) // Include Finger based on FingerLocationId
-                        .Include(t => t.CellEndLocation),  // Include Cell based on CellEndLocationId
-                    orderBy: query => query.OrderByDescending(t => t.DownloadDate) // Example ordering
-                );
-
-                var tasks = new ObservableCollection<TaskDetails>();
-                foreach (var task in dbTasks)
+                // Create a new UnitOfWork instance for this operation
+                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
                 {
-                    // Fetch Pallet separately based on string PalletId (likely UldCode)
-                    Pallet pallet = null;
-                    if (!string.IsNullOrEmpty(task.PalletId))
+                    // Fetch tasks with related entities included using the new overload
+                    var dbTasks = await unitOfWork.Tasks.FindAsync(
+                        // Use Status field if available, otherwise fall back to IsExecuted
+                        predicate: t => t.Status == null 
+                            ? (t.IsExecuted == false || t.IsExecuted == null) 
+                            : (t.Status == (int)Models.Enums.TaskStatus.Created || t.Status == (int)Models.Enums.TaskStatus.InProgress),
+                        include: query => query
+                            // Cannot include Pallet directly due to key mismatch
+                            .Include(t => t.FingerLocation) // Include Finger based on FingerLocationId
+                            .Include(t => t.CellEndLocation),  // Include Cell based on CellEndLocationId
+                        orderBy: query => query.OrderByDescending(t => t.DownloadDate) // Example ordering
+                    );
+
+                    var tasks = new ObservableCollection<TaskDetails>();
+                    foreach (var task in dbTasks)
                     {
-                        // Assuming PalletId in Task is the UldCode in Pallet
-                        // FindAsync returns IEnumerable, use FirstOrDefault
-                        var foundPallets = await _unitOfWork.Pallets.FindAsync(p => p.UldCode == task.PalletId);
-                        pallet = foundPallets.FirstOrDefault();
-                        if (pallet == null)
+                        // Fetch Pallet separately based on string PalletId (likely UldCode)
+                        Pallet pallet = null;
+                        if (!string.IsNullOrEmpty(task.PalletId))
                         {
-                             _logger.LogWarning("Could not find Pallet with UldCode {UldCode} for Task {TaskId}", task.PalletId, task.Id);
+                            // Try to parse PalletId as integer to match Pallet.Id
+                            int palletId;
+                            if (int.TryParse(task.PalletId, out palletId))
+                            {
+                                // Search by Pallet.Id instead of UldCode
+                                var foundPallets = await unitOfWork.Pallets.FindAsync(p => p.Id == palletId);
+                                pallet = foundPallets.FirstOrDefault();
+                                if (pallet == null)
+                                {
+                                    _logger.LogWarning("Could not find Pallet with Id {PalletId} for Task {TaskId}", palletId, task.Id);
+                                }
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Could not parse PalletId {PalletId} to integer for Task {TaskId}", task.PalletId, task.Id);
+                            }
                         }
+
+                        // Create TaskDetails using the included Finger/Cell and the separately fetched Pallet
+                        var taskDetails = TaskDetails.FromDbModel(task, pallet, task.FingerLocation, null, task.CellEndLocation);
+
+                        // Check if this is an ongoing task (InProgress status)
+                        if (taskDetails.Status == Models.Enums.TaskStatus.InProgress)
+                        {
+                            // Set as active task on startup if it's in progress
+                            _logger.LogInformation("Found ongoing task (ID: {TaskId}) on startup, setting as active.", taskDetails.Id);
+                            ActiveTask = taskDetails;
+                            IsTaskActive = true;
+                        }
+
+                        tasks.Add(taskDetails);
                     }
 
-                    // Create TaskDetails using the included Finger/Cell and the separately fetched Pallet
-                    var taskDetails = TaskDetails.FromDbModel(task, pallet, task.FingerLocation, null, task.CellEndLocation);
-                    tasks.Add(taskDetails);
-                }
+                    // Update the tasks collection
+                    Tasks = tasks; // This triggers UpdateFilteredLists
 
-                // Update the tasks collection
-                Tasks = tasks; // This triggers UpdateFilteredLists
-                StatusMessage = $"Loaded {Tasks.Count} pending tasks.";
+                    // Add ongoing tasks to the MainViewModel's PalletsReadyForStorage collection
+                    if (_mainVM != null)
+                    {
+                        await LoadOngoingTasksToMainViewModel();
+                    }
+
+                    StatusMessage = $"Loaded {Tasks.Count} tasks.";
+                }
             }
             catch (Exception ex)
             {
@@ -498,6 +537,109 @@ namespace EM.Maman.DriverClient.ViewModels
             finally
             {
                 IsLoading = false;
+            }
+        }
+        
+        /// <summary>
+        /// Loads ongoing tasks (with InProgress status) to the MainViewModel's collections
+        /// </summary>
+        private async System.Threading.Tasks.Task LoadOngoingTasksToMainViewModel()
+        {
+            try
+            {
+                // Find tasks with InProgress status and ActiveTaskStatus set to transit or storing
+                var ongoingTasks = Tasks.Where(t =>
+                    t.Status == Models.Enums.TaskStatus.InProgress &&
+                    (t.ActiveTaskStatus == Models.Enums.ActiveTaskStatus.transit ||
+                     t.ActiveTaskStatus == Models.Enums.ActiveTaskStatus.storing)).ToList();
+
+                if (ongoingTasks.Any())
+                {
+                    _logger.LogInformation("Found {Count} ongoing tasks to process.", ongoingTasks.Count);
+
+                    // Create a new UnitOfWork instance for this operation
+                    using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                    {
+                        foreach (var task in ongoingTasks)
+                        {
+                            // Get the pallet for this task
+                            Pallet pallet = null;
+                            if (task.Pallet != null)
+                            {
+                                pallet = task.Pallet;
+                            }
+                            else if (!string.IsNullOrEmpty(task.Code))
+                            {
+                                // Try to parse task.Code as integer to match Pallet.Id
+                                int palletId;
+                                if (int.TryParse(task.Code, out palletId))
+                                {
+                                    // Search by Pallet.Id instead of UldCode
+                                    var foundPallets = await unitOfWork.Pallets.FindAsync(p => p.Id == palletId);
+                                    pallet = foundPallets.FirstOrDefault();
+                                    if (pallet == null)
+                                    {
+                                        _logger.LogWarning("Could not find Pallet with Id {PalletId} for Task {TaskId}", palletId, task.Id);
+                                    }
+                                }
+                                else
+                                {
+                                    _logger.LogWarning("Could not parse Code {Code} to integer for Task {TaskId}", task.Code, task.Id);
+                                }
+                            }
+
+                            if (pallet != null)
+                            {
+                                if (task.TaskType == Models.Enums.TaskType.Storage)
+                                {
+                                    // Create a PalletStorageTaskItem and add it to the storage collection
+                                    var storageItem = new PalletStorageTaskItem(pallet, task)
+                                    {
+                                        GoToStorageCommand = _mainVM.GoToStorageLocationCommand,
+                                        ChangeDestinationCommand = _mainVM.ChangeDestinationCommand
+                                    };
+
+                                    _dispatcherService.Invoke(() =>
+                                    {
+                                        // Check if this task is already in the collection to avoid duplicates
+                                        if (!_mainVM.PalletsReadyForStorage.Any(p => p.StorageTask?.Id == task.Id))
+                                        {
+                                            _mainVM.PalletsReadyForStorage.Add(storageItem);
+                                            _mainVM.NotifyStorageItemsChanged();
+                                        }
+                                    });
+                                }
+                                else // TaskType.Retrieval
+                                {
+                                    // Create a PalletRetrievalTaskItem and add it to the retrieval collection
+                                    var retrievalItem = new PalletRetrievalTaskItem(pallet, task)
+                                    {
+                                        GoToRetrievalCommand = _mainVM.GoToStorageLocationCommand, // Reuse existing command for now
+                                        ChangeSourceCommand = _mainVM.ChangeDestinationCommand // Reuse existing command for now
+                                    };
+
+                                    _dispatcherService.Invoke(() =>
+                                    {
+                                        // Check if this task is already in the collection to avoid duplicates
+                                        if (!_mainVM.PalletsForRetrieval.Any(p => p.RetrievalTask?.Id == task.Id))
+                                        {
+                                            _mainVM.PalletsForRetrieval.Add(retrievalItem);
+                                            _mainVM.NotifyRetrievalItemsChanged();
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("No ongoing tasks found with appropriate status.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading ongoing tasks to MainViewModel");
             }
         }
 
@@ -578,8 +720,8 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             // For demonstration, assume we determine the target value from ActiveTask.SourceFingerPosition
             int targetValue = ActiveTask.SourceFingerPosition ?? 0;
-            await _opcService.WriteRegisterAsync("ns=2;s=s7.s7 300.maman.PositionRequest", targetValue);
-            await _opcService.WriteRegisterAsync("ns=2;s=s7.s7 300.maman.control", 1);
+            await _opcService.WriteRegisterAsync(OpcNodes.PositionRequest, targetValue);
+            await _opcService.WriteRegisterAsync(OpcNodes.Control, 1);
             // Optionally simulate a delay or wait for an OPC register update callback.
             await System.Threading.Tasks.Task.Delay(1000);
             MessageBox.Show($"Navigated to finger: {ActiveTask.SourceFinger?.DisplayName}");
@@ -597,8 +739,8 @@ namespace EM.Maman.DriverClient.ViewModels
             {
                 targetValue = ActiveTask.DestinationFingerPosition ?? 0;
             }
-            await _opcService.WriteRegisterAsync("ns=2;s=s7.s7 300.maman.PositionRequest", (short)targetValue);
-            await _opcService.WriteRegisterAsync("ns=2;s=s7.s7 300.maman.control", (short)1);
+            await _opcService.WriteRegisterAsync(OpcNodes.PositionRequest, (short)targetValue);
+            await _opcService.WriteRegisterAsync(OpcNodes.Control, (short)1);
             await System.Threading.Tasks.Task.Delay(1000);
             MessageBox.Show("Navigated to destination cell.");
         }
@@ -620,7 +762,7 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             // Show the task creation dialog for import
             var dialog = new ImportTaskDialog();
-            var viewModel = new ImportTaskViewModel(_unitOfWork);
+            var viewModel = new ImportTaskViewModel(_unitOfWorkFactory.CreateUnitOfWork());
             dialog.DataContext = viewModel;
 
             if (dialog.ShowDialog() == true && viewModel.TaskDetails != null)
@@ -637,7 +779,7 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             // Show the task creation dialog for export
             var dialog = new ExportTaskDialog();
-            var viewModel = new ExportTaskViewModel(_unitOfWork);
+            var viewModel = new ExportTaskViewModel(_unitOfWorkFactory.CreateUnitOfWork());
             dialog.DataContext = viewModel;
 
             if (dialog.ShowDialog() == true && viewModel.TaskDetails != null)
@@ -670,25 +812,29 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             try
             {
-                var dbTask = taskDetails.ToDbModel();
-
-                if (dbTask.Id == 0)
+                // Create a new UnitOfWork instance for this operation
+                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
                 {
-                    await _unitOfWork.Tasks.AddAsync(dbTask);
-                }
-                else
-                {
-                    _unitOfWork.Tasks.Update(dbTask);
-                }
+                    var dbTask = taskDetails.ToDbModel();
 
-                await _unitOfWork.CompleteAsync();
+                    if (dbTask.Id == 0)
+                    {
+                        await unitOfWork.Tasks.AddAsync(dbTask);
+                    }
+                    else
+                    {
+                        unitOfWork.Tasks.Update(dbTask);
+                    }
 
-                // Update the ID in the task details if it was a new task
-                if (taskDetails.Id == 0)
-                {
-                    taskDetails.Id = dbTask.Id; // Update the display model with the new ID
+                    await unitOfWork.CompleteAsync();
+
+                    // Update the ID in the task details if it was a new task
+                    if (taskDetails.Id == 0)
+                    {
+                        taskDetails.Id = dbTask.Id; // Update the display model with the new ID
+                    }
+                    return true; // Indicate success
                 }
-                return true; // Indicate success
             }
             catch (Exception ex)
             {
@@ -809,10 +955,10 @@ namespace EM.Maman.DriverClient.ViewModels
                 int positionValue = ActiveTask.SourceFingerPosition ?? 0;
 
                 // Set the position request register
-                await _opcService.WriteRegisterAsync("ns=2;s=s7.s7 300.maman.PositionRequest", (short)source);
+                await _opcService.WriteRegisterAsync(OpcNodes.PositionRequest, (short)source);
 
                 // Set the control register to start movement
-                await _opcService.WriteRegisterAsync("ns=2;s=s7.s7 300.maman.control", (short)1);
+                await _opcService.WriteRegisterAsync(OpcNodes.Control, (short)1);
             }
             catch (Exception ex)
             {
@@ -850,10 +996,10 @@ namespace EM.Maman.DriverClient.ViewModels
                 }
 
                 // Set the position request register
-                await _opcService.WriteRegisterAsync("ns=2;s=s7.s7 300.maman.PositionRequest", (short)positionValue);
+                await _opcService.WriteRegisterAsync(OpcNodes.PositionRequest, (short)positionValue);
 
                 // Set the control register to start movement
-                await _opcService.WriteRegisterAsync("ns=2;s=s7.s7 300.maman.control", (short)1);
+                await _opcService.WriteRegisterAsync(OpcNodes.Control, (short)1);
             }
             catch (Exception ex)
             {
@@ -984,28 +1130,32 @@ namespace EM.Maman.DriverClient.ViewModels
                 _logger.LogInformation("Loading available storage fingers...");
                 var storageFingers = new ObservableCollection<FingerStorageInfo>();
 
-                // Get all fingers
-                var allFingers = await _unitOfWork.Fingers.GetAllAsync(); // Assuming GetAllAsync exists
-
-                // Get all pending tasks
-                // We can use the already filtered PendingTasks collection
-                var pendingTasks = PendingTasks;
-
-                foreach (var finger in allFingers) // Load all fingers
+                // Create a new UnitOfWork instance for this operation
+                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
                 {
-                    int palletCount = 0;
-                    try
-                    {
-                        // Count pending tasks where the SourceFingerPosition matches the finger's Position
-                        palletCount = pendingTasks.Count(task => task.SourceFingerPosition.HasValue && task.SourceFingerPosition.Value == finger.Position);
-                    }
-                    catch (Exception ex)
-                    {
-                         _logger.LogError(ex, "Error counting tasks for finger {FingerId}", finger.Id);
-                         // Continue with count 0 if error occurs for one finger
-                    }
+                    // Get all fingers
+                    var allFingers = await unitOfWork.Fingers.GetAllAsync(); // Assuming GetAllAsync exists
 
-                    storageFingers.Add(new FingerStorageInfo(finger, palletCount));
+                    // Get all pending tasks
+                    // We can use the already filtered PendingTasks collection
+                    var pendingTasks = PendingTasks;
+
+                    foreach (var finger in allFingers) // Load all fingers
+                    {
+                        int palletCount = 0;
+                        try
+                        {
+                            // Count pending tasks where the SourceFingerPosition matches the finger's Position
+                            palletCount = pendingTasks.Count(task => task.SourceFingerPosition.HasValue && task.SourceFingerPosition.Value == finger.Position);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error counting tasks for finger {FingerId}", finger.Id);
+                            // Continue with count 0 if error occurs for one finger
+                        }
+
+                        storageFingers.Add(new FingerStorageInfo(finger, palletCount));
+                    }
                 }
 
                 // Use dispatcher if updating from a non-UI thread, otherwise direct assignment is fine
@@ -1062,8 +1212,8 @@ namespace EM.Maman.DriverClient.ViewModels
                     short targetPosition = (short)targetFinger.Position.Value;
                     short commandCode = 1; // Assuming 1 is the 'Go' command code - VERIFY THIS
 
-                    string positionSpNodeId = "ns=2;s=s7.s7 300.maman.PositionRequest"; // Use actual Node IDs
-                    string commandNodeId = "ns=2;s=s7.s7 300.maman.Control";     // Use actual Node IDs
+                    string positionSpNodeId = OpcNodes.PositionRequest; // Use actual Node IDs
+                    string commandNodeId = OpcNodes.Control;     // Use actual Node IDs
 
                     _logger.LogInformation($"Writing Position_SP ({positionSpNodeId}): {targetPosition}");
                     await _opcService.WriteRegisterAsync(positionSpNodeId, targetPosition);

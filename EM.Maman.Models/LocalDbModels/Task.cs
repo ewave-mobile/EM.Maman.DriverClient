@@ -35,6 +35,10 @@ public partial class Task
 
     public string Code { get; set; }
 
+    public int? Status { get; set; }
+
+    public int? ActiveTaskStatus { get; set; }
+
     public virtual Cell CellEndLocation { get; set; }
 
     public virtual Finger FingerLocation { get; set; }

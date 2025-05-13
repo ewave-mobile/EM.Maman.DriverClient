@@ -17,6 +17,7 @@ using Microsoft.EntityFrameworkCore;
 using DbTask = EM.Maman.Models.LocalDbModels.Task; // Alias for model Task
 using EM.Maman.DAL.Test;
 using EM.Maman.DriverClient.ViewModels;
+using System.Text;
 // using System.Diagnostics; // Removed Stopwatch using
 
 namespace EM.Maman.DriverClient
@@ -298,113 +299,382 @@ namespace EM.Maman.DriverClient
         }
 
         // Returns true if successful, false otherwise.
-        private async System.Threading.Tasks.Task<bool> ClearAllDataAsync(IUnitOfWork unitOfWork) // Fully qualify Task
+        private async System.Threading.Tasks.Task<bool> ClearAllDataAsync(IUnitOfWork unitOfWork)
         {
+            // Diagnostic variables to track progress
+            var deletionResults = new Dictionary<string, (bool Success, string Message, int Count)>();
+
             try
             {
-                 _logger.LogInformation("Attempting to clear all data...");
-               // Clear all data in a specific order to avoid foreign key constraints
-                // Consider using raw SQL for faster deletion if EF Core struggles with complex dependencies
-                // e.g., await unitOfWork.ExecuteSqlRawAsync("DELETE FROM [PalletInCell]; DELETE FROM [Tasks]; ...");
+                _logger.LogInformation("Attempting to clear all data...");
 
-                var existingPalletInCells = await unitOfWork.PalletInCells.GetAllAsync();
-                if (existingPalletInCells.Any())
+                // STEP 1: Clear PalletInCell entities
+                try
                 {
-                    unitOfWork.PalletInCells.RemoveRange(existingPalletInCells); // Use RemoveRange if available
-                    await unitOfWork.CompleteAsync(); // Save changes incrementally
+                    var existingPalletInCells = await unitOfWork.PalletInCells.GetAllAsync(null, null, false); // Disable AsNoTracking
+                    int count = existingPalletInCells.Count();
+
+                    if (count > 0)
+                    {
+                        _logger.LogInformation($"Removing {count} PalletInCell records");
+                        unitOfWork.PalletInCells.RemoveRange(existingPalletInCells);
+                        int result = await unitOfWork.CompleteAsync();
+                        _logger.LogInformation($"PalletInCell CompleteAsync result: {result}");
+                        deletionResults["PalletInCell"] = (true, $"Removed {result} records", count);
+                        _logger.LogInformation($"Successfully removed {result} PalletInCell records");
+                    }
+                    else
+                    {
+                        deletionResults["PalletInCell"] = (true, "No records to remove", 0);
+                        _logger.LogInformation("No PalletInCell records to remove");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error removing PalletInCell records");
+                    deletionResults["PalletInCell"] = (false, $"Error: {ex.Message}", 0);
+                    // Continue anyway - we'll try to clear other tables
                 }
 
+                // STEP 2: Clear Tasks entities
+                try
+                {
+                    var existingTasks = await unitOfWork.Tasks.GetAllAsync(null, null, false); // Disable AsNoTracking
+                    int count = existingTasks.Count();
 
-                var existingTasks = await unitOfWork.Tasks.GetAllAsync();
-                 if (existingTasks.Any())
-                 {
-                    unitOfWork.Tasks.RemoveRange(existingTasks);
-                    await unitOfWork.CompleteAsync();
-                 }
+                    if (count > 0)
+                    {
+                        _logger.LogInformation($"Removing {count} Task records");
+                        unitOfWork.Tasks.RemoveRange(existingTasks);
+                        int result = await unitOfWork.CompleteAsync();
+                        _logger.LogInformation($"Task CompleteAsync result: {result}");
+                        deletionResults["Tasks"] = (true, $"Removed {result} records", count);
+                        _logger.LogInformation($"Successfully removed {result} Task records");
+                    }
+                    else
+                    {
+                        deletionResults["Tasks"] = (true, "No records to remove", 0);
+                        _logger.LogInformation("No Task records to remove");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error removing Task records");
+                    deletionResults["Tasks"] = (false, $"Error: {ex.Message}", 0);
+                    // Continue anyway
+                }
 
-                // Fingers might be referenced by Tasks (check FKs) - clear tasks first
-                var existingFingers = await unitOfWork.Fingers.GetAllAsync();
-                 if (existingFingers.Any())
-                 {
-                    unitOfWork.Fingers.RemoveRange(existingFingers);
-                    await unitOfWork.CompleteAsync();
-                 }
+                // STEP 3: Clear Fingers entities
+                try
+                {
+                    var existingFingers = await unitOfWork.Fingers.GetAllAsync(null, null, false); // Disable AsNoTracking
+                    int count = existingFingers.Count();
 
-                // Pallets might be referenced by PalletInCell/Tasks - clear them first
-                var existingPallets = await unitOfWork.Pallets.GetAllAsync();
-                 if (existingPallets.Any())
-                 {
-                    unitOfWork.Pallets.RemoveRange(existingPallets);
-                    await unitOfWork.CompleteAsync();
-                 }
+                    if (count > 0)
+                    {
+                        _logger.LogInformation($"Removing {count} Finger records");
+                        unitOfWork.Fingers.RemoveRange(existingFingers);
+                        int result = await unitOfWork.CompleteAsync();
+                        _logger.LogInformation($"Finger CompleteAsync result: {result}");
+                        deletionResults["Fingers"] = (true, $"Removed {result} records", count);
+                        _logger.LogInformation($"Successfully removed {result} Finger records");
+                    }
+                    else
+                    {
+                        deletionResults["Fingers"] = (true, "No records to remove", 0);
+                        _logger.LogInformation("No Finger records to remove");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error removing Finger records");
+                    deletionResults["Fingers"] = (false, $"Error: {ex.Message}", 0);
+                    // Continue anyway
+                }
 
-                // Cells might be referenced by PalletInCell/Tasks - clear them first
-                var existingCells = await unitOfWork.Cells.GetAllAsync();
-                 if (existingCells.Any())
-                 {
-                    unitOfWork.Cells.RemoveRange(existingCells);
-                    await unitOfWork.CompleteAsync();
-                 }
+                // STEP 4: Clear Pallets entities
+                try
+                {
+                    var existingPallets = await unitOfWork.Pallets.GetAllAsync(null, null, false); // Disable AsNoTracking
+                    int count = existingPallets.Count();
 
-                // Levels might be referenced by Cells - clear cells first
-                var existingLevels = await unitOfWork.Levels.GetAllAsync();
-                 if (existingLevels.Any())
-                 {
-                    unitOfWork.Levels.RemoveRange(existingLevels);
-                    await unitOfWork.CompleteAsync();
-                 }
+                    if (count > 0)
+                    {
+                        _logger.LogInformation($"Removing {count} Pallet records");
+                        unitOfWork.Pallets.RemoveRange(existingPallets);
+                        int result = await unitOfWork.CompleteAsync();
+                        _logger.LogInformation($"Pallet CompleteAsync result: {result}");
+                        deletionResults["Pallets"] = (true, $"Removed {result} records", count);
+                        _logger.LogInformation($"Successfully removed {result} Pallet records");
+                    }
+                    else
+                    {
+                        deletionResults["Pallets"] = (true, "No records to remove", 0);
+                        _logger.LogInformation("No Pallet records to remove");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error removing Pallet records");
+                    deletionResults["Pallets"] = (false, $"Error: {ex.Message}", 0);
+                    // Continue anyway
+                }
 
-                // Clear configuration last - Assuming Configuration should NOT be cleared,
-                // or requires a specific method if it should be.
-                // var existingConfigs = await unitOfWork.Configurations.GetAllAsync(); // Method likely doesn't exist
-                // if (existingConfigs.Any())
-                // {
-                //    unitOfWork.Configurations.RemoveRange(existingConfigs); // Method likely doesn't exist
-                //    await unitOfWork.CompleteAsync();
-                // }
-                _logger.LogInformation("Cleared entity data (excluding Configuration).");
+                // STEP 5: Clear Cells entities
+                try
+                {
+                    var existingCells = await unitOfWork.Cells.GetAllAsync(null, null, false); // Disable AsNoTracking
+                    int count = existingCells.Count();
 
+                    if (count > 0)
+                    {
+                        _logger.LogInformation($"Removing {count} Cell records");
+                        unitOfWork.Cells.RemoveRange(existingCells);
+                        int result = await unitOfWork.CompleteAsync();
+                        _logger.LogInformation($"Cell CompleteAsync result: {result}");
+                        deletionResults["Cells"] = (true, $"Removed {result} records", count);
+                        _logger.LogInformation($"Successfully removed {result} Cell records");
+                    }
+                    else
+                    {
+                        deletionResults["Cells"] = (true, "No records to remove", 0);
+                        _logger.LogInformation("No Cell records to remove");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error removing Cell records");
+                    deletionResults["Cells"] = (false, $"Error: {ex.Message}", 0);
+                    // Continue anyway
+                }
 
-                _logger.LogInformation("All existing data cleared successfully");
+                // STEP 6: Clear Levels entities
+                try
+                {
+                    var existingLevels = await unitOfWork.Levels.GetAllAsync(null, null, false); // Disable AsNoTracking
+                    int count = existingLevels.Count();
+
+                    if (count > 0)
+                    {
+                        _logger.LogInformation($"Removing {count} Level records");
+                        unitOfWork.Levels.RemoveRange(existingLevels);
+                        int result = await unitOfWork.CompleteAsync();
+                        _logger.LogInformation($"Level CompleteAsync result: {result}");
+                        deletionResults["Levels"] = (true, $"Removed {result} records", count);
+                        _logger.LogInformation($"Successfully removed {result} Level records");
+                    }
+                    else
+                    {
+                        deletionResults["Levels"] = (true, "No records to remove", 0);
+                        _logger.LogInformation("No Level records to remove");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error removing Level records");
+                    deletionResults["Levels"] = (false, $"Error: {ex.Message}", 0);
+                    // Continue anyway
+                }
+
+                // Log a summary of all deletion operations
+                StringBuilder summary = new StringBuilder();
+                summary.AppendLine("Database clearing summary:");
+                foreach (var result in deletionResults)
+                {
+                    summary.AppendLine($"- {result.Key}: {(result.Value.Success ? "SUCCESS" : "FAILED")} - {result.Value.Message} - Found: {result.Value.Count}");
+                }
+                _logger.LogInformation(summary.ToString());
+
+                // Determine overall success - if any critical operation failed, return false
+                bool overallSuccess = deletionResults.All(r => r.Value.Success || r.Value.Count == 0);
+
+                if (overallSuccess)
+                {
+                    _logger.LogInformation("All existing data cleared successfully (or no data to clear)");
+                }
+                else
+                {
+                    _logger.LogWarning("Some data clearing operations failed - see details above");
+                }
+
+                return overallSuccess;
             }
             catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error clearing existing data");
-                // Optionally show a message or handle differently
-                // MessageBox.Show($"Failed to clear database: {ex.Message}", "DB Clear Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return false; // Indicate failure
-            }
-            return true; // Indicate success
+                {
+                    _logger.LogError(ex, "Unexpected error clearing existing data");
+                    return false;
+                }
         }
 
         private async System.Threading.Tasks.Task AddAllDataAsync(IUnitOfWork unitOfWork, List<Level> levels, List<Cell> cells, List<Pallet> pallets, List<Finger> fingers)
         {
+            // Diagnostic variables to track progress
+            var additionResults = new Dictionary<string, (bool Success, string Message, int Count, int SavedCount)>();
+
             try
             {
-                // Add all data in the correct order using repositories
-                if (levels.Any())
-                {
-                    await unitOfWork.Levels.AddRangeAsync(levels); // Use AddRangeAsync
-                }
-                await unitOfWork.CompleteAsync(); // Save Levels
+                _logger.LogInformation("Starting to add base data...");
 
-                if (cells.Any())
+                // STEP 1: Add Levels
+                try
                 {
-                     await unitOfWork.Cells.AddRangeAsync(cells); // Use AddRangeAsync
-                }
-                 await unitOfWork.CompleteAsync(); // Save Cells
+                    if (levels != null && levels.Any())
+                    {
+                        int count = levels.Count;
+                        _logger.LogInformation($"Adding {count} Level records");
 
-                if (pallets.Any())
-                {
-                     await unitOfWork.Pallets.AddRangeAsync(pallets); // Use AddRangeAsync
-                }
-                 await unitOfWork.CompleteAsync(); // Save Pallets
+                        await unitOfWork.Levels.AddRangeAsync(levels);
+                        int result = await unitOfWork.CompleteAsync();
 
-                if (fingers.Any())
-                {
-                     await unitOfWork.Fingers.AddRangeAsync(fingers); // Use AddRangeAsync
+                        additionResults["Levels"] = (true, $"Added and saved {result} records", count, result);
+                        _logger.LogInformation($"Successfully added {result} Level records");
+
+                        // Diagnostics: verify that IDs were assigned
+                        bool allLevelsHaveIds = levels.All(l => l.Id > 0);
+                        _logger.LogInformation($"All levels have IDs assigned: {allLevelsHaveIds}");
+                        if (!allLevelsHaveIds)
+                        {
+                            // Log the level IDs for debugging
+                            _logger.LogWarning($"Level IDs after save: {string.Join(", ", levels.Select(l => l.Id))}");
+                        }
+                    }
+                    else
+                    {
+                        additionResults["Levels"] = (true, "No records to add", 0, 0);
+                        _logger.LogInformation("No Level records to add");
+                    }
                 }
-                await unitOfWork.CompleteAsync(); // Save Fingers
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error adding Level records");
+                    additionResults["Levels"] = (false, $"Error: {ex.Message}", levels?.Count ?? 0, 0);
+                    throw; // Re-throw - this is a critical step
+                }
+
+                // STEP 2: Add Cells
+                try
+                {
+                    if (cells != null && cells.Any())
+                    {
+                        int count = cells.Count;
+                        _logger.LogInformation($"Adding {count} Cell records");
+
+                        // Diagnostic check: Make sure cells have valid Level references
+                        bool allCellsHaveValidLevelId = cells.All(c => c.Level > 0);
+                        if (!allCellsHaveValidLevelId)
+                        {
+                            _logger.LogWarning("Some cells don't have valid Level IDs. This may cause foreign key constraint issues.");
+                            _logger.LogWarning($"Cell LevelIDs: {string.Join(", ", cells.Select(c => c.Level))}");
+                        }
+
+                        await unitOfWork.Cells.AddRangeAsync(cells);
+                        int result = await unitOfWork.CompleteAsync();
+
+                        additionResults["Cells"] = (true, $"Added and saved {result} records", count, result);
+                        _logger.LogInformation($"Successfully added {result} Cell records");
+
+                        // Diagnostics: verify that IDs were assigned
+                        bool allCellsHaveIds = cells.All(c => c.Id > 0);
+                        _logger.LogInformation($"All cells have IDs assigned: {allCellsHaveIds}");
+                        if (!allCellsHaveIds)
+                        {
+                            // Log the cell IDs for debugging
+                            _logger.LogWarning($"Cell IDs after save: {string.Join(", ", cells.Select(c => c.Id))}");
+                        }
+                    }
+                    else
+                    {
+                        additionResults["Cells"] = (true, "No records to add", 0, 0);
+                        _logger.LogInformation("No Cell records to add");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error adding Cell records");
+                    additionResults["Cells"] = (false, $"Error: {ex.Message}", cells?.Count ?? 0, 0);
+                    throw; // Re-throw - this is a critical step
+                }
+
+                // STEP 3: Add Pallets
+                try
+                {
+                    if (pallets != null && pallets.Any())
+                    {
+                        int count = pallets.Count;
+                        _logger.LogInformation($"Adding {count} Pallet records");
+
+                        await unitOfWork.Pallets.AddRangeAsync(pallets);
+                        int result = await unitOfWork.CompleteAsync();
+
+                        additionResults["Pallets"] = (true, $"Added and saved {result} records", count, result);
+                        _logger.LogInformation($"Successfully added {result} Pallet records");
+
+                        // Diagnostics: verify that IDs were assigned
+                        bool allPalletsHaveIds = pallets.All(p => p.Id > 0);
+                        _logger.LogInformation($"All pallets have IDs assigned: {allPalletsHaveIds}");
+                        if (!allPalletsHaveIds)
+                        {
+                            // Log the pallet IDs for debugging
+                            _logger.LogWarning($"Pallet IDs after save: {string.Join(", ", pallets.Select(p => p.Id))}");
+                        }
+                    }
+                    else
+                    {
+                        additionResults["Pallets"] = (true, "No records to add", 0, 0);
+                        _logger.LogInformation("No Pallet records to add");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error adding Pallet records");
+                    additionResults["Pallets"] = (false, $"Error: {ex.Message}", pallets?.Count ?? 0, 0);
+                    throw; // Re-throw - this is a critical step
+                }
+
+                // STEP 4: Add Fingers
+                try
+                {
+                    if (fingers != null && fingers.Any())
+                    {
+                        int count = fingers.Count;
+                        _logger.LogInformation($"Adding {count} Finger records");
+
+                        await unitOfWork.Fingers.AddRangeAsync(fingers);
+                        int result = await unitOfWork.CompleteAsync();
+
+                        additionResults["Fingers"] = (true, $"Added and saved {result} records", count, result);
+                        _logger.LogInformation($"Successfully added {result} Finger records");
+
+                        // Diagnostics: verify that IDs were assigned
+                        bool allFingersHaveIds = fingers.All(f => f.Id > 0);
+                        _logger.LogInformation($"All fingers have IDs assigned: {allFingersHaveIds}");
+                        if (!allFingersHaveIds)
+                        {
+                            // Log the finger IDs for debugging
+                            _logger.LogWarning($"Finger IDs after save: {string.Join(", ", fingers.Select(f => f.Id))}");
+                        }
+                    }
+                    else
+                    {
+                        additionResults["Fingers"] = (true, "No records to add", 0, 0);
+                        _logger.LogInformation("No Finger records to add");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error adding Finger records");
+                    additionResults["Fingers"] = (false, $"Error: {ex.Message}", fingers?.Count ?? 0, 0);
+                    throw; // Re-throw - this is a critical step
+                }
+
+                // Log a summary of all addition operations
+                StringBuilder summary = new StringBuilder();
+                summary.AppendLine("Base data addition summary:");
+                foreach (var result in additionResults)
+                {
+                    summary.AppendLine($"- {result.Key}: {(result.Value.Success ? "SUCCESS" : "FAILED")} - {result.Value.Message} - Attempted: {result.Value.Count}, Saved: {result.Value.SavedCount}");
+                }
+                _logger.LogInformation(summary.ToString());
 
                 _logger.LogInformation("Base data added successfully");
             }
@@ -430,7 +700,7 @@ namespace EM.Maman.DriverClient
                 }
 
                 // Save all changes at once
-                await unitOfWork.CompleteAsync();
+               var res = await unitOfWork.CompleteAsync();
                 _logger.LogInformation("Tasks and associations added successfully");
             }
             catch (Exception ex)

@@ -2,6 +2,7 @@
 #nullable disable
 using System;
 using System.Collections.Generic;
+using EM.Maman.Models.Enums;
 
 namespace EM.Maman.Models.LocalDbModels;
 
@@ -33,7 +34,17 @@ public partial class Pallet
 
     public bool? IsSecure { get; set; }
 
-    public long? CargoTypeId { get; set; }
+    public CargoType? CargoType { get; set; }
+
+    public UpdateType? UpdateType { get; set; }
+
+    public StorageTypeEnum? StorageType { get; set; }
+
+    public HeightType? HeightType { get; set; }
+
+    public int? CargoHeight { get; set; }
+
+    public ReportType ReportType { get; set; } = ReportType.REQ;
 
     public string ImportManifest { get; set; }
 
@@ -56,4 +67,7 @@ public partial class Pallet
     public string UldNumber { get; set; }
 
     public string UldAirline { get; set; }
+    
+    // Added property to fix binding errors
+    public int? CargoTypeId => (int?)CargoType;
 }

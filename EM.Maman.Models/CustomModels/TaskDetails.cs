@@ -288,8 +288,8 @@ namespace EM.Maman.Models.CustomModels
         }
 
         // Helper properties
-        public bool IsImportTask => TaskType == Enums.TaskType.Import;
-        public bool IsExportTask => TaskType == Enums.TaskType.Export;
+        public bool IsImportTask => TaskType == Enums.TaskType.Storage;
+        public bool IsExportTask => TaskType == Enums.TaskType.Retrieval;
         public bool IsInProgress => Status == Enums.TaskStatus.InProgress;
         public bool IsCompleted => Status == Enums.TaskStatus.Completed;
         public bool CanStart => Status == Enums.TaskStatus.Created;
@@ -329,8 +329,11 @@ namespace EM.Maman.Models.CustomModels
                 Code = task.Code,
                 Name = task.Name,
                 Description = task.Description,
-                TaskType = task.TaskTypeId == 1 ? Enums.TaskType.Import : Enums.TaskType.Export,
-                Status = task.IsExecuted == true ? Enums.TaskStatus.Completed : Enums.TaskStatus.Created,
+                TaskType = task.TaskTypeId == 1 ? Enums.TaskType.Retrieval : Enums.TaskType.Storage,
+                // Use the Status property if available, otherwise fallback to IsExecuted
+                Status = task.Status.HasValue 
+                    ? (Enums.TaskStatus)task.Status.Value 
+                    : (task.IsExecuted == true ? Enums.TaskStatus.Completed : Enums.TaskStatus.Created),
                 CreatedDateTime = task.DownloadDate ?? DateTime.Now,
                 ExecutedDateTime = task.ExecutedDate,
                 SourceFinger = sourceFinger,
@@ -338,8 +341,10 @@ namespace EM.Maman.Models.CustomModels
                 Pallet = pallet,
                 DestinationCell = destCell,
                 IsUploaded = task.IsUploaded ?? false,
-                ActiveTaskStatus = Enums.ActiveTaskStatus.retrieval,
-
+                // Use the ActiveTaskStatus property if available, otherwise default to retrieval
+                ActiveTaskStatus = task.ActiveTaskStatus.HasValue 
+                    ? (Enums.ActiveTaskStatus)task.ActiveTaskStatus.Value 
+                    : Enums.ActiveTaskStatus.retrieval,
             };
 
             return details;
@@ -360,7 +365,9 @@ namespace EM.Maman.Models.CustomModels
                 FingerLocationId = SourceFinger?.Id,
                 CellEndLocationId = DestinationCell?.Id,
                 PalletId = Pallet?.Id.ToString(),
-                IsUploaded = IsUploaded
+                IsUploaded = IsUploaded,
+                Status = (int)Status,
+                ActiveTaskStatus = (int)ActiveTaskStatus
             };
 
             return task;

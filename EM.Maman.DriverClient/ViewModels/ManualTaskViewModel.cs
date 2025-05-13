@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 
@@ -17,7 +18,7 @@ namespace EM.Maman.DriverClient.ViewModels
         private ExportTaskViewModel _exportVM;
         private RelayCommand _selectImportCommand;
         private RelayCommand _selectExportCommand;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IUnitOfWorkFactory _unitOfWorkFactory;
         public bool IsImportSelected
         {
             get => _isImportSelected;
@@ -62,8 +63,12 @@ namespace EM.Maman.DriverClient.ViewModels
 
         public ManualTaskViewModel(IUnitOfWork unitOfWork, ImportTaskViewModel importVM, ExportTaskViewModel exportVM)
         {
-            // Store the injected dependencies
-            _unitOfWork = unitOfWork;
+            // Get the UnitOfWorkFactory from the App's ServiceProvider
+            _unitOfWorkFactory = (App.Current as App)?.ServiceProvider.GetRequiredService<IUnitOfWorkFactory>();
+            if (_unitOfWorkFactory == null)
+            {
+                throw new InvalidOperationException("Could not resolve IUnitOfWorkFactory from ServiceProvider");
+            }
             ImportVM = importVM;
             ExportVM = exportVM;
 
@@ -77,7 +82,7 @@ namespace EM.Maman.DriverClient.ViewModels
             ExportVM.TaskDetails.CreatedDateTime = DateTime.Now;
         
         }
-        public async Task InitializeAsync()
+        public async System.Threading.Tasks.Task InitializeAsync()
         {
             // Initialize import view model first
             await ImportVM.InitializeAsync();

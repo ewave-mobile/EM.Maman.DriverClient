@@ -8,7 +8,7 @@ namespace EM.Maman.Models.Enums
 {
     public enum TaskType
     {
-        Import = 1,
-        Export = 2
+        Retrieval = 1,
+        Storage = 2
     }
 }

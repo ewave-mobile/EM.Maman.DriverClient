@@ -10,6 +10,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EM.Maman.DriverClient.ViewModels
 {
@@ -197,11 +198,19 @@ namespace EM.Maman.DriverClient.ViewModels
 
         #endregion
 
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IUnitOfWork _unitOfWork; // Keep for backward compatibility
+        private readonly IUnitOfWorkFactory _unitOfWorkFactory;
 
         public TrolleyViewModel(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+            
+            // Get the UnitOfWorkFactory from the App's ServiceProvider
+            _unitOfWorkFactory = (App.Current as App)?.ServiceProvider.GetRequiredService<IUnitOfWorkFactory>();
+            if (_unitOfWorkFactory == null)
+            {
+                throw new InvalidOperationException("Could not resolve IUnitOfWorkFactory from ServiceProvider");
+            }
             
             Rows = new ObservableCollection<CompositeRow>();
             Levels = new ObservableCollection<CompositeLevel>();
@@ -371,23 +380,26 @@ namespace EM.Maman.DriverClient.ViewModels
                 Levels.Clear();
                 Rows.Clear();
 
-                // Get data from repositories
-                var levels = await _unitOfWork.Levels.GetAllAsync();
-                var allCells = await _unitOfWork.Cells.GetAllAsync();
-                var cellsWithPallets = await _unitOfWork.Cells.GetCellsWithPalletsAsync();
-                
-                // Get fingers - assuming there's a repository for them
-                // If there's no repository, we might need to handle this differently
-                var allFingers = await _unitOfWork.Fingers.GetAllAsync();
-
-                // Create a dictionary for quick lookup of pallet info by cell ID
-                var palletsByCellId = cellsWithPallets
-                    .Where(cwp => cwp.Pallet != null)
-                    .ToDictionary(cwp => cwp.Cell.Id, cwp => cwp.Pallet);
-
-                // Organize data by levels
-                foreach (var level in levels)
+                // Create a new UnitOfWork instance for this operation
+                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
                 {
+                    // Get data from repositories
+                    var levels = await unitOfWork.Levels.GetAllAsync();
+                    var allCells = await unitOfWork.Cells.GetAllAsync();
+                    var cellsWithPallets = await unitOfWork.Cells.GetCellsWithPalletsAsync();
+                    
+                    // Get fingers - assuming there's a repository for them
+                    // If there's no repository, we might need to handle this differently
+                    var allFingers = await unitOfWork.Fingers.GetAllAsync();
+
+                    // Create a dictionary for quick lookup of pallet info by cell ID
+                    var palletsByCellId = cellsWithPallets
+                        .Where(cwp => cwp.Pallet != null)
+                        .ToDictionary(cwp => cwp.Cell.Id, cwp => cwp.Pallet);
+
+                    // Organize data by levels
+                    foreach (var level in levels)
+                    {
                     var compositeLevel = new CompositeLevel
                     {
                         Level = level,
@@ -453,23 +465,24 @@ namespace EM.Maman.DriverClient.ViewModels
                     }
                 }
 
-                // Set initial current level and position
-                if (Levels.Any())
-                {
-                    CurrentLevelNumber = Levels[0].Level.Number;
-                    SelectedLevelNumber = CurrentLevelNumber; // Initially the same
-                    CurrentPosition = 0;
-                }
+                    // Set initial current level and position
+                    if (Levels.Any())
+                    {
+                        CurrentLevelNumber = Levels[0].Level.Number;
+                        SelectedLevelNumber = CurrentLevelNumber; // Initially the same
+                        CurrentPosition = 0;
+                    }
 
-                // For backward compatibility, populate Rows with the first level's rows
-                if (Levels.Any() && Levels[0].Rows.Any())
-                {
-                    Rows = Levels[0].Rows;
-                    HighestActiveRow = Rows.Max(r => r.Position);
+                    // For backward compatibility, populate Rows with the first level's rows
+                    if (Levels.Any() && Levels[0].Rows.Any())
+                    {
+                        Rows = Levels[0].Rows;
+                        HighestActiveRow = Rows.Max(r => r.Position);
+                    }
+                    
+                    // Initialize level tabs
+                    InitializeLevelTabs();
                 }
-                
-                // Initialize level tabs
-                InitializeLevelTabs();
             }
             catch (Exception ex)
             {
@@ -553,10 +566,16 @@ namespace EM.Maman.DriverClient.ViewModels
                 SelectedLevelNumber = levelNumber;
 
                 // Temporarily disable auto-sync when user explicitly selects a level
+                //disable it for a ten second period
+              
                 if (levelNumber != CurrentLevelNumber)
                 {
                     AutoSyncToTrolleyLevel = false;
                 }
+                System.Threading.Tasks.Task.Delay(10000).ContinueWith(t =>
+                {
+                    AutoSyncToTrolleyLevel = true;
+                });
             }
         }
 

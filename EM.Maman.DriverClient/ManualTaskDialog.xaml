@@ -8,7 +8,7 @@
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters" d:DataContext="{d:DesignInstance Type=vm:ManualTaskViewModel}"
         mc:Ignorable="d"
-        Title="Manual Task" Height="600" Width="900"
+        Title="הקמת משימה" Height="600" Width="900"
         WindowStartupLocation="CenterOwner"
         Background="White"
         FlowDirection="RightToLeft">

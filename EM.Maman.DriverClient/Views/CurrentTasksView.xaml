@@ -77,17 +77,14 @@
 
      <Border Background="White" BorderBrush="#DDDDDD" BorderThickness="0,0,1,0">
          <!-- Main Grid to switch between Default View and Finger Auth View -->
-         <Grid>
+         <Grid  >
              <!-- Default View (Active Task / Empty State) -->
              <DockPanel Margin="10"
-                        Visibility="{Binding IsDefaultTaskViewActive, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        Visibility="{Binding IsDefaultTaskViewActive, Converter={StaticResource BooleanToVisibilityConverter}}" HorizontalAlignment="Center">
                  <Grid DockPanel.Dock="Top">
-                     <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+         
                 
-                <StackPanel Grid.Column="0" Orientation="Horizontal" >
+                <StackPanel  Orientation="Horizontal" >
                     <Ellipse Width="10" Height="10" Fill="#4CAF50" Margin="0,0,5,0" VerticalAlignment="Center" />
                     <TextBlock Text="עכשיו בעבודה" VerticalAlignment="Center" FontSize="14" />
                      </StackPanel>
@@ -95,71 +92,37 @@
 
                  <!-- Empty state for when no tasks are active -->
                  <Grid Visibility="{Binding TaskVM.IsTaskActive, Converter={StaticResource BoolInverterConverter}, ConverterParameter=Visibility}">
-                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                     <!-- Default message when no tasks are active but not showing default photo -->
+                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" >
                          <Image Source="/Images/taskMessagesIcon.png" Width="150" Height="150" Margin="0,0,0,20" />
-                    <TextBlock Text="אין משימות בעבודה" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#2196F3" />
-                    <TextBlock Text="בחר משימה מהרשימה כדי להתחיל לעבוד" FontSize="14" HorizontalAlignment="Center" Foreground="#757575" Margin="0,10,0,0" TextWrapping="Wrap" TextAlignment="Center" />
-                </StackPanel>
-            </Grid>
+                         <TextBlock Text="אין משימות בעבודה" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#2196F3" />
+                         <TextBlock Text="בחר משימה מהרשימה כדי להתחיל לעבוד" FontSize="14" HorizontalAlignment="Center" Foreground="#757575" Margin="0,10,0,0" TextWrapping="Wrap" TextAlignment="Center" />
+                     </StackPanel>
+                     
+                     <!-- Default photo when no tasks are active and not at a finger -->
+                     <!--<Image Source="/Images/mamanBackground.jpeg" Stretch="Uniform" 
+                            Visibility="{Binding ShouldShowDefaultPhoto, Converter={StaticResource BooleanToVisibilityConverter}}" />-->
+                 </Grid>
             
-            <!-- Active task area (visible only when a task is active) -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto" 
-                          Visibility="{Binding TaskVM.IsTaskActive, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <Border Background="White" BorderThickness="1" BorderBrush="#DDDDDD" Padding="15" Margin="0,10,0,0">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                <!-- Active task area (visible only when a task is active) -->
+                <StackPanel Visibility="{Binding HasPalletsReadyForStorage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <!-- Storage Task Section Header -->
+                    <TextBlock Text="אחסון פלט" FontSize="18" FontWeight="Bold" Margin="0,20,0,10" HorizontalAlignment="Center"/>
 
-                        <!-- Active task header -->
-                        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-                            <TextBlock Text="משימה פעילה: " FontSize="18" FontWeight="Bold" />
-                            <TextBlock Text="{Binding TaskVM.ActiveTask.Name}" FontSize="18" Margin="5,0,0,0" />
-                        </StackPanel>
-
-                        <!-- Task status -->
-                        <TextBlock Grid.Row="1" Text="{Binding TaskVM.StatusMessage}" 
-                                 Style="{StaticResource ActiveTaskStatusStyle}" />
-
-                        <!-- Current step display -->
-                        <TextBlock Grid.Row="2" Text="{Binding TaskVM.StatusMessage}" 
-                                 FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"
-                                 Margin="0,0,0,15" Foreground="#2196F3" />
-
-                        <!-- Task action buttons -->
-                        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
-                            <!-- Next step / Complete button -->
-                            <Button Style="{StaticResource MaterialDesignRaisedButton}" 
-                                  Command="{Binding TaskVM.NextNavigationCommand}" Margin="0,0,10,0"
-                                  Background="#2196F3" BorderBrush="#1976D2"
-                                  Width="150" Height="40">
-                                <StackPanel Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="ArrowRight" Margin="0,0,5,0" />
-                                    <TextBlock Text="המשך לשלב הבא" />
-                                </StackPanel>
-                            </Button>
-
-                            <!-- Cancel button -->
-                            <Button Style="{StaticResource MaterialDesignOutlinedButton}" 
-                                  Command="{Binding TaskVM.CancelTaskCommand}"
-                                  Width="120" Height="40">
-                                <StackPanel Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="Cancel" Margin="0,0,5,0" />
-                                    <TextBlock Text="בטל משימה" />
-                                </StackPanel>
-                                     </Button>
-                             </StackPanel>
-                         </Grid>
-                     </Border>
-                 </ScrollViewer>
-             </DockPanel>
+                    <!-- Storage Task List -->
+                    <ItemsControl ItemsSource="{Binding PalletsReadyForStorage}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <localControls:StorageTaskItemControl />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+                <!-- End of Storage Task Section StackPanel -->
+            </DockPanel>
 
              <!-- Finger Authentication View -->
-             <Border Background="#F5F5F5" Padding="10"
+            <Border Background="#F5F5F5" Padding="10"  Visibility="{Binding IsFingerAuthenticationViewActive, Converter={StaticResource BooleanToVisibilityConverter}}"
                      >
                  <ScrollViewer VerticalScrollBarVisibility="Auto">
                      <StackPanel>
@@ -238,88 +201,7 @@
                          <ItemsControl ItemsSource="{Binding PalletsToAuthenticate}">
                              <ItemsControl.ItemTemplate>
                                  <DataTemplate>
-                                     <Border Background="White" BorderBrush="#E0E0E0" BorderThickness="0" CornerRadius="4" Margin="0,0,0,10" Padding="10">
-                                         <Grid>
-                                             <Grid.ColumnDefinitions>
-                                                 <ColumnDefinition Width="Auto"/> <!-- Authenticate Button -->
-                                                 <ColumnDefinition Width="*"/> <!-- Details -->
-                                                 <ColumnDefinition Width="Auto"/> <!-- Add Button -->
-                                             </Grid.ColumnDefinitions>
-
-                                             <!-- Authenticate Button -->
-                                             
-                                             <!-- Pallet Details -->
-                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                 <Grid>
-                                                     <Grid.ColumnDefinitions>
-                                                         <ColumnDefinition Width="Auto"/>
-                                                         <ColumnDefinition Width="Auto"/>
-                                                         <ColumnDefinition Width="Auto"/>
-                                                         <ColumnDefinition Width="Auto"/>
-                                                         <ColumnDefinition Width="Auto"/>
-                                                         <ColumnDefinition Width="Auto"/>
-                                                     </Grid.ColumnDefinitions>
-                                                     <Grid.RowDefinitions>
-                                                         <RowDefinition Height="Auto"/>
-                                                         <RowDefinition Height="Auto"/>
-                                                     </Grid.RowDefinitions>
-                                                     <!-- Labels -->
-                                                            <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" Background="#F6F7FB" CornerRadius="4" Padding="5,2" Margin="10,0">
-                                                                <StackPanel>
-                                                                    <!-- Label -->
-                                                                    <TextBlock Text="פרט" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0" />
-                                                                    <!-- Value -->
-                                                                    <TextBlock Text="{Binding PalletDetails.ImportUnit}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
-                                                                </StackPanel>
-                                                            </Border>
-                                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="מופע" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="10,0"/>
-                                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="מצהר" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="10,0"/>
-                                                            <TextBlock Grid.Row="0" Grid.Column="3" Text="סוג פלט" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="10,0"/>
-                                                            <TextBlock Grid.Row="0" Grid.Column="4" Text="גובה" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="10,0"/>
-                                                            <TextBlock Grid.Row="0" Grid.Column="5" Text="שעה" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="10,0"/>
-                                                     <!-- Values -->
-
-                                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PalletDetails.ImportAppearance}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="10,0"/>
-                                                            <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding PalletDetails.ImportManifest}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="10,0"/>
-                                                            <Border Grid.Row="1" Grid.Column="3" Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="10,0">
-                                                         <TextBlock Text="{Binding PalletDetails.CargoTypeId}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
-                                                     </Border>
-                                                            <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding PalletDetails.HeightLevel}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="10,0"/>
-                                                            <TextBlock Grid.Row="1" Grid.Column="5" Text="{Binding OriginalTask.CreatedDateTime, StringFormat='HH:mm'}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="10,0"/>
-                                                 </Grid>
-                                             </StackPanel>
-
-                                             <!-- Add Button -->
-                                                    <Button Grid.Column="2"  Background="White" BorderThickness="1" BorderBrush="Gray" Content="אימות"
-Command="{Binding DataContext.ShowAuthenticationDialogCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-CommandParameter="{Binding}"
-ToolTip="אימות משטח לאחסון" VerticalAlignment="Center" Margin="10,0,0,0"  >
-                                                        <Button.Style>
-                                                            <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatButton}">
-                                                                <Setter Property="Background" Value="White"/>
-                                                                <Setter Property="Foreground" Value="Gray"/>
-                                                                <Setter Property="materialDesign:RippleAssist.Feedback" Value="#1976D2"/>
-                                                                <Style.Triggers>
-                                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter Property="Background" Value="#E3F2FD"/>
-                                                                        <Setter Property="BorderBrush" Value="Blue"/>
-                                                                        <Setter Property="Foreground" Value="#1976D2"/>
-                                                                    </Trigger>
-                                                                    <Trigger Property="IsPressed" Value="True">
-                                                                        <Setter Property="Background" Value="#E3F2FD"/>
-                                                                        <Setter Property="BorderBrush" Value="Blue"/>
-                                                                        <Setter Property="Foreground" Value="#1976D2"/>
-                                                                    </Trigger>
-
-
-
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Button.Style>
-                                                       
-                                                    </Button>
-                                                </Grid>
-                                     </Border>
+                                     <localControls:PalletAuthenticationItemControl />
                                  </DataTemplate>
                              </ItemsControl.ItemTemplate>
                          </ItemsControl>
@@ -327,113 +209,7 @@ ToolTip="אימות משטח לאחסון" VerticalAlignment="Center" Margin="10
                         </Border>
 
                         <!-- Storage Task Section (Visible whenever there are items) -->
-                         <StackPanel Visibility="{Binding HasPalletsReadyForStorage, Converter={StaticResource BooleanToVisibilityConverter}}">
-                             <!-- Storage Task Section Header -->
-                             <TextBlock Text="אחסון פלט" FontSize="18" FontWeight="Bold" Margin="0,20,0,10" HorizontalAlignment="Center"/>
-
-                             <!-- Storage Task List -->
-                             <ItemsControl ItemsSource="{Binding PalletsReadyForStorage}">
-                                 <ItemsControl.ItemTemplate>
-                                     <DataTemplate>
-                                     <Border Background="White" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Margin="0,0,0,10" Padding="10">
-                                         <StackPanel>
-                                             <!-- Top Row: Task Type, Destination, Go/Change Buttons -->
-                                                <Border Background="#F6F9FF" CornerRadius="8" Padding="5" >
-                                                    <Grid Margin="0,0,0,10">
-                                                 <Grid.ColumnDefinitions>
-                                                     <ColumnDefinition Width="Auto"/> <!-- Task Type -->
-                                                     <ColumnDefinition Width="*"/> <!-- Destination -->
-                                                     <ColumnDefinition Width="Auto"/> <!-- Buttons -->
-                                                 </Grid.ColumnDefinitions>
-                                                    
-                                                    <StackPanel Orientation="Horizontal">
-                                                            <Grid>
-                                                                <Grid.RowDefinitions>
-                                                                    <RowDefinition Height="*"/>
-                                                                    <RowDefinition Height="*"/>
-                                                                </Grid.RowDefinitions>
-                                                                <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="Auto"/>
-                                                                    <ColumnDefinition Width="Auto"/>
-                                                                    <ColumnDefinition Width="Auto"/>
-                                                                    <ColumnDefinition Width="Auto"/>
-                                                                </Grid.ColumnDefinitions>
-                                                                <TextBlock Grid.Column="0" Grid.Row="0" Text="פעולה נדרשת" Style="{StaticResource LabelStyle}" Margin="10,0,60,0"/>
-                                                                <TextBlock Grid.Column="0" Grid.Row="1" Text="אחסון פלט" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,60,0"/>
-
-
-                                                                <TextBlock Text="קומה"  Grid.Column="1" Grid.Row="0" Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
-                                                                <TextBlock  Grid.Column="1" Grid.Row="1" Text="{Binding StorageTask.DestinationCell.HeightLevel}" Style="{StaticResource ValueStyle}" Margin="0,0,30,0" VerticalAlignment="Center"/>
-                                                                <TextBlock  Grid.Column="2" Grid.Row="0" Text="שורה" Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
-                                                                <TextBlock  Grid.Column="2" Grid.Row="1" Text="{Binding StorageTask.DestinationCell.Position}" Style="{StaticResource ValueStyle}" Margin="0,0,30,0" VerticalAlignment="Center"/>
-                                                                <TextBlock  Grid.Column="3" Grid.Row="0" Text="מיקום" Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
-                                                                <TextBlock  Grid.Column="3" Grid.Row="1"  Style="{StaticResource ValueStyle}" Margin="0,0,10,0" VerticalAlignment="Center"/>
-
-                                                                <!-- Add Finger Position Indicator if needed -->
-                                                               
-                                                            </Grid>
-                                                       
-                                                    
-                                            </StackPanel>
-                                                    
-                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                                                            <Button Content="שינוי"
-          Command="{Binding DataContext.ChangeDestinationCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-          CommandParameter="{Binding}"
-          IsEnabled="{Binding DataContext.CanExecuteChangeDestinationCommand}"
-          Style="{StaticResource MaterialDesignOutlinedButton}" Width="100" Margin="0,0,20,0" />
-                                                            <Button Content="GO"
-                                                             Command="{Binding DataContext.GoToStorageLocationCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                             CommandParameter="{Binding}"
-                                                             Style="{StaticResource MaterialDesignRaisedButton}" Background="#2196F3" Width="100" Margin="0,0,20,0"/>
-                                                   
-                                                 </StackPanel>
-                                             </Grid>
-                                                </Border>
-                                                <!-- Bottom Row: Pallet Details -->
-                                              <Grid Margin="0,10,0,0">
-                                                 <Grid.ColumnDefinitions>
-                                                     <ColumnDefinition Width="70"/>
-                                                     <ColumnDefinition Width="70"/>
-                                                     <ColumnDefinition Width="70"/>
-                                                     <ColumnDefinition Width="70"/>
-                                                     <ColumnDefinition Width="70"/>
-                                                     <ColumnDefinition Width="70"/>
-                                                        <ColumnDefinition Width="90"/>
-                                                    </Grid.ColumnDefinitions>
-                                                 <Grid.RowDefinitions>
-                                                     <RowDefinition Height="Auto"/>
-                                                     <RowDefinition Height="Auto"/>
-                                                 </Grid.RowDefinitions>
-                                                 <!-- Labels -->
-                                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="פרט" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
-                                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="מופע" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
-                                                 <TextBlock Grid.Row="0" Grid.Column="2" Text="מצהר" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
-                                                 <TextBlock Grid.Row="0" Grid.Column="3" Text="סוג פלט" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
-                                                 <TextBlock Grid.Row="0" Grid.Column="4" Text="גובה" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
-                                                 <TextBlock Grid.Row="0" Grid.Column="5" Text="שעה" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
-                                                    <TextBlock Grid.Row="0" Grid.Column="6" Text="סטטוס" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
-                                                    <!-- Values -->
-                                                 <Border Grid.Row="1" Grid.Column="0" Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="2">
-                                                     <TextBlock Text="{Binding PalletDetails.ImportAppearance}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
-                                                 </Border>
-                                                 <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PalletDetails.ImportAppearance}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="5,2"/>
-                                                 <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding PalletDetails.ImportManifest}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="5,2"/>
-                                                  <Border Grid.Row="1" Grid.Column="3" Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="2">
-                                                     <TextBlock Text="{Binding PalletDetails.CargoTypeId}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
-                                                 </Border>
-                                                 <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding PalletDetails.HeightLevel}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="5,2"/>
-                                                 <TextBlock Grid.Row="1" Grid.Column="5" Text="{Binding StorageTask.CreatedDateTime, StringFormat='HH:mm'}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="5,2"/>
-                                                    <Border Grid.Row="1" Grid.Column="6"  CornerRadius="4" Padding="5,2" Margin="2" Background="{Binding StorageTask.ActiveTaskStatus, Converter={StaticResource ActiveTaskStatusToColorConverter}}">
-                                                    <TextBlock Text="{Binding StorageTask.ActiveTaskStatus, Converter={StaticResource ActiveTaskStatusToTextConverter} }" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="5,0"/>
-                                                    </Border>
-                                                </Grid>
-                                         </StackPanel>
-                                     </Border>
-                                 </DataTemplate>
-                                 </ItemsControl.ItemTemplate>
-                             </ItemsControl>
-                         </StackPanel> <!-- End of Storage Task Section StackPanel -->
+                        
 
                      </StackPanel> <!-- End of Main ScrollViewer StackPanel -->
                  </ScrollViewer>

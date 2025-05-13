@@ -1,3 +1,4 @@
+using EM.Maman.Common.Constants;
 using EM.Maman.DriverClient.Services;
 using EM.Maman.Models.Interfaces.Services;
 using EM.Maman.Models.PlcModels;
@@ -137,7 +138,7 @@ namespace EM.Maman.DriverClient.ViewModels
         /// <summary>
         /// Command to connect to the OPC server
         /// </summary>
-        public ICommand ConnectToOpcCommand => _connectToOpcCommand ??= new RelayCommand(_ => ConnectToOpc(), _ => true);
+        public ICommand ConnectToOpcCommand => _connectToOpcCommand ??= new RelayCommand(async _ =>  ConnectToOpc(), _ => true);
 
         /// <summary>
         /// Command to refresh registers
@@ -195,12 +196,12 @@ namespace EM.Maman.DriverClient.ViewModels
             WritableRegisters.Clear();
 
             // Add some test registers
-            ReadOnlyRegisters.Add(new Register { NodeId = "ns=2;s=s7.s7 300.maman.Position_PV", Value = "0", Name = "Position PV" });
-            ReadOnlyRegisters.Add(new Register { NodeId = "ns=2;s=s7.s7 300.maman.status", Value = "0", Name = "Status" });
+            ReadOnlyRegisters.Add(new Register { NodeId =Common.Constants.OpcNodes.PositionPV, Value = "0", Name = "Position PV" });
+            ReadOnlyRegisters.Add(new Register { NodeId = OpcNodes.Status, Value = "0", Name = "Status" });
             //ReadOnlyRegisters.Add(new Register { NodeId = "ns=2;s=Channel1.Device1.Error", Value = "0", Name = "Error" });
 
-            WritableRegisters.Add(new Register { NodeId = "ns=2;s=s7.s7 300.maman.PositionRequest", Value = "0", Name = "Position SP" });
-            WritableRegisters.Add(new Register { NodeId = "ns=2;s=s7.s7 300.maman.control", Value = "0", Name = "Control" });
+            WritableRegisters.Add(new Register { NodeId = OpcNodes.PositionRequest, Value = "0", Name = "Position SP" });
+            WritableRegisters.Add(new Register { NodeId = OpcNodes.Control, Value = "0", Name = "Control" });
         }
 
         /// <summary>
@@ -220,7 +221,8 @@ namespace EM.Maman.DriverClient.ViewModels
 
                 // And then subscribe to registers.
                 SubscribeRegister(ReadOnlyRegisters.FirstOrDefault(r => r.NodeId.Contains("Position_PV")));
-                
+                SubscribeRegister(ReadOnlyRegisters.FirstOrDefault(r => r.NodeId.Contains("status")));
+                SubscribeRegister(WritableRegisters.FirstOrDefault(r => r.NodeId.Contains("control")));
                 _logger.LogInformation("OPC initialization completed successfully");
             }
             catch (Exception ex)
@@ -260,16 +262,16 @@ namespace EM.Maman.DriverClient.ViewModels
         /// <summary>
         /// Connects to the OPC server
         /// </summary>
-        private void ConnectToOpc()
+        private async void ConnectToOpc()
         {
             try
             {
                 _logger.LogInformation("Connecting to OPC server");
-                
-                // Connect to the OPC server asynchronously
-                _opcService.ConnectAsync("opc.tcp://172.18.67.242:49320").ConfigureAwait(false);
+
+                // Connect to the OPC server asynchronously - properly await
+                await _opcService.ConnectAsync("opc.tcp://172.18.67.242:49320");
                 Status = "Connected to OPC server";
-                
+
                 _logger.LogInformation("Connected to OPC server successfully");
             }
             catch (Exception ex)
@@ -351,7 +353,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 _logger.LogInformation($"Writing value {PlcRegisterValue} to Position SP");
                 
                 // Write to the register asynchronously
-                _opcService.WriteRegisterAsync("ns=2;s=s7.s7 300.maman.PositionRequest", PlcRegisterValue).ConfigureAwait(false);
+                _opcService.WriteRegisterAsync(OpcNodes.PositionRequest, PlcRegisterValue).ConfigureAwait(false);
                 Status = $"Wrote value {PlcRegisterValue} to Position SP";
                 
                 _logger.LogInformation($"Wrote value {PlcRegisterValue} to Position SP successfully");

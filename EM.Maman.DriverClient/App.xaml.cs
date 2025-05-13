@@ -114,60 +114,60 @@ namespace EM.Maman.DriverClient
         }
 
         // Mark method as async
-        private async System.Threading.Tasks.Task InitializeDatabase()
-        {
-            try
-            {
-                _logger.LogInformation("Initializing database...");
-                using (var scope = ServiceProvider.CreateScope())
-                {
-                    var dbContext = scope.ServiceProvider.GetRequiredService<LocalMamanDBContext>();
-                    var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>(); // Resolve UnitOfWork
+        //private async System.Threading.Tasks.Task InitializeDatabase()
+        //{
+        //    try
+        //    {
+        //        _logger.LogInformation("Initializing database...");
+        //        using (var scope = ServiceProvider.CreateScope())
+        //        {
+        //            var dbContext = scope.ServiceProvider.GetRequiredService<LocalMamanDBContext>();
+        //            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>(); // Resolve UnitOfWork
 
-                   // ApplyDatabaseMigrations(dbContext);
+        //            ApplyDatabaseMigrations(dbContext);
 
-                    // Check if configuration exists AFTER migration using the new repository
-                    try
-                    {
-                        _logger.LogInformation("Checking for existing configuration via repository...");
-                        // Use the new Configurations repository from UnitOfWork
-                        bool configurationExists = await unitOfWork.Configurations.AnyAsync();
-                        IsFirstInitialization = !configurationExists;
-                        _logger.LogInformation("IsFirstInitialization set to: {IsFirstInit}", IsFirstInitialization);
-                    }
-                    catch (Exception configEx)
-                    {
-                        _logger.LogError(configEx, "Error checking configuration table. Assuming not first initialization.");
-                        IsFirstInitialization = false; // Safer default if check fails
-                    }
-                }
-                _logger.LogInformation("Database initialization completed.");
-            }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("pending changes"))
-            {
-                _logger.LogWarning(ex, "Database model has pending changes. Migration required.");
+        //            // Check if configuration exists AFTER migration using the new repository
+        //            try
+        //            {
+        //                _logger.LogInformation("Checking for existing configuration via repository...");
+        //                // Use the new Configurations repository from UnitOfWork
+        //                bool configurationExists = await unitOfWork.Configurations.AnyAsync();
+        //                IsFirstInitialization = !configurationExists;
+        //                _logger.LogInformation("IsFirstInitialization set to: {IsFirstInit}", IsFirstInitialization);
+        //            }
+        //            catch (Exception configEx)
+        //            {
+        //                _logger.LogError(configEx, "Error checking configuration table. Assuming not first initialization.");
+        //                IsFirstInitialization = false; // Safer default if check fails
+        //            }
+        //        }
+        //        _logger.LogInformation("Database initialization completed.");
+        //    }
+        //    catch (InvalidOperationException ex) when (ex.Message.Contains("pending changes"))
+        //    {
+        //        _logger.LogWarning(ex, "Database model has pending changes. Migration required.");
 
-                MessageBox.Show(
-                    "The database schema needs to be updated. Please run the following commands in Package Manager Console:\n\n" +
-                    "1. Add-Migration UpdatedModel -Project \"EM.Maman.Models\" -StartupProject \"EM.Maman.DriverClient\"\n" +
-                    "2. Update-Database -Project \"EM.Maman.Models\" -StartupProject \"EM.Maman.DriverClient\"\n\n" +
-                    "The application will continue with limited functionality.",
-                    "Database Update Required",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Database initialization error");
+        //        MessageBox.Show(
+        //            "The database schema needs to be updated. Please run the following commands in Package Manager Console:\n\n" +
+        //            "1. Add-Migration UpdatedModel -Project \"EM.Maman.Models\" -StartupProject \"EM.Maman.DriverClient\"\n" +
+        //            "2. Update-Database -Project \"EM.Maman.Models\" -StartupProject \"EM.Maman.DriverClient\"\n\n" +
+        //            "The application will continue with limited functionality.",
+        //            "Database Update Required",
+        //            MessageBoxButton.OK,
+        //            MessageBoxImage.Warning);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Database initialization error");
 
-                MessageBox.Show(
-                    $"Database initialization error: {ex.Message}\n\n" +
-                    "The application will continue with limited functionality.",
-                    "Database Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-            }
-        }
+        //        MessageBox.Show(
+        //            $"Database initialization error: {ex.Message}\n\n" +
+        //            "The application will continue with limited functionality.",
+        //            "Database Error",
+        //            MessageBoxButton.OK,
+        //            MessageBoxImage.Error);
+        //    }
+        //}
 
         private void StartApplication()
         {
@@ -358,36 +358,52 @@ namespace EM.Maman.DriverClient
 
         private void ConfigureServices(IServiceCollection services)
         {
-            // Your existing service configuration
             // Register configuration
             services.AddSingleton<IConfiguration>(Configuration);
 
-            // Add logging with file support
+            // Add logging
             services.AddLogging(configure =>
             {
                 configure.AddConsole();
                 configure.AddDebug();
-
-                // Add file logging
                 var logsDirectory = Path.Combine(Directory.GetCurrentDirectory(), "logs");
                 if (!Directory.Exists(logsDirectory))
                 {
                     Directory.CreateDirectory(logsDirectory);
                 }
-
                 configure.AddFile(Path.Combine(logsDirectory, "app_{0:yyyy-MM-dd}.log"));
             });
 
-            // Your other service registrations
+            // IMPORTANT: Register DbContextFactory as Singleton
             string connectionString = Configuration.GetConnectionString("DefaultConnection");
-            services.AddDbContext<LocalMamanDBContext>(options =>
-                options.UseSqlServer(connectionString), ServiceLifetime.Transient);
+            services.AddDbContextFactory<LocalMamanDBContext>(options =>
+                options.UseSqlServer(connectionString)
+                .EnableSensitiveDataLogging()
+                .LogTo(Console.WriteLine), ServiceLifetime.Singleton);
 
-            // Continue with your existing service registrations...
+            // Register a scoped DbContext for backward compatibility
+            services.AddScoped<LocalMamanDBContext>(provider =>
+            {
+                var factory = provider.GetRequiredService<IDbContextFactory<LocalMamanDBContext>>();
+                return factory.CreateDbContext();
+            });
+
+            // Register the UnitOfWork factory
+            services.AddSingleton<IUnitOfWorkFactory, UnitOfWorkFactory>();
+
+            // Register UnitOfWork as Transient - each request gets a new instance
+            services.AddTransient<IUnitOfWork>(provider =>
+            {
+                var factory = provider.GetRequiredService<IDbContextFactory<LocalMamanDBContext>>();
+                var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
+                return new UnitOfWork(factory, loggerFactory.CreateLogger<UnitOfWork>());
+            });
+
+            // OPC Service (Singleton is fine for this)
             bool useSimulation = Configuration.GetValue<bool>("AppSettings:UseSimulationMode");
             if (useSimulation)
             {
-                // services.AddSingleton<IOpcService, SimulatedOpcService>();
+                services.AddSingleton<IOpcService, SimulatedOpcService>();
             }
             else
             {
@@ -403,58 +419,85 @@ namespace EM.Maman.DriverClient
             // Register Business Layer Services
             services.AddScoped<IUserManager, UserManager>();
 
-            // Register Data Access Layer
-            services.AddTransient<IUnitOfWork, UnitOfWork>();
-            services.AddScoped<ITrolleyRepository, TrolleyRepository>();
-            services.AddScoped<ICellRepository, CellRepository>();
-            services.AddScoped<IFingerRepository, FingerRepository>();
-            services.AddScoped<ILevelRepository, LevelRepository>(); // Register LevelRepository
-            services.AddScoped<ITaskRepository, TaskRepository>();
-            services.AddScoped<IOperationRepository, OperationRepository>();
-            services.AddScoped<IPalletRepository, PalletRepository>();
-            services.AddScoped<IPalletInCellRepository, PalletInCellRepository>(); // Register PalletInCellRepository
-            services.AddScoped<IUserRepository, UserRepository>();
-            services.AddScoped<IConfigurationRepository, ConfigurationRepository>(); // Register ConfigurationRepository
-            services.AddScoped<ITaskTypeRepository, TaskTypeRepository>(); // Added TaskType repository registration
+            // Note: Repositories are now created by UnitOfWork, so we don't need to register them individually
+            // unless they're used independently of UnitOfWork
 
-            // Register ViewModels
-            //services.AddTransient<ImportTaskViewModel>(provider => new ImportTaskViewModel(
-            //    provider.GetRequiredService<IUnitOfWork>()));
-            //services.AddTransient<ImportTaskViewModel>(provider => new ImportTaskViewModel(
-            //   provider.GetRequiredService<IUnitOfWork>()));
-           
-            services.AddTransient<TrolleyViewModel>(provider => new TrolleyViewModel(provider.GetRequiredService<IUnitOfWork>()));
-            services.AddTransient<WarehouseViewModel>(provider => new WarehouseViewModel(provider.GetRequiredService<IUnitOfWork>()));
-            services.AddTransient<MainViewModel>(provider => new MainViewModel(
-                provider.GetRequiredService<IOpcService>(),
-                provider.GetRequiredService<IUnitOfWork>(),
-                provider.GetRequiredService<IConnectionManager>(),
-                provider.GetRequiredService<IDispatcherService>(),
-                provider.GetRequiredService<ILoggerFactory>(),
-                provider.GetRequiredService<TrolleyViewModel>()
-            ));
+            // Register ViewModels - Modified to use the new pattern
+            services.AddTransient<TrolleyViewModel>();
+            services.AddTransient<WarehouseViewModel>();
+
+            services.AddTransient<MainViewModel>(provider =>
+            {
+                return new MainViewModel(
+                    provider.GetRequiredService<IOpcService>(),
+                    provider.GetRequiredService<IUnitOfWorkFactory>(),
+                    provider.GetRequiredService<IConnectionManager>(),
+                    provider.GetRequiredService<IDispatcherService>(),
+                    provider.GetRequiredService<ILoggerFactory>(),
+                    provider.GetRequiredService<TrolleyViewModel>(),
+                    provider.GetRequiredService<IConfiguration>()
+                );
+            });
+
             services.AddTransient<LoginViewModel>();
             services.AddTransient<TaskViewModel>();
-            services.AddTransient<ImportTaskViewModel>(provider =>
-     new ImportTaskViewModel(provider.GetRequiredService<IUnitOfWork>()));
+            services.AddTransient<ImportTaskViewModel>();
+            services.AddTransient<ExportTaskViewModel>();
 
-            services.AddTransient<ExportTaskViewModel>(provider =>
-                new ExportTaskViewModel(provider.GetRequiredService<IUnitOfWork>()));
-
-            services.AddTransient<ManualTaskViewModel>((provider) => {
-                var unitOfWork = provider.GetRequiredService<IUnitOfWork>();
-                var importVM = provider.GetRequiredService<ImportTaskViewModel>();
-                var exportVM = provider.GetRequiredService<ExportTaskViewModel>();
-                return new ManualTaskViewModel(unitOfWork, importVM, exportVM);
+            services.AddTransient<ManualTaskViewModel>(provider =>
+            {
+                return new ManualTaskViewModel(
+                    provider.GetRequiredService<IUnitOfWork>(), // Keep for backward compatibility
+                    provider.GetRequiredService<ImportTaskViewModel>(),
+                    provider.GetRequiredService<ExportTaskViewModel>()
+                );
             });
+
             // Register Views
             services.AddTransient<MainWindow>();
             services.AddTransient<LoginWindow>();
-            services.AddTransient<ManualTaskDialog>(provider =>
-    new ManualTaskDialog(
-        provider.GetRequiredService<IUnitOfWork>(),
-        provider.GetRequiredService<ManualTaskViewModel>()));
+            services.AddTransient<ManualTaskDialog>();
+        }
 
+        // Updated initialization method to use factory
+        private async System.Threading.Tasks.Task InitializeDatabase()
+        {
+            try
+            {
+                _logger.LogInformation("Initializing database...");
+
+                // Use the factory to create a short-lived context
+                var dbContextFactory = ServiceProvider.GetRequiredService<IDbContextFactory<LocalMamanDBContext>>();
+
+                using (var dbContext = await dbContextFactory.CreateDbContextAsync())
+                {
+                    ApplyDatabaseMigrations(dbContext);
+                }
+
+                // Create another context for the configuration check
+                using (var dbContext = await dbContextFactory.CreateDbContextAsync())
+                {
+                    try
+                    {
+                        _logger.LogInformation("Checking for existing configuration...");
+                        bool configurationExists = await dbContext.Configurations.AnyAsync();
+                        IsFirstInitialization = !configurationExists;
+                        _logger.LogInformation("IsFirstInitialization set to: {IsFirstInit}", IsFirstInitialization);
+                    }
+                    catch (Exception configEx)
+                    {
+                        _logger.LogError(configEx, "Error checking configuration table.");
+                        IsFirstInitialization = false;
+                    }
+                }
+
+                _logger.LogInformation("Database initialization completed.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Database initialization error");
+                // Handle errors...
+            }
         }
     }
 }

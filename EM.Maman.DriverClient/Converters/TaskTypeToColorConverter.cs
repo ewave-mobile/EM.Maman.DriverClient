@@ -13,13 +13,13 @@ namespace EM.Maman.DriverClient.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is Models.Enums.TaskType taskType)
+            if (value is Models.Enums.UpdateType taskType)
             {
                 switch (taskType)
                 {
-                    case Models.Enums.TaskType.Import:
+                    case Models.Enums.UpdateType.Import:
                         return new SolidColorBrush(Color.FromRgb(67, 160, 71)); // Green - #43A047
-                    case Models.Enums.TaskType.Export:
+                    case Models.Enums.UpdateType.Export:
                         return new SolidColorBrush(Color.FromRgb(245, 127, 23)); // Orange - #F57F17
                     default:
                         return new SolidColorBrush(Colors.Gray);

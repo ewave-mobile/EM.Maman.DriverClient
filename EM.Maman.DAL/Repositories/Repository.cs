@@ -36,7 +36,7 @@ namespace EM.Maman.DAL.Repositories
         public async Task<IEnumerable<TEntity>> GetAllAsync(
             Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>> orderBy = null,
             Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>> include = null,
-            bool disableTracking = true)
+            bool disableTracking = false)
         {
             IQueryable<TEntity> query = DbSet;
 
@@ -71,7 +71,7 @@ namespace EM.Maman.DAL.Repositories
             Expression<Func<TEntity, bool>> predicate,
             Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>> orderBy = null,
             Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>> include = null,
-            bool disableTracking = true)
+            bool disableTracking = false)
         {
             IQueryable<TEntity> query = DbSet;
 
@@ -121,9 +121,44 @@ namespace EM.Maman.DAL.Repositories
             DbSet.Remove(entity);
         }
 
+        // In your Repository<TEntity> class, modify RemoveRange to explicitly attach and mark as deleted
         public void RemoveRange(IEnumerable<TEntity> entities)
         {
-            DbSet.RemoveRange(entities);
+            // Get logger instance (assuming ILogger<Repository<TEntity>> is injected or available)
+            // Note: Direct logger injection into a generic base class can be tricky.
+            // For now, we'll use a placeholder comment.
+            // _logger.LogInformation($"Attempting to remove range of {typeof(TEntity).Name} entities.");
+
+            foreach (var entity in entities)
+            {
+                // First check the state of the entity
+                var entry = Context.Entry(entity);
+                // _logger.LogInformation($"Entity state before processing: {entry.State} for entity type {typeof(TEntity).Name}");
+
+                if (entry.State == EntityState.Detached)
+                {
+                    // If detached, attach it first
+                    DbSet.Attach(entity);
+                    // _logger.LogInformation($"Entity state after Attach: {entry.State} for entity type {typeof(TEntity).Name}");
+                }
+
+                // Now mark it for deletion
+                DbSet.Remove(entity);
+                // _logger.LogInformation($"Entity state after Remove: {entry.State} for entity type {typeof(TEntity).Name}");
+            }
+
+            // Alternative approach (only use one of these methods at a time):
+            // foreach (var entity in entities)
+            // {
+            //     Context.Entry(entity).State = EntityState.Deleted;
+            // }
+            // _logger.LogInformation($"Finished processing RemoveRange for {typeof(TEntity).Name} entities.");
+        }
+
+        public async Task<bool> AnyAsync()
+        {
+            //implementation for anyasync
+            return await DbSet.AnyAsync();
         }
     }
 }

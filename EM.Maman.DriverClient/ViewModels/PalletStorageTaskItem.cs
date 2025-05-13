@@ -15,6 +15,8 @@ namespace EM.Maman.DriverClient.ViewModels
         private TaskDetails _storageTask; // The newly created storage task
         private ICommand _goToStorageCommand;
         private ICommand _changeDestinationCommand;
+        private object _dataContext; // Added for binding in CurrentTasksView.xaml
+        private bool _canExecuteChangeDestinationCommand;
 
         public Pallet PalletDetails
         {
@@ -51,10 +53,38 @@ namespace EM.Maman.DriverClient.ViewModels
             set { _changeDestinationCommand = value; OnPropertyChanged(); } // Allow setting from MainViewModel
         }
 
+        /// <summary>
+        /// Gets or sets the DataContext for binding in XAML.
+        /// </summary>
+        public object DataContext
+        {
+            get => _dataContext;
+            set { _dataContext = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Gets or sets whether the ChangeDestinationCommand can be executed.
+        /// This property is used for binding to the IsEnabled property of buttons.
+        /// </summary>
+        public bool CanExecuteChangeDestinationCommand
+        {
+            get => _canExecuteChangeDestinationCommand;
+            set 
+            { 
+                if (_canExecuteChangeDestinationCommand != value)
+                {
+                    _canExecuteChangeDestinationCommand = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public PalletStorageTaskItem(Pallet pallet, TaskDetails storageTask)
         {
             PalletDetails = pallet;
             StorageTask = storageTask;
+            DataContext = this; // Set DataContext to self by default
+            CanExecuteChangeDestinationCommand = false; // Default to disabled
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

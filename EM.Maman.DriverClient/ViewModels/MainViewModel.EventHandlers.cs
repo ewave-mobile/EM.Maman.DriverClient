@@ -1,0 +1,85 @@
+﻿using System;
+using System.Linq;
+using System.Windows;
+using EM.Maman.Models.Enums;
+using Microsoft.Extensions.Logging;
+
+namespace EM.Maman.DriverClient.ViewModels
+{
+    public partial class MainViewModel
+    {
+        private async void OnPositionChanged(object sender, int positionValue)
+        {
+            CheckForArrivalAtDestination(positionValue);
+
+            int level = positionValue / 100;
+            int position = positionValue % 100;
+
+            if (CurrentTrolley != null)
+            {
+                CurrentTrolley.Position = position;
+                OnPropertyChanged(nameof(CurrentTrolley));
+            }
+
+            if (TrolleyVM != null)
+            {
+                TrolleyVM.UpdateTrolleyPosition(level, position);
+            }
+
+            if (WarehouseVM != null)
+            {
+                WarehouseVM.CurrentLevelNumber = level;
+            }
+
+            bool isFinger = await IsFingerLocationAsync(positionValue);
+
+            if (isFinger)
+            {
+                if (_currentFingerPositionValue != positionValue)
+                {
+                    _logger.LogInformation("Arrived at finger location (PositionValue: {PositionValue}).", positionValue);
+                    _currentFingerPositionValue = positionValue;
+                    await LoadPalletsForFingerAuthenticationAsync(positionValue);
+                }
+
+                // Create a new UnitOfWork instance for this operation
+                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                {
+                    var finger = (await unitOfWork.Fingers.FindAsync(f => f.Position == positionValue)).FirstOrDefault();
+                    if (finger != null)
+                    {
+                        CurrentFingerDisplayName = finger.DisplayName;
+                    }
+                }
+            }
+            else
+            {
+                if (_currentFingerPositionValue != null)
+                {
+                    _logger.LogInformation("Left finger location.");
+                    _currentFingerPositionValue = null;
+                    IsFingerAuthenticationViewActive = false;
+                    _dispatcherService.Invoke(() =>
+                    {
+                        PalletsToAuthenticate.Clear();
+                    });
+                }
+            }
+            
+            // Notify that ShouldShowDefaultPhoto property might have changed
+            OnPropertyChanged(nameof(ShouldShowDefaultPhoto));
+        }
+
+     
+
+        public void NotifyStorageItemsChanged()
+        {
+            OnPropertyChanged(nameof(HasPalletsReadyForStorage));
+        }
+
+        public void NotifyRetrievalItemsChanged()
+        {
+            OnPropertyChanged(nameof(HasPalletsForRetrieval));
+        }
+    }
+}
