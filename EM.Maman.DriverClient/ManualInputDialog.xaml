@@ -7,8 +7,9 @@
         xmlns:vm="clr-namespace:EM.Maman.DriverClient.ViewModels"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters"
+        xmlns:controls="clr-namespace:EM.Maman.DriverClient.Controls"
         mc:Ignorable="d"
-        Title="הזנה ידנית" Height="600" Width="900"
+        Title="הזנה ידנית" Height="600" Width="700"
         WindowStartupLocation="CenterOwner"
         Background="White"
         FlowDirection="RightToLeft"
@@ -20,13 +21,44 @@
             <converters:BoolToBackgroundConverter x:Key="BoolToBackgroundConverter" />
             <converters:BoolToBorderBrushConverter x:Key="BoolToBorderBrushConverter" />
             <converters:BoolToPreviewTitleConverter x:Key="BoolToPreviewTitleConverter" />
+            <Style x:Key="BoxyTextBoxStyle" TargetType="TextBox">
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="BorderBrush" Value="Gray"/>
+                <Setter Property="Padding" Value="5"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Height" Value="28"/>
+            </Style>
             <Style x:Key="OperationTypeButtonStyle" TargetType="Button">
                 <Setter Property="Margin" Value="5" />
                 <Setter Property="Padding" Value="15,5" />
                 <Setter Property="BorderThickness" Value="1" />
                 <Setter Property="FontSize" Value="14" />
                 <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="border"
+                        CornerRadius="5"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}">
+                                <ContentPresenter HorizontalAlignment="Center" 
+                                      VerticalAlignment="Center"
+                                      Margin="{TemplateBinding Padding}"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="border" Property="Opacity" Value="0.8"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="border" Property="Opacity" Value="0.6"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
+
             <Style x:Key="ImportButtonStyle" TargetType="Button" BasedOn="{StaticResource OperationTypeButtonStyle}">
                 <Setter Property="Background" Value="#FFFFFF" />
                 <Setter Property="BorderBrush" Value="#BEBBBB" />
@@ -39,6 +71,7 @@
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
+
             <Style x:Key="ExportButtonStyle" TargetType="Button" BasedOn="{StaticResource OperationTypeButtonStyle}">
                 <Setter Property="Background" Value="#FFFFFF" />
                 <Setter Property="BorderBrush" Value="#BEBBBB" />
@@ -95,8 +128,8 @@
         </StackPanel>
 
         <!-- Import Content -->
-        <Grid Grid.Row="2" Grid.Column="0" 
-              Visibility="{Binding IsImportSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+        <Grid Grid.Row="2" Grid.Column="0" Width="250"
+              Visibility="{Binding IsImportSelected, Converter={StaticResource BoolToVisibilityConverter}}" HorizontalAlignment="left">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -117,25 +150,22 @@
             <TextBlock Grid.Row="0" Grid.Column="0" Text="מצהר:" 
                        VerticalAlignment="Center" Margin="0,0,10,10"/>
             <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ImportManifest}" 
-                     Margin="0,0,0,10"
-                     materialDesign:HintAssist.Hint="מספר מצהר"/>
+                     Margin="0,0,0,10" Style="{StaticResource BoxyTextBoxStyle}"/>
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="פרט:" 
                        VerticalAlignment="Center" Margin="0,0,10,10"/>
             <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ImportUnit}" 
-                     Margin="0,0,0,10"
-                     materialDesign:HintAssist.Hint="מספר פרט"/>
+                     Margin="0,0,0,10" Style="{StaticResource BoxyTextBoxStyle}"/>
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="מופע:" 
                        VerticalAlignment="Center" Margin="0,0,10,10"/>
             <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding ImportAppearance}" 
-                     Margin="0,0,0,10"
-                     materialDesign:HintAssist.Hint="מספר מופע"/>
+                     Margin="0,0,0,10" Style="{StaticResource BoxyTextBoxStyle}"/>
 
             <TextBlock Grid.Row="3" Grid.Column="0" Text="סוג אחסון:" 
                        VerticalAlignment="Center" Margin="0,0,10,10"/>
             <ComboBox Grid.Row="3" Grid.Column="1" 
-                      SelectedItem="{Binding SelectedStorageType}"
+                      SelectedItem="{Binding SelectedStorageType}" Height="28"
                       Margin="0,0,0,10">
                 <ComboBoxItem Content="רגיל" Tag="REG"/>
                 <ComboBoxItem Content="קירור" Tag="FRZ"/>
@@ -145,7 +175,7 @@
             <TextBlock Grid.Row="4" Grid.Column="0" Text="סוג מטען:" 
                        VerticalAlignment="Center" Margin="0,0,10,10"/>
             <ComboBox Grid.Row="4" Grid.Column="1" 
-                      SelectedItem="{Binding SelectedCargoType}"
+                      SelectedItem="{Binding SelectedCargoType}" Height="28"
                       Margin="0,0,0,10">
                 <ComboBoxItem Content="ULD" Tag="ULD"/>
                 <ComboBoxItem Content="AWB" Tag="AWB"/>
@@ -154,7 +184,7 @@
             <TextBlock Grid.Row="5" Grid.Column="0" Text="גובה:" 
                        VerticalAlignment="Center" Margin="0,0,10,10"/>
             <ComboBox Grid.Row="5" Grid.Column="1" 
-                      SelectedItem="{Binding SelectedHeightType}"
+                      SelectedItem="{Binding SelectedHeightType}" Height="28"
                       Margin="0,0,0,10">
                 <ComboBoxItem Content="נמוך" Tag="LOW"/>
                 <ComboBoxItem Content="בינוני" Tag="MED"/>
@@ -166,13 +196,12 @@
             <ComboBox Grid.Row="6" Grid.Column="1" 
                       ItemsSource="{Binding Fingers}"
                       SelectedItem="{Binding SelectedSourceFinger}"
-                      DisplayMemberPath="DisplayName"
-                      Margin="0,0,0,10"
-                      materialDesign:HintAssist.Hint="בחר אצבע מקור"/>
+                      DisplayMemberPath="DisplayName" Height="28"
+                      Margin="0,0,0,10"/>
         </Grid>
 
         <!-- Export Content -->
-        <Grid Grid.Row="2" Grid.Column="0" 
+        <Grid Grid.Row="2" Grid.Column="0" Width="250" HorizontalAlignment="Left"
               Visibility="{Binding IsImportSelected, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -198,28 +227,24 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <TextBox Grid.Column="0" Text="{Binding ExportSwbPrefix}" 
-                         Width="100" Margin="0,0,10,0"
-                         materialDesign:HintAssist.Hint="קידומת"/>
-                <TextBox Grid.Column="1" Text="{Binding ExportAwbNumber}" 
-                         materialDesign:HintAssist.Hint="מספר שטר מטען"/>
+                         Width="100" Margin="0,0,10,0" Style="{StaticResource BoxyTextBoxStyle}"/>
+                <TextBox Grid.Column="1" Text="{Binding ExportAwbNumber}" Style="{StaticResource BoxyTextBoxStyle}"/>
             </Grid>
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="מופע קליטה:" 
                        VerticalAlignment="Center" Margin="0,0,10,10"/>
             <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ExportAwbAppearance}" 
-                     Margin="0,0,0,10"
-                     materialDesign:HintAssist.Hint="מספר מופע קליטה"/>
+                     Margin="0,0,0,10" Style="{StaticResource BoxyTextBoxStyle}"/>
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="מופע אחסון:" 
                        VerticalAlignment="Center" Margin="0,0,10,10"/>
             <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding ExportAwbStorage}" 
-                     Margin="0,0,0,10"
-                     materialDesign:HintAssist.Hint="מספר מופע אחסון"/>
+                     Margin="0,0,0,10" Style="{StaticResource BoxyTextBoxStyle}"/>
 
             <TextBlock Grid.Row="3" Grid.Column="0" Text="סוג מטען:" 
                        VerticalAlignment="Center" Margin="0,0,10,10"/>
             <ComboBox Grid.Row="3" Grid.Column="1" 
-                      SelectedItem="{Binding SelectedCargoType}"
+                      SelectedItem="{Binding SelectedCargoType}" Height="28"
                       Margin="0,0,0,10">
                 <ComboBoxItem Content="ULD" Tag="ULD"/>
                 <ComboBoxItem Content="AWB" Tag="AWB"/>
@@ -228,7 +253,7 @@
             <TextBlock Grid.Row="4" Grid.Column="0" Text="גובה:" 
                        VerticalAlignment="Center" Margin="0,0,10,10"/>
             <ComboBox Grid.Row="4" Grid.Column="1" 
-                      SelectedItem="{Binding SelectedHeightType}"
+                      SelectedItem="{Binding SelectedHeightType}" Height="28"
                       Margin="0,0,0,10">
                 <ComboBoxItem Content="נמוך" Tag="LOW"/>
                 <ComboBoxItem Content="בינוני" Tag="MED"/>
@@ -240,257 +265,37 @@
             <ComboBox Grid.Row="5" Grid.Column="1" 
                       ItemsSource="{Binding Fingers}"
                       SelectedItem="{Binding SelectedDestinationFinger}"
-                      DisplayMemberPath="DisplayName"
-                      Margin="0,0,0,10"
-                      materialDesign:HintAssist.Hint="בחר אצבע יעד"/>
+                      DisplayMemberPath="DisplayName" Height="28"
+                      Margin="0,0,0,10"/>
         </Grid>
 
         <!-- Sticker preview - Right side -->
-        <Border Grid.Row="2" Grid.Column="1" 
-                Width="300" Margin="10,0,0,0"
-                Background="{Binding IsImportSelected, Converter={StaticResource BoolToBackgroundConverter}}"
-                BorderBrush="{Binding IsImportSelected, Converter={StaticResource BoolToBorderBrushConverter}}"
-                BorderThickness="1"
-                CornerRadius="5">
-            <Grid Margin="15">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+        <Grid Grid.Row="2" Grid.Column="1" Width="250" Margin="0,0,80,0">
+            <controls:ImportStickerControl 
+                Manifest="{Binding ImportManifest}"
+                Unit="{Binding ImportUnit}"
+                Appearance="{Binding ImportAppearance}"
+                Visibility="{Binding IsImportSelected, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
-                <!-- Import Preview -->
-                <TextBlock Grid.Row="0" 
-                           Text="{Binding IsImportSelected, Converter={StaticResource BoolToPreviewTitleConverter}}" 
-                           FontWeight="Bold" HorizontalAlignment="Center"
-                           Margin="0,0,0,15"/>
-
-                <!-- Import Sticker -->
-                <Border Grid.Row="1" 
-                        Background="#C8E6C9" 
-                        BorderBrush="#43A047" 
-                        BorderThickness="2"
-                        CornerRadius="5" 
-                        Padding="10"
-                        Visibility="{Binding IsImportSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-
-                        <!-- Top green bar -->
-                        <Border Grid.Row="0" Background="#43A047" Height="30" 
-                                Margin="-10,-10,-10,10">
-                            <TextBlock Text="ממן- מסופי מטען וניטול בע&quot;מ" 
-                                       FontWeight="Bold" FontSize="12" 
-                                       Foreground="White" HorizontalAlignment="Center" 
-                                       VerticalAlignment="Center"/>
-                        </Border>
-
-                        <!-- Barcode placeholder -->
-                        <Rectangle Grid.Row="1" Height="60" Fill="Black" Margin="0,0,0,10"/>
-
-                        <!-- Title -->
-                        <TextBlock Grid.Row="2" 
-                                   Text="טיסה" 
-                                   FontWeight="Bold" FontSize="18" 
-                                   TextAlignment="Center" Margin="0,0,0,5"/>
-
-                        <!-- Import Unit -->
-                        <TextBlock Grid.Row="3" 
-                                   Text="{Binding ImportUnit, TargetNullValue='[פרט]'}" 
-                                   FontWeight="Bold" FontSize="24" 
-                                   TextAlignment="Center" Margin="0,0,0,10"/>
-
-                        <!-- Task Code -->
-                        <TextBlock Grid.Row="4" 
-                                   Text="{Binding TaskDetails.Code}" 
-                                   FontSize="14" 
-                                   TextAlignment="Center" Margin="0,0,0,10"/>
-
-                        <!-- Height -->
-                        <TextBlock Grid.Row="5" 
-                                   Text="2" 
-                                   FontWeight="Bold" FontSize="20" 
-                                   TextAlignment="Center" Margin="0,0,0,5"/>
-
-                        <!-- Box -->
-                        <Border Grid.Row="6" BorderBrush="Black" BorderThickness="1" 
-                                Width="80" Height="40" HorizontalAlignment="Center">
-                            <TextBlock Text="2" FontWeight="Bold" FontSize="24" 
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </Grid>
-                </Border>
-
-                <!-- Export Sticker -->
-                <Border Grid.Row="1" 
-                        Background="#FFB74D" 
-                        BorderBrush="#F57C00" 
-                        BorderThickness="2"
-                        CornerRadius="5" 
-                        Padding="10"
-                        Visibility="{Binding IsImportSelected, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <!-- Top orange bar -->
-                        <Border Grid.Row="0" Background="#F57C00" Height="30" 
-                                Margin="-10,-10,-10,10">
-                            <TextBlock Text="ממן- מסופי מטען וניטול בע&quot;מ" 
-                                       FontWeight="Bold" FontSize="12" 
-                                       Foreground="White" HorizontalAlignment="Center" 
-                                       VerticalAlignment="Center"/>
-                        </Border>
-
-                        <!-- Barcode Placeholder -->
-                        <Border Grid.Row="1" Height="60" Background="#DDDDDD" Margin="0,0,0,5">
-                            <TextBlock Text="BARCODE" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#AAAAAA"/>
-                        </Border>
-                        
-                        <!-- ULD Info -->
-                        <Grid Grid.Row="2">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            
-                            <TextBlock Grid.Column="0" Text="AWB" 
-                                       FontWeight="Bold" FontSize="18" 
-                                       HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                            
-                            <TextBlock Grid.Column="1" Text="{Binding ExportAwbNumber, FallbackValue='1234', TargetNullValue='1234'}" 
-                                       FontWeight="Bold" FontSize="24" 
-                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                        </Grid>
-
-                        <!-- Flight info -->
-                        <Grid Grid.Row="3">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            
-                            <TextBlock Grid.Column="0" Text="AYYB" FontSize="10" 
-                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            
-                            <TextBlock Grid.Column="1" Text="{Binding TaskDetails.Code}" 
-                                       FontSize="10" 
-                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                        </Grid>
-
-                        <Grid Grid.Row="4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            
-                            <TextBlock Grid.Column="0" Text="HAYB" FontSize="10" 
-                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            
-                            <TextBlock Grid.Column="1" Text="{Binding ExportSwbPrefix, FallbackValue='488-200', TargetNullValue='488-200'}" 
-                                       FontSize="10" 
-                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                        </Grid>
-
-                        <!-- AWB Number -->
-                        <TextBlock Grid.Row="5" Text="{Binding ExportAwbNumber, FallbackValue='55803', TargetNullValue='55803'}" 
-                                   FontWeight="Bold" FontSize="36" 
-                                   TextAlignment="Center" Margin="0,5,0,5"/>
-
-                        <!-- Destination -->
-                        <Grid Grid.Row="6">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            
-                            <TextBlock Grid.Column="0" Text="destination" FontSize="10" 
-                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            
-                            <TextBlock Grid.Column="1" Text="{Binding SelectedDestinationFinger.DisplayName, FallbackValue='R03', TargetNullValue='R03'}" 
-                                       FontWeight="Bold" FontSize="24" 
-                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                        </Grid>
-
-                        <!-- Info grid -->
-                        <Grid Grid.Row="7" Margin="0,5,0,5">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            
-                            <Border Grid.Column="0" BorderBrush="Black" BorderThickness="1">
-                                <StackPanel>
-                                    <TextBlock Text="Appearance" FontSize="8" TextAlignment="Center"/>
-                                    <TextBlock Text="{Binding ExportAwbAppearance, FallbackValue='1', TargetNullValue='1'}" 
-                                               FontWeight="Bold" FontSize="14" TextAlignment="Center"/>
-                                </StackPanel>
-                            </Border>
-                            
-                            <Border Grid.Column="1" BorderBrush="Black" BorderThickness="1,1,1,1">
-                                <StackPanel>
-                                    <TextBlock Text="Storage" FontSize="8" TextAlignment="Center"/>
-                                    <TextBlock Text="{Binding ExportAwbStorage, FallbackValue='4', TargetNullValue='4'}" 
-                                               FontWeight="Bold" FontSize="14" TextAlignment="Center"/>
-                                </StackPanel>
-                            </Border>
-                            
-                            <Border Grid.Column="2" BorderBrush="Black" BorderThickness="1">
-                                <StackPanel>
-                                    <TextBlock Text="Airline" FontSize="8" TextAlignment="Center"/>
-                                    <TextBlock Text="C6" FontWeight="Bold" FontSize="14" TextAlignment="Center"/>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
-
-                        <!-- Piece info -->
-                        <Grid Grid.Row="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            
-                            <TextBlock Grid.Column="0" Text="Piece" FontSize="10" 
-                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            
-                            <TextBlock Grid.Column="1" Text="67" FontWeight="Bold" FontSize="14" 
-                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            
-                            <TextBlock Grid.Column="2" Text="of" FontSize="10" 
-                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            
-                            <TextBlock Grid.Column="3" Text="9" FontWeight="Bold" FontSize="14" 
-                                       VerticalAlignment="Center"/>
-                        </Grid>
-                    </Grid>
-                </Border>
-            </Grid>
-        </Border>
+            <controls:ExportStickerControl
+                AwbNumber="{Binding ExportAwbNumber}"
+                SwbPrefix="{Binding ExportSwbPrefix}"
+                LargeNumericDisplay="{Binding ExportAwbNumber}" 
+                AppearanceValue="{Binding ExportAwbAppearance}"
+                StorageValue="{Binding ExportAwbStorage}"
+                PiecesCount="{Binding PiecesCount, FallbackValue='9'}" 
+                TotalPieces="{Binding TotalPieces, FallbackValue='67'}" 
+                G080Text="G080"
+                E1Text="E1"
+                Destination="TAS"
+                AirlineText="C6"
+                Visibility="{Binding IsImportSelected, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}"/>
+        </Grid>
 
         <!-- Buttons -->
         <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
                     Orientation="Horizontal" HorizontalAlignment="Center"
-                    Margin="0,20,0,0">
+                    Margin="0,20,0,20">
             <Button Content="שמור" Command="{Binding SaveCommand}"
                     Style="{StaticResource MaterialDesignRaisedButton}"
                     Background="#2196F3" BorderBrush="#1976D2"
@@ -500,18 +305,6 @@
                     Width="100"/>
         </StackPanel>
 
-        <!-- Status bar -->
-        <StatusBar Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"
-                   HorizontalAlignment="Stretch" VerticalAlignment="Bottom"
-                   Height="25" Background="#F5F5F5">
-            <StatusBarItem>
-                <TextBlock Text="{Binding StatusMessage}" FontSize="12"/>
-            </StatusBarItem>
-            <StatusBarItem HorizontalAlignment="Right">
-                <ProgressBar IsIndeterminate="{Binding IsBusy}" 
-                             Width="100" Height="15" 
-                             Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-            </StatusBarItem>
-        </StatusBar>
+        <!-- Status bar removed -->
     </Grid>
 </Window>
