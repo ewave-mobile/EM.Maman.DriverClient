@@ -11,14 +11,17 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using Task = System.Threading.Tasks.Task;
 
 namespace EM.Maman.DriverClient.ViewModels
 {
     public class ManualInputViewModel : INotifyPropertyChanged
     {
         private readonly IUnitOfWorkFactory _unitOfWorkFactory;
+        private readonly int _currentFingerId; // Added
         private TaskDetails _taskDetails;
         private bool _isImportSelected = true;
         private string _importManifest;
@@ -32,8 +35,8 @@ namespace EM.Maman.DriverClient.ViewModels
         private string _exportAwbAppearance;
         private string _exportAwbStorage;
         private ObservableCollection<Finger> _fingers;
-        private Finger _selectedSourceFinger;
-        private Finger _selectedDestinationFinger;
+        // private Finger _selectedSourceFinger; // Removed
+        // private Finger _selectedDestinationFinger; // Removed
         private bool _isBusy;
         private string _statusMessage;
         private RelayCommand _saveCommand;
@@ -218,41 +221,7 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
-        public Finger SelectedSourceFinger
-        {
-            get => _selectedSourceFinger;
-            set
-            {
-                if (_selectedSourceFinger != value)
-                {
-                    _selectedSourceFinger = value;
-                    if (TaskDetails != null)
-                    {
-                        TaskDetails.SourceFinger = value;
-                    }
-                    OnPropertyChanged();
-                    (_saveCommand as RelayCommand)?.RaiseCanExecuteChanged();
-                }
-            }
-        }
-
-        public Finger SelectedDestinationFinger
-        {
-            get => _selectedDestinationFinger;
-            set
-            {
-                if (_selectedDestinationFinger != value)
-                {
-                    _selectedDestinationFinger = value;
-                    if (TaskDetails != null)
-                    {
-                        TaskDetails.DestinationFinger = value;
-                    }
-                    OnPropertyChanged();
-                    (_saveCommand as RelayCommand)?.RaiseCanExecuteChanged();
-                }
-            }
-        }
+      
 
         public bool IsBusy
         {
@@ -289,32 +258,31 @@ namespace EM.Maman.DriverClient.ViewModels
         // Event for dialog result
         public event EventHandler<DialogResultEventArgs> RequestClose;
 
-        public ManualInputViewModel(IUnitOfWork unitOfWork)
+        public ManualInputViewModel(IUnitOfWorkFactory unitOfWorkFactory, int currentFingerId)
         {
-            // Get the UnitOfWorkFactory from the App's ServiceProvider
-            _unitOfWorkFactory = (App.Current as App)?.ServiceProvider.GetRequiredService<IUnitOfWorkFactory>();
-            if (_unitOfWorkFactory == null)
+            _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
+            _currentFingerId = currentFingerId;
+
+            if (_currentFingerId <= 0)
             {
-                throw new InvalidOperationException("Could not resolve IUnitOfWorkFactory from ServiceProvider");
+                throw new ArgumentException("Valid Current Finger ID must be provided.", nameof(currentFingerId));
             }
 
-            Fingers = new ObservableCollection<Finger>();
+            Fingers = new ObservableCollection<Finger>(); // Kept for potential other uses
 
-            // Initialize a new task details object
             TaskDetails = new TaskDetails
             {
-                TaskType = Models.Enums.TaskType.Storage, // Always set to Storage
-                Status = Models.Enums.TaskStatus.Created,
+                TaskType = Models.Enums.TaskType.Storage, // Explicitly Storage
+                Status = Models.Enums.TaskStatus.Created, // New Status
                 CreatedDateTime = DateTime.Now,
                 Code = GenerateTaskCode(),
-                // Set ReportType to HND
-                // This will be set in the Pallet object
+                SourceFingerId = _currentFingerId // Set SourceFingerId (int?)
             };
         }
 
         public async System.Threading.Tasks.Task InitializeAsync()
         {
-            await LoadFingersAsync();
+            await LoadFingersAsync(); // Kept in case Fingers collection is used elsewhere
         }
 
         private string GenerateTaskCode()
@@ -324,25 +292,29 @@ namespace EM.Maman.DriverClient.ViewModels
             return $"{prefix}-{DateTime.Now:yyMMdd}-{new Random().Next(1000, 9999)}";
         }
 
-        private async System.Threading.Tasks.Task LoadFingersAsync()
+        private async Task LoadFingersAsync()
         {
             try
             {
                 IsBusy = true;
-                StatusMessage = "Loading fingers...";
-
-                // Create a new UnitOfWork instance for this operation
+                StatusMessage = "Loading finger information..."; // General message
                 using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
                 {
-                    var fingersFromDb = await unitOfWork.Fingers.GetAllAsync(); // Fetch from DB
+                    var fingersFromDb = await unitOfWork.Fingers.GetAllAsync();
                     Fingers = new ObservableCollection<Finger>(fingersFromDb.OrderBy(f => f.Position));
-                    StatusMessage = $"Loaded {Fingers.Count} fingers.";
+                    // Optionally, find and set a SourceFinger object if needed for display, but ID is primary
+                    var currentFinger = Fingers.FirstOrDefault(f => f.Id == _currentFingerId);
+                    if (currentFinger != null && TaskDetails != null)
+                    {
+                        TaskDetails.SourceFinger = currentFinger; // For display on sticker if needed
+                    }
+                    StatusMessage = $"Finger information loaded.";
                 }
             }
             catch (Exception ex)
             {
-                StatusMessage = "Error loading fingers.";
-                MessageBox.Show($"Error loading fingers: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                StatusMessage = "Error loading finger data.";
+                MessageBox.Show($"Error loading finger data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -350,76 +322,134 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
-        private void UpdateTaskDetails()
+        private async Task<long?> GetRandomAvailableCellIdAsync() // Return type changed to long?
         {
-            // Update the task code based on the selected type
-            TaskDetails.Code = GenerateTaskCode();
+            try
+            {
+                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                {
+                    var allCells = await unitOfWork.Cells.GetAllAsync();
+                    if (!allCells.Any())
+                    {
+                        StatusMessage = "No cells available in the system.";
+                        return null;
+                    }
+
+                    var palletsInCells = await unitOfWork.PalletInCells.GetAllAsync();
+                    var occupiedCellIds = palletsInCells.Select(pic => pic.CellId).ToHashSet();
+                    var availableCells = allCells.Where(c => !occupiedCellIds.Contains(c.Id)).ToList();
+
+                    if (!availableCells.Any())
+                    {
+                        StatusMessage = "No available cells for storage.";
+                        return null;
+                    }
+
+                    var random = new Random();
+                    int randomIndex = random.Next(availableCells.Count);
+                    return availableCells[randomIndex].Id; // Cell.Id is long
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = "Error finding an available cell.";
+                MessageBox.Show($"Error finding cell: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return null;
+            }
         }
 
-        private void Save()
+
+        private void UpdateTaskDetails()
         {
-            // Validate essential details before closing
+            TaskDetails.Code = GenerateTaskCode(); // Code generation depends on IsImportSelected
+            TaskDetails.Pallet = CreatePalletFromInput(); // Pallet's UpdateType depends on IsImportSelected
+        }
+
+        private async void Save()
+        {
+            IsBusy = true;
+            StatusMessage = "Saving task...";
+
             if (TaskDetails == null || string.IsNullOrWhiteSpace(TaskDetails.Code))
             {
                 StatusMessage = "Task code is required.";
+                IsBusy = false;
+                return;
+            }
+             if (_currentFingerId <= 0)
+            {
+                StatusMessage = "Valid source finger not identified.";
+                IsBusy = false;
                 return;
             }
 
+
             if (IsImportSelected)
             {
-                // Validate import fields
-                if (string.IsNullOrWhiteSpace(ImportUnit))
+                if (string.IsNullOrWhiteSpace(ImportUnit) || string.IsNullOrWhiteSpace(ImportManifest) || string.IsNullOrWhiteSpace(ImportAppearance))
                 {
-                    StatusMessage = "Import Unit (פרט) is required.";
-                    return;
-                }
-
-                if (SelectedSourceFinger == null)
-                {
-                    StatusMessage = "Source Finger must be selected.";
+                    StatusMessage = "Import Manifest, Unit, and Appearance are required.";
+                    IsBusy = false;
                     return;
                 }
             }
-            else
+            else // Export selected (data entry mode)
             {
-                // Validate export fields
-                if (string.IsNullOrWhiteSpace(ExportAwbNumber))
+                if (string.IsNullOrWhiteSpace(ExportAwbNumber) || string.IsNullOrWhiteSpace(ExportSwbPrefix))
                 {
-                    StatusMessage = "Export AWB Number (שטר מטען) is required.";
-                    return;
-                }
-
-                if (SelectedDestinationFinger == null)
-                {
-                    StatusMessage = "Destination Finger must be selected.";
+                    StatusMessage = "Export AWB Number and SWB Prefix are required.";
+                    IsBusy = false;
                     return;
                 }
             }
+            
+            TaskDetails.Pallet = CreatePalletFromInput(); // Ensure pallet is up-to-date
+            TaskDetails.TaskType = Models.Enums.TaskType.Storage; // Explicitly Storage
+            TaskDetails.Status = Models.Enums.TaskStatus.Created; // New Status
+            
+            // SourceFingerId is already set in constructor via TaskDetails.SourceFingerId
+            // TaskDetails.SourceFingerId = _currentFingerId; // This is int?
 
-            // Create/Update Pallet object within TaskDetails
-            TaskDetails.Pallet = CreatePalletFromInput();
+            var randomDestinationCellId = await GetRandomAvailableCellIdAsync(); // This is long?
+            if (randomDestinationCellId == null || randomDestinationCellId.Value <= 0)
+            {
+                // StatusMessage already set by GetRandomAvailableCellIdAsync
+                IsBusy = false;
+                return;
+            }
+            TaskDetails.DestinationCellId = randomDestinationCellId.Value; // This is long?
 
-            // Assign the selected finger
-            if (IsImportSelected)
+            // For TaskDetails.Name, try to get DisplayNames
+            string sourceFingerName = _currentFingerId.ToString();
+            if (TaskDetails.SourceFinger != null) // If SourceFinger object was loaded
             {
-                TaskDetails.SourceFinger = SelectedSourceFinger;
+                sourceFingerName = TaskDetails.SourceFinger.DisplayName;
             }
-            else
+            else // Attempt to load it if only ID is present
             {
-                TaskDetails.DestinationFinger = SelectedDestinationFinger;
-            }
-
-            // Set a descriptive name
-            if (IsImportSelected)
-            {
-                TaskDetails.Name = $"Import {ImportUnit} from {TaskDetails.SourceFinger?.DisplayName ?? "N/A"}";
-            }
-            else
-            {
-                TaskDetails.Name = $"Export {ExportAwbNumber} to {TaskDetails.DestinationFinger?.DisplayName ?? "N/A"}";
+                using (var uow = _unitOfWorkFactory.CreateUnitOfWork())
+                {
+                    var finger = await uow.Fingers.GetByIdAsync(_currentFingerId);
+                    if (finger != null) sourceFingerName = finger.DisplayName;
+                }
             }
 
-            // Close the dialog, indicating success
+            string destinationCellName = randomDestinationCellId.Value.ToString();
+            using (var uow = _unitOfWorkFactory.CreateUnitOfWork())
+            {
+                var cell = await uow.Cells.GetByIdAsync(randomDestinationCellId.Value);
+                if (cell != null)
+                {
+                    destinationCellName = cell.DisplayName;
+                    TaskDetails.DestinationCell = cell; // Also set the object if needed later
+                }
+            }
+            
+            string palletIdentifier = IsImportSelected ? $"{ImportManifest}-{ImportUnit}-{ImportAppearance}" : $"{ExportSwbPrefix}-{ExportAwbNumber}";
+            TaskDetails.Name = $"Manual Storage for {palletIdentifier} from Finger {sourceFingerName} to Cell {destinationCellName}";
+
+            IsBusy = false;
+            StatusMessage = "Task details prepared.";
             RequestClose?.Invoke(this, new DialogResultEventArgs(true));
         }
 
@@ -469,11 +499,12 @@ namespace EM.Maman.DriverClient.ViewModels
 
             if (IsImportSelected)
             {
-                return !string.IsNullOrWhiteSpace(ImportUnit) && SelectedSourceFinger != null;
+                // Only need pallet identifying fields now
+                return !string.IsNullOrWhiteSpace(ImportUnit) && !string.IsNullOrWhiteSpace(ImportManifest) && !string.IsNullOrWhiteSpace(ImportAppearance) && _currentFingerId > 0;
             }
-            else
+            else // Export data entry mode
             {
-                return !string.IsNullOrWhiteSpace(ExportAwbNumber) && SelectedDestinationFinger != null;
+                return !string.IsNullOrWhiteSpace(ExportAwbNumber) && !string.IsNullOrWhiteSpace(ExportSwbPrefix) && _currentFingerId > 0;
             }
         }
 

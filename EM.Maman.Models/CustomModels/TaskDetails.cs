@@ -27,6 +27,8 @@ namespace EM.Maman.Models.CustomModels
         private Finger _destinationFinger;
         private Pallet _pallet;
         private Cell _destinationCell;
+        public int? SourceFingerId { get; set; } // Added for explicit ID storage
+        public long? DestinationCellId { get; set; } // Added for explicit ID storage
         private int _userId;
         private string _operatorNotes;
         private bool _isPriority;
@@ -330,22 +332,25 @@ namespace EM.Maman.Models.CustomModels
                 Name = task.Name,
                 Description = task.Description,
                 TaskType = task.TaskTypeId == 1 ? Enums.TaskType.Retrieval : Enums.TaskType.Storage,
-                // Use the Status property if available, otherwise fallback to IsExecuted
                 Status = task.Status.HasValue 
                     ? (Enums.TaskStatus)task.Status.Value 
                     : (task.IsExecuted == true ? Enums.TaskStatus.Completed : Enums.TaskStatus.Created),
                 CreatedDateTime = task.DownloadDate ?? DateTime.Now,
                 ExecutedDateTime = task.ExecutedDate,
-                SourceFinger = sourceFinger,
-                DestinationFinger = destFinger,
-                Pallet = pallet,
-                DestinationCell = destCell,
+                SourceFinger = sourceFinger, // Keep for object reference
+                SourceFingerId = task.FingerLocationId.HasValue ? (int)task.FingerLocationId.Value : (int?)null, // Populate ID
+                DestinationFinger = destFinger, // Keep for object reference
+                Pallet = pallet, // This pallet is already fetched based on task.PalletId if it was a string before
+                DestinationCell = destCell, // Keep for object reference
+                DestinationCellId = task.CellEndLocationId, // Populate ID
                 IsUploaded = task.IsUploaded ?? false,
-                // Use the ActiveTaskStatus property if available, otherwise default to retrieval
-                ActiveTaskStatus = task.ActiveTaskStatus.HasValue 
-                    ? (Enums.ActiveTaskStatus)task.ActiveTaskStatus.Value 
-                    : Enums.ActiveTaskStatus.retrieval,
+                ActiveTaskStatus = task.ActiveTaskStatus.HasValue
+                    ? (Enums.ActiveTaskStatus)task.ActiveTaskStatus.Value
+                    : Enums.ActiveTaskStatus.retrieval, // Default might need review based on context
             };
+            // If task.PalletId is now int?, and Pallet object is not pre-fetched,
+            // we might need to adjust pallet loading logic elsewhere or ensure Pallet is passed correctly.
+            // For now, assuming 'pallet' parameter is correctly supplied based on the new int? PalletId.
 
             return details;
         }
@@ -362,9 +367,9 @@ namespace EM.Maman.Models.CustomModels
                 IsExecuted = Status == Enums.TaskStatus.Completed,
                 DownloadDate = CreatedDateTime,
                 ExecutedDate = ExecutedDateTime,
-                FingerLocationId = SourceFinger?.Id,
-                CellEndLocationId = DestinationCell?.Id,
-                PalletId = Pallet?.Id.ToString(),
+                FingerLocationId = SourceFingerId.HasValue ? (long?)SourceFingerId.Value : SourceFinger?.Id, // Prioritize ID if set
+                CellEndLocationId = DestinationCellId ?? DestinationCell?.Id, // Prioritize ID if set
+                PalletId = Pallet?.Id, // Assign int? directly
                 IsUploaded = IsUploaded,
                 Status = (int)Status,
                 ActiveTaskStatus = (int)ActiveTaskStatus

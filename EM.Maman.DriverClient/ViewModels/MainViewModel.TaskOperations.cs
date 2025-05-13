@@ -246,11 +246,34 @@ namespace EM.Maman.DriverClient.ViewModels
 
             try
             {
-                var dialog = (App.Current as App)?.ServiceProvider.GetRequiredService<ManualInputDialog>();
-
+                // Get the current finger ID
+                int currentFingerId = 0;
+                
+                if (_currentFingerPositionValue.HasValue)
+                {
+                    using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                    {
+                        var finger = (await unitOfWork.Fingers.FindAsync(f => f.Position == _currentFingerPositionValue.Value)).FirstOrDefault();
+                        if (finger != null)
+                        {
+                            currentFingerId = (int)finger.Id;
+                        }
+                    }
+                }
+                
+                if (currentFingerId <= 0)
+                {
+                    _logger.LogWarning("Cannot create task: No valid finger ID found at current position.");
+                    MessageBox.Show("Cannot create task: No valid finger location detected.", 
+                        "Invalid Location", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                
+                var dialog = new ManualInputDialog(_unitOfWorkFactory, currentFingerId);
+                
                 if (dialog == null)
                 {
-                    _logger.LogError("Failed to resolve ManualInputDialog from service provider");
+                    _logger.LogError("Failed to create ManualInputDialog");
                     return;
                 }
 

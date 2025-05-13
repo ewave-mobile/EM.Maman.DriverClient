@@ -22,7 +22,7 @@ namespace EM.Maman.DAL.Repositories
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<Models.LocalDbModels.Task>> GetTasksByPalletIdAsync(string palletId)
+        public async Task<IEnumerable<Models.LocalDbModels.Task>> GetTasksByPalletIdAsync(int palletId)
         {
             return await Context.Tasks
                 .Where(t => t.PalletId == palletId)

@@ -72,24 +72,23 @@ namespace EM.Maman.DriverClient.ViewModels
                     foreach (var task in dbTasks)
                     {
                         Pallet pallet = null;
-                        if (!string.IsNullOrEmpty(task.PalletId))
-                        {
+                        
                             // Try to parse task.PalletId as integer to match Pallet.Id
-                            int palletId;
-                            if (int.TryParse(task.PalletId, out palletId))
+                            
+                            if (task.PalletId != null)
                             {
                                 // Search by Pallet.Id instead of UldCode
-                                pallet = (await unitOfWork.Pallets.FindAsync(p => p.Id == palletId)).FirstOrDefault();
+                                pallet = (await unitOfWork.Pallets.FindAsync(p => p.Id == task.PalletId)).FirstOrDefault();
                                 if (pallet == null)
                                 {
-                                    _logger.LogWarning("Could not find Pallet with Id {PalletId} for Task {TaskId}", palletId, task.Id);
+                                    _logger.LogWarning("Could not find Pallet with Id {PalletId} for Task {TaskId}", task.PalletId, task.Id);
                                 }
                             }
                             else
                             {
                                 _logger.LogWarning("Could not parse PalletId {PalletId} to integer for Task {TaskId}", task.PalletId, task.Id);
                             }
-                        }
+                        
 
                         if (pallet != null)
                         {

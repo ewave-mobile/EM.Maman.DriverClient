@@ -480,25 +480,15 @@ namespace EM.Maman.DriverClient.ViewModels
                     var tasks = new ObservableCollection<TaskDetails>();
                     foreach (var task in dbTasks)
                     {
-                        // Fetch Pallet separately based on string PalletId (likely UldCode)
+                        // Fetch Pallet separately based on the new int? PalletId
                         Pallet pallet = null;
-                        if (!string.IsNullOrEmpty(task.PalletId))
+                        if (task.PalletId.HasValue)
                         {
-                            // Try to parse PalletId as integer to match Pallet.Id
-                            int palletId;
-                            if (int.TryParse(task.PalletId, out palletId))
+                            var foundPallets = await unitOfWork.Pallets.FindAsync(p => p.Id == task.PalletId.Value);
+                            pallet = foundPallets.FirstOrDefault();
+                            if (pallet == null)
                             {
-                                // Search by Pallet.Id instead of UldCode
-                                var foundPallets = await unitOfWork.Pallets.FindAsync(p => p.Id == palletId);
-                                pallet = foundPallets.FirstOrDefault();
-                                if (pallet == null)
-                                {
-                                    _logger.LogWarning("Could not find Pallet with Id {PalletId} for Task {TaskId}", palletId, task.Id);
-                                }
-                            }
-                            else
-                            {
-                                _logger.LogWarning("Could not parse PalletId {PalletId} to integer for Task {TaskId}", task.PalletId, task.Id);
+                                _logger.LogWarning("Could not find Pallet with Id {PalletId} for Task {TaskId}", task.PalletId.Value, task.Id);
                             }
                         }
 
@@ -564,29 +554,36 @@ namespace EM.Maman.DriverClient.ViewModels
                         {
                             // Get the pallet for this task
                             Pallet pallet = null;
-                            if (task.Pallet != null)
+                            if (task.Pallet != null) // This refers to TaskDetails.Pallet
                             {
                                 pallet = task.Pallet;
                             }
-                            else if (!string.IsNullOrEmpty(task.Code))
+                            // If task.Pallet is null, we need to fetch it based on task.Id (which is TaskDetails.Id)
+                            // and its associated PalletId from the database if not already done.
+                            // However, the ongoingTasks are derived from 'Tasks' collection which should have Pallet populated by LoadTasksAsync.
+                            // If task.PalletId (from DB) was used in FromDbModel to populate TaskDetails.Pallet, this should be fine.
+
+                            // Let's re-verify pallet fetching for ongoing tasks if task.Pallet is null
+                            if (pallet == null && task.Id > 0) // task.Id here is TaskDetails.Id
                             {
-                                // Try to parse task.Code as integer to match Pallet.Id
-                                int palletId;
-                                if (int.TryParse(task.Code, out palletId))
+                                // Find the original DB task to get its PalletId
+                                var originalDbTask = await unitOfWork.Tasks.GetByIdAsync(task.Id);
+                                if (originalDbTask != null && originalDbTask.PalletId.HasValue)
                                 {
-                                    // Search by Pallet.Id instead of UldCode
-                                    var foundPallets = await unitOfWork.Pallets.FindAsync(p => p.Id == palletId);
+                                    var foundPallets = await unitOfWork.Pallets.FindAsync(p => p.Id == originalDbTask.PalletId.Value);
                                     pallet = foundPallets.FirstOrDefault();
                                     if (pallet == null)
                                     {
-                                        _logger.LogWarning("Could not find Pallet with Id {PalletId} for Task {TaskId}", palletId, task.Id);
+                                        _logger.LogWarning("Could not find Pallet with Id {PalletId} for ongoing Task {TaskId}", originalDbTask.PalletId.Value, task.Id);
+                                    }
+                                    else
+                                    {
+                                        // Optionally update the task.Pallet in the ongoingTasks collection
+                                        task.Pallet = pallet;
                                     }
                                 }
-                                else
-                                {
-                                    _logger.LogWarning("Could not parse Code {Code} to integer for Task {TaskId}", task.Code, task.Id);
-                                }
                             }
+
 
                             if (pallet != null)
                             {
@@ -815,7 +812,61 @@ namespace EM.Maman.DriverClient.ViewModels
                 // Create a new UnitOfWork instance for this operation
                 using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
                 {
+                    // For new import tasks, create the pallet first if it doesn't exist
+                    if (taskDetails.IsImportTask && taskDetails.Pallet != null && taskDetails.Pallet.Id == 0)
+                    {
+                        _logger.LogInformation("Creating new pallet for import task: {PalletDisplayName}", taskDetails.Pallet.DisplayName);
+                        var newPallet = new Pallet
+                        {
+                            DisplayName = taskDetails.Pallet.DisplayName,
+                            Description = taskDetails.Pallet.Description,
+                            UldCode = taskDetails.Pallet.UldCode, // Assuming UldCode is set from dialog
+                            AwbCode = taskDetails.Pallet.AwbCode,
+                            ReceivedDate = DateTime.Now, // Set current date or from dialog
+                            LastModifiedDate = DateTime.Now,
+                            CargoType = taskDetails.Pallet.CargoType,
+                            HeightType = taskDetails.Pallet.HeightType,
+                            StorageType = taskDetails.Pallet.StorageType,
+                            ReportType = taskDetails.Pallet.ReportType,
+                            RefrigerationType = taskDetails.Pallet.RefrigerationType,
+                            IsCheckedOut = taskDetails.Pallet.IsCheckedOut,
+                            CheckedOutDate = taskDetails.Pallet.CheckedOutDate,
+                            LocationId = taskDetails.Pallet.LocationId,
+                            IsSecure = taskDetails.Pallet.IsSecure,
+
+                            UpdateType = taskDetails.Pallet.UpdateType,
+       
+                            CargoHeight = taskDetails.Pallet.CargoHeight,
+
+                            ImportManifest = taskDetails.Pallet.ImportManifest,
+                            ImportUnit = taskDetails.Pallet.ImportUnit,
+                            ImportAppearance = taskDetails.Pallet.ImportAppearance,
+                            ExportSwbPrefix = taskDetails.Pallet.ExportSwbPrefix,
+                            ExportAwbNumber = taskDetails.Pallet.ExportAwbNumber,
+                            ExportAwbAppearance = taskDetails.Pallet.ExportAwbAppearance,
+                            ExportAwbStorage = taskDetails.Pallet.ExportAwbStorage,
+                            ExportBarcode = taskDetails.Pallet.ExportBarcode,
+                            UldType = taskDetails.Pallet.UldType,
+                            UldNumber = taskDetails.Pallet.UldNumber,
+                            UldAirline = taskDetails.Pallet.UldAirline
+                        };
+                        await unitOfWork.Pallets.AddAsync(newPallet);
+                        await unitOfWork.CompleteAsync(); // Save pallet to get its ID
+                        taskDetails.Pallet.Id = newPallet.Id; // Update TaskDetails with the new Pallet ID
+                        _logger.LogInformation("New pallet created with ID: {PalletId}", newPallet.Id);
+                    }
+
                     var dbTask = taskDetails.ToDbModel();
+
+                    // Truncate the Name field if it exceeds 100 characters
+                    if (dbTask.Name != null && dbTask.Name.Length > 100)
+                    {
+                        dbTask.Name = dbTask.Name.Substring(0, 100);
+                        _logger.LogWarning("Task name truncated to 100 characters: {OriginalName}", taskDetails.Name);
+                        
+                        // Also update the display model to keep them in sync
+                        taskDetails.Name = dbTask.Name;
+                    }
 
                     if (dbTask.Id == 0)
                     {

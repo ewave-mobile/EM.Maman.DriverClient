@@ -12,10 +12,10 @@ namespace EM.Maman.DriverClient
     {
         private readonly ManualInputViewModel _viewModel;
 
-        public ManualInputDialog(IUnitOfWork unitOfWork)
+        public ManualInputDialog(IUnitOfWorkFactory unitOfWorkFactory, int currentFingerId)
         {
             InitializeComponent();
-            _viewModel = new ManualInputViewModel(unitOfWork);
+            _viewModel = new ManualInputViewModel(unitOfWorkFactory, currentFingerId);
             DataContext = _viewModel;
 
             // Subscribe to the RequestClose event

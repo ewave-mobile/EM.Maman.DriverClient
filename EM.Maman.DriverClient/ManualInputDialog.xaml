@@ -8,11 +8,13 @@
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters"
         xmlns:controls="clr-namespace:EM.Maman.DriverClient.Controls"
+        xmlns:System="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         Title="הזנה ידנית" Height="600" Width="700"
         WindowStartupLocation="CenterOwner"
         Background="White"
         FlowDirection="RightToLeft"
+        xmlns:models="clr-namespace:EM.Maman.Models.Enums;assembly=EM.Maman.Models"
         d:DataContext="{d:DesignInstance Type=vm:ManualInputViewModel}">
 
     <Window.Resources>
@@ -21,6 +23,26 @@
             <converters:BoolToBackgroundConverter x:Key="BoolToBackgroundConverter" />
             <converters:BoolToBorderBrushConverter x:Key="BoolToBorderBrushConverter" />
             <converters:BoolToPreviewTitleConverter x:Key="BoolToPreviewTitleConverter" />
+            <converters:EnumDisplayConverter x:Key="EnumDisplayConverter" />
+            
+            <!-- Enum values for comboboxes -->
+            <ObjectDataProvider x:Key="StorageTypeValues" MethodName="GetValues" ObjectType="{x:Type System:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="models:StorageTypeEnum"/>
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
+            
+            <ObjectDataProvider x:Key="CargoTypeValues" MethodName="GetValues" ObjectType="{x:Type System:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="models:CargoType"/>
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
+            
+            <ObjectDataProvider x:Key="HeightTypeValues" MethodName="GetValues" ObjectType="{x:Type System:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="models:HeightType"/>
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
             <Style x:Key="BoxyTextBoxStyle" TargetType="TextBox">
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="BorderBrush" Value="Gray"/>
@@ -165,39 +187,46 @@
             <TextBlock Grid.Row="3" Grid.Column="0" Text="סוג אחסון:" 
                        VerticalAlignment="Center" Margin="0,0,10,10"/>
             <ComboBox Grid.Row="3" Grid.Column="1" 
-                      SelectedItem="{Binding SelectedStorageType}" Height="28"
+                      ItemsSource="{Binding Source={StaticResource StorageTypeValues}}"
+                      SelectedItem="{Binding SelectedStorageType, Mode=TwoWay}"
+                      Height="28"
                       Margin="0,0,0,10">
-                <ComboBoxItem Content="רגיל" Tag="REG"/>
-                <ComboBoxItem Content="קירור" Tag="FRZ"/>
-                <ComboBoxItem Content="פארמה" Tag="PHARMA"/>
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Converter={StaticResource EnumDisplayConverter}}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
             </ComboBox>
 
             <TextBlock Grid.Row="4" Grid.Column="0" Text="סוג מטען:" 
                        VerticalAlignment="Center" Margin="0,0,10,10"/>
             <ComboBox Grid.Row="4" Grid.Column="1" 
-                      SelectedItem="{Binding SelectedCargoType}" Height="28"
+                      ItemsSource="{Binding Source={StaticResource CargoTypeValues}}"
+                      SelectedItem="{Binding SelectedCargoType, Mode=TwoWay}"
+                      Height="28"
                       Margin="0,0,0,10">
-                <ComboBoxItem Content="ULD" Tag="ULD"/>
-                <ComboBoxItem Content="AWB" Tag="AWB"/>
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Converter={StaticResource EnumDisplayConverter}}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
             </ComboBox>
 
             <TextBlock Grid.Row="5" Grid.Column="0" Text="גובה:" 
                        VerticalAlignment="Center" Margin="0,0,10,10"/>
             <ComboBox Grid.Row="5" Grid.Column="1" 
-                      SelectedItem="{Binding SelectedHeightType}" Height="28"
+                      ItemsSource="{Binding Source={StaticResource HeightTypeValues}}"
+                      SelectedItem="{Binding SelectedHeightType, Mode=TwoWay}"
+                      Height="28"
                       Margin="0,0,0,10">
-                <ComboBoxItem Content="נמוך" Tag="LOW"/>
-                <ComboBoxItem Content="בינוני" Tag="MED"/>
-                <ComboBoxItem Content="גבוה" Tag="HIGH"/>
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Converter={StaticResource EnumDisplayConverter}}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
             </ComboBox>
 
-            <TextBlock Grid.Row="6" Grid.Column="0" Text="אצבע מקור:" 
-                       VerticalAlignment="Center" Margin="0,0,10,10"/>
-            <ComboBox Grid.Row="6" Grid.Column="1" 
-                      ItemsSource="{Binding Fingers}"
-                      SelectedItem="{Binding SelectedSourceFinger}"
-                      DisplayMemberPath="DisplayName" Height="28"
-                      Margin="0,0,0,10"/>
+            <!-- Finger selection removed -->
         </Grid>
 
         <!-- Export Content -->
@@ -244,29 +273,32 @@
             <TextBlock Grid.Row="3" Grid.Column="0" Text="סוג מטען:" 
                        VerticalAlignment="Center" Margin="0,0,10,10"/>
             <ComboBox Grid.Row="3" Grid.Column="1" 
-                      SelectedItem="{Binding SelectedCargoType}" Height="28"
+                      ItemsSource="{Binding Source={StaticResource CargoTypeValues}}"
+                      SelectedItem="{Binding SelectedCargoType, Mode=TwoWay}"
+                      Height="28"
                       Margin="0,0,0,10">
-                <ComboBoxItem Content="ULD" Tag="ULD"/>
-                <ComboBoxItem Content="AWB" Tag="AWB"/>
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Converter={StaticResource EnumDisplayConverter}}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
             </ComboBox>
 
             <TextBlock Grid.Row="4" Grid.Column="0" Text="גובה:" 
                        VerticalAlignment="Center" Margin="0,0,10,10"/>
             <ComboBox Grid.Row="4" Grid.Column="1" 
-                      SelectedItem="{Binding SelectedHeightType}" Height="28"
+                      ItemsSource="{Binding Source={StaticResource HeightTypeValues}}"
+                      SelectedItem="{Binding SelectedHeightType, Mode=TwoWay}"
+                      Height="28"
                       Margin="0,0,0,10">
-                <ComboBoxItem Content="נמוך" Tag="LOW"/>
-                <ComboBoxItem Content="בינוני" Tag="MED"/>
-                <ComboBoxItem Content="גבוה" Tag="HIGH"/>
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Converter={StaticResource EnumDisplayConverter}}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
             </ComboBox>
 
-            <TextBlock Grid.Row="5" Grid.Column="0" Text="אצבע יעד:" 
-                       VerticalAlignment="Center" Margin="0,0,10,10"/>
-            <ComboBox Grid.Row="5" Grid.Column="1" 
-                      ItemsSource="{Binding Fingers}"
-                      SelectedItem="{Binding SelectedDestinationFinger}"
-                      DisplayMemberPath="DisplayName" Height="28"
-                      Margin="0,0,0,10"/>
+            <!-- Finger selection removed -->
         </Grid>
 
         <!-- Sticker preview - Right side -->

@@ -10,7 +10,7 @@ namespace EM.Maman.Models.Interfaces.Repositories
     public interface ITaskRepository : IRepository<LocalDbModels.Task>
     {
         Task<IEnumerable<LocalDbModels.Task>> GetPendingTasksAsync();
-        Task<IEnumerable<LocalDbModels.Task>> GetTasksByPalletIdAsync(string palletId);
+        Task<IEnumerable<LocalDbModels.Task>> GetTasksByPalletIdAsync(int palletId);
         Task<LocalDbModels.Task> GetTaskWithDetailsAsync(int taskId);
     }
 }

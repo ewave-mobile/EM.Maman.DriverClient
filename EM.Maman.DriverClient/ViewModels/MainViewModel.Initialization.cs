@@ -19,11 +19,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 ConnectionStatus = "Connecting";
                 OnPropertyChanged(nameof(ConnectionStatus));
 
-                // Ensure trolley exists in database
-                await EnsureTrolleyExistsAsync();
 
-                // Update existing tasks to match the new TaskType values
-                await UpdateExistingTaskTypesAsync();
 
                 // Initialize OPC VM first (as it might provide data needed by others)
                 _logger.LogInformation("Initializing OpcVM...");
@@ -106,80 +102,6 @@ namespace EM.Maman.DriverClient.ViewModels
             {
                 _logger.LogError(ex, "Error updating existing task types");
                 MessageBox.Show($"Error updating task types: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        /// <summary>
-        /// Ensures that the trolley exists in the database, creating it if necessary.
-        /// </summary>
-        private async Task EnsureTrolleyExistsAsync()
-        {
-            try
-            {
-                _logger.LogInformation("Ensuring trolley exists in database...");
-                
-                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
-                {
-                    // Check if trolley with default ID exists
-                    var existingTrolley = await unitOfWork.Trolleys.GetByIdAsync(EM.Maman.Common.Constants.TrolleyConstants.DefaultTrolleyId);
-                    
-                    if (existingTrolley == null)
-                    {
-                        // Create the trolley if it doesn't exist
-                        _logger.LogInformation("Trolley not found in database. Creating new trolley...");
-                        
-                        var newTrolley = new Models.LocalDbModels.Trolley 
-                        { 
-                            Id = EM.Maman.Common.Constants.TrolleyConstants.DefaultTrolleyId, 
-                            DisplayName = EM.Maman.Common.Constants.TrolleyConstants.DefaultTrolleyName, 
-                            Description = "Primary trolley for warehouse operations",
-                            Position = EM.Maman.Common.Constants.TrolleyConstants.DefaultTrolleyPosition,
-                            Capacity = EM.Maman.Common.Constants.TrolleyConstants.DefaultTrolleyCapacity
-                        };
-                        
-                        await unitOfWork.Trolleys.AddAsync(newTrolley);
-                        
-                        // Create the left and right cells
-                        var leftCell = new Models.LocalDbModels.TrolleyCell
-                        {
-                            TrolleyId = newTrolley.Id,
-                            Position = EM.Maman.Common.Constants.TrolleyConstants.LeftCellPosition
-                        };
-                        
-                        var rightCell = new Models.LocalDbModels.TrolleyCell
-                        {
-                            TrolleyId = newTrolley.Id,
-                            Position = EM.Maman.Common.Constants.TrolleyConstants.RightCellPosition
-                        };
-                        
-                        await unitOfWork.TrolleyCells.AddAsync(leftCell);
-                        await unitOfWork.TrolleyCells.AddAsync(rightCell);
-                        
-                        await unitOfWork.CompleteAsync();
-                        
-                        _logger.LogInformation("Trolley created successfully with ID: {TrolleyId}", newTrolley.Id);
-                        
-                        // Update the current trolley reference
-                        CurrentTrolley = newTrolley;
-                    }
-                    else
-                    {
-                        // Use the existing trolley
-                        _logger.LogInformation("Found existing trolley with ID: {TrolleyId}", existingTrolley.Id);
-                        CurrentTrolley = existingTrolley;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error ensuring trolley exists in database");
-                // Create a default trolley in memory even if database operation fails
-                CurrentTrolley = new Models.LocalDbModels.Trolley 
-                { 
-                    Id = EM.Maman.Common.Constants.TrolleyConstants.DefaultTrolleyId, 
-                    DisplayName = EM.Maman.Common.Constants.TrolleyConstants.DefaultTrolleyName, 
-                    Position = EM.Maman.Common.Constants.TrolleyConstants.DefaultTrolleyPosition 
-                };
             }
         }
 

@@ -860,7 +860,7 @@ namespace EM.Maman.DriverClient
                     TaskTypeId = (int)EM.Maman.Models.Enums.TaskType.Retrieval,
                     CellEndLocationId = sourceCellForRetrieval1.Id, // Source for retrieval
                     FingerLocationId = destFingerForRetrieval1.Id,  // Destination for retrieval
-                    PalletId = palletForRetrieval1.UldCode ?? palletForRetrieval1.AwbCode ?? palletForRetrieval1.DisplayName, // Link by UldCode or AwbCode
+                    PalletId = palletForRetrieval1.Id,  // Link by UldCode or AwbCode
                     Status = (int?)EM.Maman.Models.Enums.TaskStatus.Created,
                     ActiveTaskStatus = (int?)EM.Maman.Models.Enums.ActiveTaskStatus.New // Changed to New and cast
                 });
@@ -885,7 +885,7 @@ namespace EM.Maman.DriverClient
                     TaskTypeId = (int)EM.Maman.Models.Enums.TaskType.Retrieval,
                     CellEndLocationId = sourceCellForRetrieval2.Id,
                     FingerLocationId = destFingerForRetrieval2.Id,
-                    PalletId = palletForRetrieval2.UldCode ?? palletForRetrieval2.AwbCode ?? palletForRetrieval2.DisplayName,
+                    PalletId = palletForRetrieval2.Id,
                     Status = (int?)EM.Maman.Models.Enums.TaskStatus.Created,
                     ActiveTaskStatus = (int?)EM.Maman.Models.Enums.ActiveTaskStatus.New // Changed to New and cast
                 });
@@ -911,7 +911,7 @@ namespace EM.Maman.DriverClient
                     TaskTypeId = (int)EM.Maman.Models.Enums.TaskType.Storage,
                     FingerLocationId = sourceFingerForStorage1.Id,  // Source for storage
                     CellEndLocationId = destCellForStorage1.Id,    // Destination for storage
-                    PalletId = palletForStorage1.AwbCode ?? palletForStorage1.UldCode ?? palletForStorage1.DisplayName,
+                    PalletId = palletForStorage1.Id,
                     Status = (int?)EM.Maman.Models.Enums.TaskStatus.Created,
                     ActiveTaskStatus = (int?)EM.Maman.Models.Enums.ActiveTaskStatus.New // Changed to New and cast
                 });
@@ -936,7 +936,7 @@ namespace EM.Maman.DriverClient
                     TaskTypeId = (int)EM.Maman.Models.Enums.TaskType.Storage,
                     FingerLocationId = sourceFingerForStorage2.Id,
                     CellEndLocationId = destCellForStorage2.Id,
-                    PalletId = palletForStorage2.AwbCode ?? palletForStorage2.UldCode ?? palletForStorage2.DisplayName,
+                    PalletId = palletForStorage2.Id,
                     Status = (int?)EM.Maman.Models.Enums.TaskStatus.Created,
                     ActiveTaskStatus = (int?)EM.Maman.Models.Enums.ActiveTaskStatus.New // Changed to New and cast
                 });

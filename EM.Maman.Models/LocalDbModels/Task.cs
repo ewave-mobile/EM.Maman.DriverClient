@@ -31,7 +31,7 @@ public partial class Task
 
     public long? FingerLocationId { get; set; }
 
-    public string PalletId { get; set; }
+    public int? PalletId { get; set; }
 
     public string Code { get; set; }
 
