@@ -255,9 +255,9 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <TextBox Grid.Column="0" Text="{Binding ExportSwbPrefix}" 
+                <TextBox Grid.Column="0" Text="{Binding ExportAwbNumber}" 
                          Width="100" Margin="0,0,10,0" Style="{StaticResource BoxyTextBoxStyle}"/>
-                <TextBox Grid.Column="1" Text="{Binding ExportAwbNumber}" Style="{StaticResource BoxyTextBoxStyle}"/>
+                <TextBox Grid.Column="1" Text="{Binding ExportSwbPrefix }" Style="{StaticResource BoxyTextBoxStyle}"/>
             </Grid>
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="מופע קליטה:" 

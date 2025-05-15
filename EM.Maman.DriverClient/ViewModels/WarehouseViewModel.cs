@@ -178,7 +178,7 @@ namespace EM.Maman.DriverClient.ViewModels
                     };
 
                     // Filter cells for this level
-                    var levelCells = allCells.Where(c => c.HeightLevel == level.Number).ToList();
+                    var levelCells = allCells.Where(c => c.Level == level.Number).ToList();
 
                     // Create rows for this level
                     for (int pos = 0; pos < 23; pos++)

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using EM.Maman.Models.CustomModels;
 using EM.Maman.Models.DisplayModels;
+using EM.Maman.Models.Enums; // Added for UpdateType
 using EM.Maman.Models.LocalDbModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -110,11 +111,26 @@ namespace EM.Maman.DriverClient.ViewModels
                         item.AuthenticateCommand = ShowAuthenticationDialogCommand;
                         PalletsToAuthenticate.Add(item);
                     }
-                    // Always set IsFingerAuthenticationViewActive to true when at a finger location,
-                    // regardless of whether there are pallets to authenticate
-                    IsFingerAuthenticationViewActive = true;
-                    _logger.LogInformation("Loaded {Count} pallets for authentication at finger {FingerId}.",
-                        PalletsToAuthenticate.Count, capturedFingerId);
+                    // Check if the finger for which these pallets were loaded (fingerPositionValue)
+                    // is still considered the current active finger by the MainViewModel.
+                    // _currentFingerPositionValue reflects the MainViewModel's latest understanding
+                    // of the trolley's finger location from OnPositionChanged.
+                    if (_currentFingerPositionValue == fingerPositionValue)
+                    {
+                        IsFingerAuthenticationViewActive = true;
+                        _logger.LogInformation("Loaded {Count} pallets for authentication at finger {FingerId} (Pos: {FingerPos}). View Active.",
+                            PalletsToAuthenticate.Count, capturedFingerId, fingerPositionValue);
+                    }
+                    else
+                    {
+                        // Trolley has moved on from this finger, or this finger was never fully "activated"
+                        // in MainViewModel's state. Do not activate the view.
+                        // The OnPositionChanged logic for the new location should handle visibility.
+                        _logger.LogInformation("Finger auth view for finger {FingerId} (Pos: {OriginalFingerPos}) not activated because current active finger is now {CurrentActiveFingerPos}.",
+                            capturedFingerId, fingerPositionValue, _currentFingerPositionValue);
+                        // Optionally, ensure it's false if there's any doubt, though OnPositionChanged should handle it.
+                        // IsFingerAuthenticationViewActive = false;
+                    }
                 });
             }
             catch (Exception ex)
@@ -160,7 +176,7 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
-        private async void ConfirmAuthentication(AuthenticationDialogViewModel dialogVM, PalletAuthenticationItem itemToAuth)
+        private async System.Threading.Tasks.Task ConfirmAuthentication(AuthenticationDialogViewModel dialogVM, PalletAuthenticationItem itemToAuth)
         {
             if (itemToAuth?.PalletDetails == null)
             {
@@ -168,12 +184,30 @@ namespace EM.Maman.DriverClient.ViewModels
                 return;
             }
 
-            if (string.Equals(dialogVM.EnteredUldCode?.Trim(), itemToAuth.PalletDetails.ImportUnit?.Trim(),
-                StringComparison.OrdinalIgnoreCase))
+            bool isAuthenticated = false;
+            string expectedIdentifierValue = "";
+            string identifierTypeForMessage = "Pallet ID";
+
+            if (itemToAuth.PalletDetails.UpdateType == UpdateType.Import)
             {
-                _logger.LogInformation("Authentication successful for Pallet ULD: {UldCode}",
-                    itemToAuth.PalletDetails.UldCode);
-                MessageBox.Show($"Pallet {itemToAuth.PalletDetails.UldCode} authenticated successfully!",
+                expectedIdentifierValue = itemToAuth.PalletDetails.ImportUnit?.Trim();
+                identifierTypeForMessage = "Pallet ID (Import Unit)";
+                isAuthenticated = string.Equals(dialogVM.EnteredUldCode?.Trim(), expectedIdentifierValue, StringComparison.OrdinalIgnoreCase);
+            }
+            else if (itemToAuth.PalletDetails.UpdateType == UpdateType.Export)
+            {
+                expectedIdentifierValue = itemToAuth.PalletDetails.ExportAwbNumber?.Trim();
+                identifierTypeForMessage = "AWB Number";
+                isAuthenticated = string.Equals(dialogVM.EnteredUldCode?.Trim(), expectedIdentifierValue, StringComparison.OrdinalIgnoreCase);
+            }
+            // else: Current logic assumes UpdateType will be one of these for authenticated items.
+            // If PalletDetails.UpdateType is null, isAuthenticated will remain false.
+
+            if (isAuthenticated)
+            {
+                _logger.LogInformation("Authentication successful for Pallet ULD: {UldCode} using {IdentifierType}: {EnteredCode}",
+                    itemToAuth.PalletDetails.UldCode, identifierTypeForMessage, dialogVM.EnteredUldCode);
+                MessageBox.Show($"Pallet {itemToAuth.PalletDetails.DisplayName ?? itemToAuth.PalletDetails.UldCode} authenticated successfully!",
                     "Success", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 _dispatcherService.Invoke(() => PalletsToAuthenticate.Remove(itemToAuth));
@@ -183,35 +217,35 @@ namespace EM.Maman.DriverClient.ViewModels
                 if (finger != null && pallet != null && TrolleyVM != null)
                 {
                     bool loaded = false;
-                    if (finger.Side == 0)
+                    if (finger.Side == 0) // Assuming 0 is Left
                     {
                         if (!TrolleyVM.LeftCell.IsOccupied)
                         {
-                            TrolleyVM.LoadPalletIntoLeftCell(pallet);
+                            await TrolleyOperationsVM.AddPalletToTrolleyLeftCellAsync(pallet);
                             _logger.LogInformation("Loaded authenticated pallet {UldCode} onto Left Trolley Cell.",
                                 pallet.UldCode);
                             loaded = true;
                         }
                         else if (!TrolleyVM.RightCell.IsOccupied)
                         {
-                            TrolleyVM.LoadPalletIntoRightCell(pallet);
+                            await TrolleyOperationsVM.AddPalletToTrolleyRightCellAsync(pallet);
                             _logger.LogInformation("Left Trolley Cell occupied. Loaded authenticated pallet {UldCode} onto Right Trolley Cell.",
                                 pallet.UldCode);
                             loaded = true;
                         }
                     }
-                    else
+                    else // Assuming non-0 is Right
                     {
                         if (!TrolleyVM.RightCell.IsOccupied)
                         {
-                            TrolleyVM.LoadPalletIntoRightCell(pallet);
+                            await TrolleyOperationsVM.AddPalletToTrolleyRightCellAsync(pallet);
                             _logger.LogInformation("Loaded authenticated pallet {UldCode} onto Right Trolley Cell.",
                                 pallet.UldCode);
                             loaded = true;
                         }
                         else if (!TrolleyVM.LeftCell.IsOccupied)
                         {
-                            TrolleyVM.LoadPalletIntoLeftCell(pallet);
+                            await TrolleyOperationsVM.AddPalletToTrolleyLeftCellAsync(pallet);
                             _logger.LogInformation("Right Trolley Cell occupied. Loaded authenticated pallet {UldCode} onto Left Trolley Cell.",
                                 pallet.UldCode);
                             loaded = true;
@@ -231,9 +265,9 @@ namespace EM.Maman.DriverClient.ViewModels
             }
             else
             {
-                _logger.LogWarning("Authentication failed for Pallet ULD: {UldCode}.",
-                    itemToAuth.PalletDetails.UldCode);
-                MessageBox.Show($"Authentication failed. Entered ID '{dialogVM.EnteredUldCode}' does not match.",
+                _logger.LogWarning("Authentication failed for Pallet ULD: {UldCode}. Entered: '{EnteredCode}', Expected {IdentifierType}: '{ExpectedValue}'",
+                    itemToAuth.PalletDetails.UldCode, dialogVM.EnteredUldCode, identifierTypeForMessage, expectedIdentifierValue);
+                MessageBox.Show($"Authentication failed. Entered ID '{dialogVM.EnteredUldCode}' does not match the expected {identifierTypeForMessage}.",
                     "Authentication Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }

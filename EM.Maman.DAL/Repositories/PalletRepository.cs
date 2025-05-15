@@ -15,6 +15,12 @@ namespace EM.Maman.DAL.Repositories
         {
         }
 
+        public override async Task<Pallet> GetByIdAsync(long id)
+        {
+            // Cast long id to int because Pallet.Id is int
+            return await DbSet.FindAsync((int)id);
+        }
+
         public async Task<IEnumerable<Pallet>> GetPalletsByTypeAsync(string type)
         {
             return await Context.Pallets

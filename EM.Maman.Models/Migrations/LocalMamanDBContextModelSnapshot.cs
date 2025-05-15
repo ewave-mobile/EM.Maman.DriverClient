@@ -17,7 +17,7 @@ namespace EM.Maman.Models.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.1")
+                .HasAnnotation("ProductVersion", "9.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -75,11 +75,6 @@ namespace EM.Maman.Models.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<int?>("HeightLevel")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValueSql("((0))");
-
                     b.Property<bool?>("IsBlocked")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -114,7 +109,7 @@ namespace EM.Maman.Models.Migrations
                     b.HasKey("Id")
                         .HasName("PK__Cells__3214EC074D1016A6");
 
-                    b.HasIndex("HeightLevel");
+                    b.HasIndex("Level");
 
                     b.ToTable("Cells");
                 });
@@ -155,6 +150,9 @@ namespace EM.Maman.Models.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ActiveTrolleyId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("InitializedAt")
                         .ValueGeneratedOnAdd()
@@ -876,13 +874,13 @@ namespace EM.Maman.Models.Migrations
 
             modelBuilder.Entity("EM.Maman.Models.LocalDbModels.Cell", b =>
                 {
-                    b.HasOne("EM.Maman.Models.LocalDbModels.Level", "HeightLevelNavigation")
+                    b.HasOne("EM.Maman.Models.LocalDbModels.Level", "LevelNavigation")
                         .WithMany("Cells")
-                        .HasForeignKey("HeightLevel")
+                        .HasForeignKey("Level")
                         .HasPrincipalKey("Number")
                         .HasConstraintName("FK_Cells_Levels");
 
-                    b.Navigation("HeightLevelNavigation");
+                    b.Navigation("LevelNavigation");
                 });
 
             modelBuilder.Entity("EM.Maman.Models.LocalDbModels.Task", b =>

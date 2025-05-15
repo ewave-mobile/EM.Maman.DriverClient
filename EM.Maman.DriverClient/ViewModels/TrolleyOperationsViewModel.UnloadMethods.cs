@@ -2,312 +2,194 @@ using EM.Maman.Models.LocalDbModels;
 using EM.Maman.Models.DisplayModels;
 using System.Windows;
 using EM.Maman.Models.Enums;
+using Microsoft.Extensions.Logging;
 
 namespace EM.Maman.DriverClient.ViewModels
 {
     // Partial class containing the unload methods for TrolleyOperationsViewModel
     public partial class TrolleyOperationsViewModel
     {
-        // Implementation of unload left cell functionality
-        private void UnloadLeftCellImplementation()
+        // Generic unload implementation, can be called for left or right.
+        // targetIsLeftWarehouseCell indicates if the pallet should go to the left warehouse side.
+        private async System.Threading.Tasks.Task UnloadPalletToWarehouseAsync(bool unloadFromLeftTrolleyCell, bool targetIsLeftWarehouseCell)
         {
-            // Check if trolley left cell has a pallet
-            if (!TrolleyVM.LeftCell.IsOccupied)
+            Pallet palletToUnload;
+            int? palletIdToUpdateTask = null;
+
+            if (unloadFromLeftTrolleyCell)
             {
-                MessageBox.Show("No pallet in left trolley cell to unload");
+                if (!TrolleyVM.LeftCell.IsOccupied)
+                {
+                    _logger.LogWarning("Attempted to unload from empty left trolley cell.");
+                    MessageBox.Show("No pallet in left trolley cell to unload.");
+                    return;
+                }
+                palletToUnload = await RemovePalletFromTrolleyLeftCellAsync();
+            }
+            else // Unload from right trolley cell
+            {
+                if (!TrolleyVM.RightCell.IsOccupied)
+                {
+                     _logger.LogWarning("Attempted to unload from empty right trolley cell.");
+                    MessageBox.Show("No pallet in right trolley cell to unload.");
+                    return;
+                }
+                palletToUnload = await RemovePalletFromTrolleyRightCellAsync();
+            }
+
+            if (palletToUnload == null)
+            {
+                _logger.LogError($"Failed to retrieve pallet from trolley cell during unload (From Left: {unloadFromLeftTrolleyCell}).");
+                MessageBox.Show("Failed to retrieve pallet from trolley cell during unload.");
                 return;
             }
+            palletIdToUpdateTask = palletToUnload.Id;
+            _logger.LogInformation($"Pallet {palletToUnload.DisplayName} removed from trolley (From Left: {unloadFromLeftTrolleyCell}). Preparing to unload to warehouse (Target Left: {targetIsLeftWarehouseCell}).");
+
 
             CompositeRow currentRow = GetCurrentRow();
             if (currentRow == null)
             {
-                MessageBox.Show("Trolley is not at a valid position");
+                _logger.LogError("Trolley is not at a valid position for unload.");
+                MessageBox.Show("Trolley is not at a valid position.");
+                // Potentially re-add palletToUnload to trolley if critical? Or handle error more gracefully.
                 return;
             }
 
-            // Check if we're at the appropriate level for the warehouse cells
             if (TrolleyVM.CurrentLevelNumber != TrolleyVM.SelectedLevelNumber)
             {
-                MessageBox.Show($"Trolley is at level {TrolleyVM.CurrentLevelNumber} but viewing level {TrolleyVM.SelectedLevelNumber}. " +
-                               "Please ensure you're viewing the correct level.");
-            }
-
-            // Special handling for lowest level (level 1) - unload to finger instead of cell
-            bool isLowestLevel = TrolleyVM.CurrentLevelNumber == 1;
-            
-            if (isLowestLevel && currentRow.LeftFinger != null)
-            {
-                // Get the trolley pallet info before removing it
-                Pallet palletFromTrolley = TrolleyVM.LeftCell.Pallet;
-                string palletDisplayName = palletFromTrolley.DisplayName;
-                
-                // Remove the pallet from the trolley
-                TrolleyVM.RemovePalletFromLeftCell();
-                
-                // Increase finger pallet count
-                currentRow.LeftFingerPalletCount++;
-                
-                MessageBox.Show($"Unloaded pallet {palletDisplayName} to left finger. Finger pallet count: {currentRow.LeftFingerPalletCount}");
+                _logger.LogWarning($"Operation cancelled: Trolley level mismatch. Current: {TrolleyVM.CurrentLevelNumber}, Selected: {TrolleyVM.SelectedLevelNumber}.");
+                MessageBox.Show($"Operation cancelled: Trolley is at Level {TrolleyVM.CurrentLevelNumber} but you are viewing Level {TrolleyVM.SelectedLevelNumber}. " +
+                                $"The view will now switch to Level {TrolleyVM.CurrentLevelNumber}. Please try the operation again if you wish.",
+                                "Level Mismatch", MessageBoxButton.OK, MessageBoxImage.Warning);
+                TrolleyVM.SelectedLevelNumber = TrolleyVM.CurrentLevelNumber; // Switch view to current level
+                // Re-add pallet to trolley as the operation is cancelled before unload.
+                if (unloadFromLeftTrolleyCell) await AddPalletToTrolleyLeftCellAsync(palletToUnload); else await AddPalletToTrolleyRightCellAsync(palletToUnload);
                 return;
             }
-            string palletUldCode = null;
-            if (TrolleyVM.LeftCell.IsOccupied && TrolleyVM.LeftCell.Pallet != null)
+            
+            // Finger Unload (Lowest Level)
+            bool isLowestLevel = TrolleyVM.CurrentLevelNumber == 1;
+            bool fingerUnloadPerformed = false;
+
+            if (isLowestLevel)
             {
-                palletUldCode = TrolleyVM.LeftCell.Pallet.UldCode;
+                bool fingerExistsAtLocation = (targetIsLeftWarehouseCell && currentRow.LeftFinger != null) || 
+                                              (!targetIsLeftWarehouseCell && currentRow.RightFinger != null);
+
+                if (fingerExistsAtLocation)
+                {
+                    if (targetIsLeftWarehouseCell && currentRow.LeftFinger != null)
+                    {
+                        currentRow.LeftFingerPalletCount++;
+                        _logger.LogInformation($"Unloaded pallet {palletToUnload.DisplayName} to left finger. Count: {currentRow.LeftFingerPalletCount}.");
+                        MessageBox.Show($"Unloaded pallet {palletToUnload.DisplayName} to left finger. Finger pallet count: {currentRow.LeftFingerPalletCount}");
+                        fingerUnloadPerformed = true;
+                    }
+                    else if (!targetIsLeftWarehouseCell && currentRow.RightFinger != null)
+                    {
+                        currentRow.RightFingerPalletCount++;
+                        _logger.LogInformation($"Unloaded pallet {palletToUnload.DisplayName} to right finger. Count: {currentRow.RightFingerPalletCount}.");
+                        MessageBox.Show($"Unloaded pallet {palletToUnload.DisplayName} to right finger. Finger pallet count: {currentRow.RightFingerPalletCount}");
+                        fingerUnloadPerformed = true;
+                    }
+                    // If finger exists on the side but not at this specific currentRow, it will fall through to cell unload.
+                }
+                // If no finger at the specific target location on the lowest level, proceed to cell unload.
             }
 
-            // Regular cell handling for non-lowest levels
-            // Check if the warehouse outer cell has a pallet
-            bool outerCellHasPallet = currentRow.LeftCell1Pallet != null;
-
-            if (outerCellHasPallet)
+            if (fingerUnloadPerformed)
             {
-                // Get the warehouse pallet info
-                Pallet warehousePallet = currentRow.LeftCell1Pallet;
-                string warehousePalletDisplay = warehousePallet.DisplayName;
+                if (palletIdToUpdateTask.HasValue) UpdateTaskStatus(palletIdToUpdateTask);
+                return;
+            }
 
-                // Get the trolley pallet info
-                Pallet palletFromTrolley = TrolleyVM.LeftCell.Pallet;
-                string trolleyPalletDisplay = palletFromTrolley.DisplayName;
+            // Regular Warehouse Cell Unload (Non-Lowest Levels OR Lowest Level without a finger at target position)
+            // This is where the "push-in" logic happens.
+            // The ShiftPalletsDeeperInWarehouseCellAsync will handle finding Order 0 cell,
+            // shifting existing pallets, and adding the newPalletToStore to Order 0.
+            _logger.LogInformation($"Attempting to unload pallet {palletToUnload.DisplayName} to warehouse cell (Target Left: {targetIsLeftWarehouseCell}), invoking shift deeper logic.");
+            await ShiftPalletsDeeperInWarehouseCellAsync(palletToUnload, currentRow, targetIsLeftWarehouseCell);
+            
+            // Update UI for the cell at Order 0 (cellIndex 1)
+            // A more comprehensive UI update would query all pallets in the physical cell location and update LeftCell1Pallet, LeftCell2Pallet etc.
+            UpdateWarehouseCellPallet(currentRow.Position, targetIsLeftWarehouseCell, 1, palletToUnload); 
+            MessageBox.Show($"Unloaded pallet {palletToUnload.DisplayName} to {(targetIsLeftWarehouseCell ? "left" : "right")} warehouse cell (Order 0). Deeper pallets shifted if necessary.");
 
-                // In a real system, you'd swap the pallets
-                MessageBox.Show($"Swapping: Pallet {trolleyPalletDisplay} moved to left outer cell and pallet {warehousePalletDisplay} moved to trolley");
+            if (palletIdToUpdateTask.HasValue)
+            {
+                UpdateTaskStatus(palletIdToUpdateTask);
+            }
+        }
 
-                // Swap the pallets
-                UpdateWarehouseCellPallet(CurrentTrolley.Position ?? 0, true, 1, palletFromTrolley);
-                TrolleyVM.LoadPalletIntoLeftCell(warehousePallet);
+
+        // Implementation of unload left cell functionality
+        private async System.Threading.Tasks.Task UnloadLeftCellImplementationAsync()
+        {
+            _logger.LogInformation("UnloadLeftCellImplementationAsync called.");
+            if (TrolleyVM.LeftCell.IsOccupied)
+            {
+                await UnloadPalletToWarehouseAsync(true, true); // Unload from Left Trolley to Left Warehouse
+            }
+            else if (TrolleyVM.RightCell.IsOccupied) // Left is empty, but right has a pallet
+            {
+                _logger.LogInformation("Left trolley cell empty, right cell has pallet. Unloading right pallet to LEFT warehouse side.");
+                MessageBox.Show("Left trolley cell is empty. Unloading pallet from right trolley cell to the left warehouse side.");
+                await UnloadPalletToWarehouseAsync(false, true); // Unload from Right Trolley to Left Warehouse
             }
             else
             {
-                // Check inner cells if outer is empty
-                bool innerCellHasPallet = false;
-                int occupiedCellIndex = 0;
-                Pallet innerPallet = null;
-                
-                if (currentRow.LeftCell2Pallet != null)
-                {
-                    innerCellHasPallet = true;
-                    occupiedCellIndex = 2;
-                    innerPallet = currentRow.LeftCell2Pallet;
-                }
-                else if (currentRow.LeftCell3Pallet != null)
-                {
-                    innerCellHasPallet = true;
-                    occupiedCellIndex = 3;
-                    innerPallet = currentRow.LeftCell3Pallet;
-                }
-                else if (currentRow.LeftCell4Pallet != null)
-                {
-                    innerCellHasPallet = true;
-                    occupiedCellIndex = 4;
-                    innerPallet = currentRow.LeftCell4Pallet;
-                }
-
-                if (innerCellHasPallet)
-                {
-                    // Offer to swap with inner cell pallet
-                    var result = MessageBox.Show(
-                        $"Outer cell is empty but cell {occupiedCellIndex} has a pallet. Would you like to swap with inner cell?",
-                        "Swap with Inner Cell",
-                        MessageBoxButton.YesNoCancel);
-
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        // Get the trolley pallet info
-                        Pallet palletFromTrolleyInner = TrolleyVM.LeftCell.Pallet;
-                        string trolleyPalletDisplayInner = palletFromTrolleyInner.DisplayName;
-
-                        // Swap with inner cell pallet
-                        UpdateWarehouseCellPallet(CurrentTrolley.Position ?? 0, true, occupiedCellIndex, palletFromTrolleyInner);
-                        TrolleyVM.LoadPalletIntoLeftCell(innerPallet);
-
-                        MessageBox.Show($"Swapped with inner cell {occupiedCellIndex} pallet: {innerPallet.DisplayName}");
-                        return;
-                    }
-                    else if (result == MessageBoxResult.Cancel)
-                    {
-                        return; // Cancel the operation
-                    }
-                    // If No, continue to outer cell placement
-                }
-
-                // Get the trolley pallet info before removing it
-                Pallet palletFromTrolleyOuter = TrolleyVM.LeftCell.Pallet;
-                string palletDisplayNameOuter = palletFromTrolleyOuter.DisplayName;
-
-                // In a real system, you'd move the pallet to the outer cell
-                MessageBox.Show($"Unloading: Pallet {palletDisplayNameOuter} moved to left outer cell");
-
-                // Update the warehouse cell with the trolley pallet
-                UpdateWarehouseCellPallet(CurrentTrolley.Position ?? 0, true, 1, palletFromTrolleyOuter);
-
-                // Remove the pallet from the trolley
-                TrolleyVM.RemovePalletFromLeftCell();
-                if (!string.IsNullOrEmpty(palletUldCode) && _mainViewModel != null)
-                {
-                    UpdateTaskStatus(palletUldCode);
-                }
+                _logger.LogWarning("Both trolley cells are empty. Nothing to unload.");
+                MessageBox.Show("Both trolley cells are empty. Nothing to unload.");
             }
         }
 
         // Implementation of unload right cell functionality
-        private void UnloadRightCellImplementation()
+        private async System.Threading.Tasks.Task UnloadRightCellImplementationAsync()
         {
-            // Check if trolley right cell has a pallet
-            if (!TrolleyVM.RightCell.IsOccupied)
+            _logger.LogInformation("UnloadRightCellImplementationAsync called.");
+            if (TrolleyVM.RightCell.IsOccupied)
             {
-                MessageBox.Show("No pallet in right trolley cell to unload");
-                return;
+                await UnloadPalletToWarehouseAsync(false, false); // Unload from Right Trolley to Right Warehouse
             }
-
-            CompositeRow currentRow = GetCurrentRow();
-            if (currentRow == null)
+            else if (TrolleyVM.LeftCell.IsOccupied) // Right is empty, but left has a pallet
             {
-                MessageBox.Show("Trolley is not at a valid position");
-                return;
-            }
-
-            // Check if we're at the appropriate level for the warehouse cells
-            if (TrolleyVM.CurrentLevelNumber != TrolleyVM.SelectedLevelNumber)
-            {
-                MessageBox.Show($"Trolley is at level {TrolleyVM.CurrentLevelNumber} but viewing level {TrolleyVM.SelectedLevelNumber}. " +
-                               "Please ensure you're viewing the correct level.");
-            }
-
-            // Special handling for lowest level (level 1) - unload to finger instead of cell
-            bool isLowestLevel = TrolleyVM.CurrentLevelNumber == 1;
-            
-            if (isLowestLevel && currentRow.RightFinger != null)
-            {
-                // Increase finger pallet count
-                currentRow.RightFingerPalletCount++;
-                
-                // Get the trolley pallet info before removing it
-                Pallet palletFromTrolley = TrolleyVM.RightCell.Pallet;
-                string palletDisplayName = palletFromTrolley.DisplayName;
-                
-                // Remove the pallet from the trolley
-                TrolleyVM.RemovePalletFromRightCell();
-                
-                MessageBox.Show($"Unloaded pallet {palletDisplayName} to right finger. Finger pallet count: {currentRow.RightFingerPalletCount}");
-                return;
-            }
-            string palletUldCode = null;
-            if (TrolleyVM.RightCell.IsOccupied && TrolleyVM.RightCell.Pallet != null)
-            {
-                palletUldCode = TrolleyVM.RightCell.Pallet.UldCode;
-            }
-
-            // Regular cell handling for non-lowest levels
-            // Check if the warehouse outer cell has a pallet
-            bool outerCellHasPallet = currentRow.RightCell1Pallet != null;
-
-            if (outerCellHasPallet)
-            {
-                // Get the warehouse pallet info
-                Pallet warehousePallet = currentRow.RightCell1Pallet;
-                string warehousePalletDisplay = warehousePallet.DisplayName;
-
-                // Get the trolley pallet info
-                Pallet palletFromTrolley = TrolleyVM.RightCell.Pallet;
-                string trolleyPalletDisplay = palletFromTrolley.DisplayName;
-
-                // In a real system, you'd swap the pallets
-                MessageBox.Show($"Swapping: Pallet {trolleyPalletDisplay} moved to right outer cell and pallet {warehousePalletDisplay} moved to trolley");
-
-                // Swap the pallets
-                UpdateWarehouseCellPallet(CurrentTrolley.Position ?? 0, false, 1, palletFromTrolley);
-                TrolleyVM.LoadPalletIntoRightCell(warehousePallet);
+                _logger.LogInformation("Right trolley cell empty, left cell has pallet. Unloading left pallet to RIGHT warehouse side.");
+                MessageBox.Show("Right trolley cell is empty. Unloading pallet from left trolley cell to the right warehouse side.");
+                await UnloadPalletToWarehouseAsync(true, false); // Unload from Left Trolley to Right Warehouse
             }
             else
             {
-                // Check inner cells if outer is empty
-                bool innerCellHasPallet = false;
-                int occupiedCellIndex = 0;
-                Pallet innerPallet = null;
-                
-                if (currentRow.RightCell2Pallet != null)
-                {
-                    innerCellHasPallet = true;
-                    occupiedCellIndex = 2;
-                    innerPallet = currentRow.RightCell2Pallet;
-                }
-                else if (currentRow.RightCell3Pallet != null)
-                {
-                    innerCellHasPallet = true;
-                    occupiedCellIndex = 3;
-                    innerPallet = currentRow.RightCell3Pallet;
-                }
-                else if (currentRow.RightCell4Pallet != null)
-                {
-                    innerCellHasPallet = true;
-                    occupiedCellIndex = 4;
-                    innerPallet = currentRow.RightCell4Pallet;
-                }
-
-                if (innerCellHasPallet)
-                {
-                    // Offer to swap with inner cell pallet
-                    var result = MessageBox.Show(
-                        $"Outer cell is empty but cell {occupiedCellIndex} has a pallet. Would you like to swap with inner cell?",
-                        "Swap with Inner Cell",
-                        MessageBoxButton.YesNoCancel);
-
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        // Get the trolley pallet info
-                        Pallet palletFromTrolleyInner = TrolleyVM.RightCell.Pallet;
-                        string trolleyPalletDisplayInner = palletFromTrolleyInner.DisplayName;
-
-                        // Swap with inner cell pallet
-                        UpdateWarehouseCellPallet(CurrentTrolley.Position ?? 0, false, occupiedCellIndex, palletFromTrolleyInner);
-                        TrolleyVM.LoadPalletIntoRightCell(innerPallet);
-
-                        MessageBox.Show($"Swapped with inner cell {occupiedCellIndex} pallet: {innerPallet.DisplayName}");
-                        return;
-                    }
-                    else if (result == MessageBoxResult.Cancel)
-                    {
-                        return; // Cancel the operation
-                    }
-                    // If No, continue to outer cell placement
-                }
-
-                // Get the trolley pallet info before removing it
-                Pallet palletFromTrolleyOuter = TrolleyVM.RightCell.Pallet;
-                string palletDisplayNameOuter = palletFromTrolleyOuter.DisplayName;
-
-                // In a real system, you'd move the pallet to the outer cell
-                MessageBox.Show($"Unloading: Pallet {palletDisplayNameOuter} moved to right outer cell");
-
-                // Update the warehouse cell with the trolley pallet
-                UpdateWarehouseCellPallet(CurrentTrolley.Position ?? 0, false, 1, palletFromTrolleyOuter);
-
-                // Remove the pallet from the trolley
-                TrolleyVM.RemovePalletFromRightCell();
-                if (!string.IsNullOrEmpty(palletUldCode) && _mainViewModel != null)
-                {
-                    UpdateTaskStatus(palletUldCode);
-                }
+                _logger.LogWarning("Both trolley cells are empty. Nothing to unload.");
+                MessageBox.Show("Both trolley cells are empty. Nothing to unload.");
             }
         }
 
-        private void UpdateTaskStatus(string palletUldCode)
+        private async void UpdateTaskStatus(int? palletId) // Made async due to SaveTaskToDatabase call
         {
-            if (_mainViewModel == null || string.IsNullOrEmpty(palletUldCode)) return;
+            if (_mainViewModel == null || palletId == null ) return;
 
             // Find the task for this pallet in the PalletsReadyForStorage collection
             var taskItem = _mainViewModel.PalletsReadyForStorage.FirstOrDefault(
-                item => item.PalletDetails?.UldCode == palletUldCode);
+                item => item.PalletDetails?.Id == palletId);
 
             if (taskItem != null)
             {
                 // Update the task status to finished
                 taskItem.StorageTask.ActiveTaskStatus = ActiveTaskStatus.finished;
+                taskItem.StorageTask.Status = Models.Enums.TaskStatus.Completed; // Explicitly set to Completed
+                taskItem.StorageTask.ExecutedDateTime = DateTime.Now; // Set execution time
                 _mainViewModel.OnPropertyChanged(nameof(_mainViewModel.PalletsReadyForStorage));
 
+                // Persist the ActiveTaskStatus change
+                if (_mainViewModel.TaskVM != null && taskItem.StorageTask != null)
+                {
+                    // SaveTaskToDatabase will now save the .Status and .ExecutedDateTime as well
+                    await _mainViewModel.TaskVM.SaveTaskToDatabase(taskItem.StorageTask);
+                }
+
                 // Show a message to confirm the task is complete
-                MessageBox.Show($"Storage task for pallet {palletUldCode} has been completed.",
+                MessageBox.Show($"Storage task for pallet {palletId} has been completed.",
                                "Task Completed", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 // Set up a timer to remove the task after 5 seconds

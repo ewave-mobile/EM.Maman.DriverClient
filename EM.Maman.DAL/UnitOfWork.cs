@@ -225,6 +225,71 @@ namespace EM.Maman.DAL
 
             GC.SuppressFinalize(this);
         }
+
+        public async System.Threading.Tasks.Task ClearAllDataAsync()
+        {
+            _logger.LogInformation("Attempting to clear all data for workstation initialization...");
+            try
+            {
+                // Order of deletion is important to avoid foreign key constraint violations.
+                // Generally, delete records from tables that are referenced by other tables first (join tables),
+                // then tables that are referenced, and finally tables that are not referenced by others.
+
+                // 1. Clear join/linking tables or tables with foreign keys that need to be cleared first
+                await _context.Database.ExecuteSqlRawAsync("DELETE FROM PalletInCell;"); // Corrected table name
+                _logger.LogDebug("Cleared PalletInCell table.");
+
+                await _context.Database.ExecuteSqlRawAsync("DELETE FROM TrolleyCells;");
+                _logger.LogDebug("Cleared TrolleyCells table.");
+                
+                // At this point, Tasks might reference Pallets. If so, Tasks should be cleared before Pallets.
+                // Or, if Pallets can exist without Tasks, the order might be flexible or PalletId in Task made nullable.
+                // Assuming Tasks can be cleared independently or before Pallets.
+                await _context.Database.ExecuteSqlRawAsync("DELETE FROM Tasks;");
+                _logger.LogDebug("Cleared Tasks table.");
+
+                // 2. Clear main entity tables
+                await _context.Database.ExecuteSqlRawAsync("DELETE FROM PendingOperation;"); // Corrected table name for PendingOperations
+                _logger.LogDebug("Cleared PendingOperation table.");
+
+                await _context.Database.ExecuteSqlRawAsync("DELETE FROM Pallets;");
+                _logger.LogDebug("Cleared Pallets table.");
+
+                await _context.Database.ExecuteSqlRawAsync("DELETE FROM Trolleys;");
+                _logger.LogDebug("Cleared Trolleys table.");
+
+                await _context.Database.ExecuteSqlRawAsync("DELETE FROM Cells;");
+                _logger.LogDebug("Cleared Cells table.");
+                
+                await _context.Database.ExecuteSqlRawAsync("DELETE FROM Fingers;");
+                _logger.LogDebug("Cleared Fingers table.");
+
+                await _context.Database.ExecuteSqlRawAsync("DELETE FROM Levels;");
+                _logger.LogDebug("Cleared Levels table.");
+                
+                // Users, Configurations, TaskTypes are typically not cleared during workstation data reset,
+                // but if they were, they would be here.
+                // await _context.Database.ExecuteSqlRawAsync("DELETE FROM Users;");
+                // await _context.Database.ExecuteSqlRawAsync("DELETE FROM Configurations;"); // Be careful with this, might be needed for re-initialization
+                // await _context.Database.ExecuteSqlRawAsync("DELETE FROM TaskTypes;");
+
+
+                // Note: EF Core does not automatically reset identity seeds when deleting all rows.
+                // If you need to reset identity columns (e.g., for SQL Server: DBCC CHECKIDENT ('YourTable', RESEED, 0)),
+                // that would require additional provider-specific SQL commands.
+                // For simplicity, we are not resetting identity seeds here.
+
+                _logger.LogInformation("Successfully cleared all specified data tables.");
+                // No CompleteAsync() call is needed here as ExecuteSqlRawAsync typically runs in its own transaction or commits immediately
+                // unless an explicit transaction is managed around this method call.
+                // If this method is called within a transaction, CompleteAsync() or CommitTransactionAsync() would be called by the orchestrator.
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while clearing all data.");
+                throw; // Re-throw to allow calling code to handle
+            }
+        }
     }
 
     // Simple console logger for backward compatibility

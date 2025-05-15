@@ -424,7 +424,7 @@ namespace EM.Maman.DriverClient.ViewModels
                                 if (ActiveTask.IsImportTask && ActiveTask.DestinationCell != null)
                                 {
                                     targetPos = ActiveTask.DestinationCell.Position ?? 0;
-                                    targetLevel = ActiveTask.DestinationCell.HeightLevel ?? 0;
+                                    targetLevel = ActiveTask.DestinationCell.Level ?? 0;
                                 }
                                 else
                                 {
@@ -730,7 +730,7 @@ namespace EM.Maman.DriverClient.ViewModels
             int targetValue = 0;
             if (ActiveTask.IsImportTask && ActiveTask.DestinationCell != null)
             {
-                targetValue = (ActiveTask.DestinationCell.HeightLevel ?? 0) * 100 + (ActiveTask.DestinationCell.Position ?? 0);
+                targetValue = (ActiveTask.DestinationCell.Level ?? 0) * 100 + (ActiveTask.DestinationCell.Position ?? 0);
             }
             else if (ActiveTask.IsExportTask && ActiveTask.DestinationFinger != null)
             {
@@ -858,11 +858,11 @@ namespace EM.Maman.DriverClient.ViewModels
 
                     var dbTask = taskDetails.ToDbModel();
 
-                    // Truncate the Name field if it exceeds 100 characters
-                    if (dbTask.Name != null && dbTask.Name.Length > 100)
+                    // Truncate the Name field if it exceeds 255 characters
+                    if (dbTask.Name != null && dbTask.Name.Length > 255)
                     {
-                        dbTask.Name = dbTask.Name.Substring(0, 100);
-                        _logger.LogWarning("Task name truncated to 100 characters: {OriginalName}", taskDetails.Name);
+                        dbTask.Name = dbTask.Name.Substring(0, 255);
+                        _logger.LogWarning("Task name truncated to 255 characters: {OriginalName}", taskDetails.Name);
                         
                         // Also update the display model to keep them in sync
                         taskDetails.Name = dbTask.Name;
@@ -982,7 +982,7 @@ namespace EM.Maman.DriverClient.ViewModels
             else
             {
                 source = ActiveTask.SourceCell.Position ?? 0;
-                source += (ActiveTask.SourceCell.HeightLevel ?? 1) * 100;
+                source += (ActiveTask.SourceCell.Level ?? 1) * 100;
             }
 
             try
@@ -1031,7 +1031,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 if (ActiveTask.IsImportTask && ActiveTask.DestinationCell != null)
                 {
                     StatusMessage = $"Navigating to storage cell {ActiveTask.DestinationCell.DisplayName}...";
-                    positionValue = (ActiveTask.DestinationCell.HeightLevel ?? 0) * 100 +
+                    positionValue = (ActiveTask.DestinationCell.Level ?? 0) * 100 +
                                   (ActiveTask.DestinationCell.Position ?? 0);
                 }
                 else if (ActiveTask.IsExportTask && ActiveTask.DestinationFinger != null)
@@ -1069,8 +1069,9 @@ namespace EM.Maman.DriverClient.ViewModels
 
             try
             {
-                ActiveTask.Status = Models.Enums.TaskStatus.Completed; // Update local object status
-                ActiveTask.ExecutedDateTime = DateTime.Now;
+                ActiveTask.ActiveTaskStatus = Models.Enums.ActiveTaskStatus.finished; // Set active status first
+                ActiveTask.Status = Models.Enums.TaskStatus.Completed; // Then the overall status
+                ActiveTask.ExecutedDateTime = DateTime.Now; // And the execution time
 
                 // Save the status change to the database
                 bool saved = await SaveTaskToDatabase(ActiveTask);

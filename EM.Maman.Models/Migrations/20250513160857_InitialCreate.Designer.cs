@@ -12,15 +12,15 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EM.Maman.Models.Migrations
 {
     [DbContext(typeof(LocalMamanDBContext))]
-    [Migration("20250424071053_AddConfigurationProperties")]
-    partial class AddConfigurationProperties
+    [Migration("20250513160857_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.3")
+                .HasAnnotation("ProductVersion", "9.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -159,8 +159,13 @@ namespace EM.Maman.Models.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("ActiveTrolleyId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("InitializedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("('0001-01-01T00:00:00.0000000')");
 
                     b.Property<string>("InitializedByEmployeeId")
                         .HasColumnType("nvarchar(max)");
@@ -242,8 +247,11 @@ namespace EM.Maman.Models.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<long?>("CargoTypeId")
-                        .HasColumnType("bigint");
+                    b.Property<int?>("CargoHeight")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CargoType")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("CheckedOutDate")
                         .HasColumnType("datetime");
@@ -277,6 +285,9 @@ namespace EM.Maman.Models.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<int?>("HeightLevel")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("HeightType")
                         .HasColumnType("int");
 
                     b.Property<string>("ImportAppearance")
@@ -313,6 +324,14 @@ namespace EM.Maman.Models.Migrations
                     b.Property<int?>("RefrigerationType")
                         .HasColumnType("int");
 
+                    b.Property<int>("ReportType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.Property<int?>("StorageType")
+                        .HasColumnType("int");
+
                     b.Property<string>("UldAirline")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -328,6 +347,9 @@ namespace EM.Maman.Models.Migrations
                     b.Property<string>("UldType")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<int?>("UpdateType")
+                        .HasColumnType("int");
 
                     b.HasKey("Id")
                         .HasName("PK__Pallets__3214EC075B4002B5");
@@ -506,6 +528,11 @@ namespace EM.Maman.Models.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("ActiveTaskStatus")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
                     b.Property<long?>("CellEndLocationId")
                         .HasColumnType("bigint");
 
@@ -543,9 +570,14 @@ namespace EM.Maman.Models.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<string>("PalletId")
+                    b.Property<int?>("PalletId")
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
 
                     b.Property<long?>("TaskTypeId")
                         .HasColumnType("bigint");
@@ -556,9 +588,9 @@ namespace EM.Maman.Models.Migrations
                     b.HasKey("Id")
                         .HasName("PK__Tasks__3214EC0749F74CCB");
 
-                    b.HasIndex("CellEndLocationId");
+                    b.HasIndex(new[] { "CellEndLocationId" }, "IX_Tasks_CellEndLocationId");
 
-                    b.HasIndex("FingerLocationId");
+                    b.HasIndex(new[] { "FingerLocationId" }, "IX_Tasks_FingerLocationId");
 
                     b.ToTable("Tasks");
                 });
@@ -706,6 +738,37 @@ namespace EM.Maman.Models.Migrations
                     b.ToTable("Trolleys");
                 });
 
+            modelBuilder.Entity("EM.Maman.Models.LocalDbModels.TrolleyCell", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int?>("PalletId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Position")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("StorageDate")
+                        .HasColumnType("datetime");
+
+                    b.Property<long>("TrolleyId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id")
+                        .HasName("PK__TrolleyC__3214EC07XXXXXXXX");
+
+                    b.HasIndex("PalletId");
+
+                    b.HasIndex("TrolleyId");
+
+                    b.ToTable("TrolleyCells");
+                });
+
             modelBuilder.Entity("EM.Maman.Models.LocalDbModels.TrolleyLoadingLocation", b =>
                 {
                     b.Property<long>("Id")
@@ -830,22 +893,56 @@ namespace EM.Maman.Models.Migrations
 
             modelBuilder.Entity("EM.Maman.Models.LocalDbModels.Task", b =>
                 {
-                    b.HasOne("EM.Maman.Models.LocalDbModels.Cell", "Cell")
-                        .WithMany()
+                    b.HasOne("EM.Maman.Models.LocalDbModels.Cell", "CellEndLocation")
+                        .WithMany("Tasks")
                         .HasForeignKey("CellEndLocationId");
 
-                    b.HasOne("EM.Maman.Models.LocalDbModels.Finger", "Finger")
-                        .WithMany()
+                    b.HasOne("EM.Maman.Models.LocalDbModels.Finger", "FingerLocation")
+                        .WithMany("Tasks")
                         .HasForeignKey("FingerLocationId");
 
-                    b.Navigation("Cell");
+                    b.Navigation("CellEndLocation");
 
-                    b.Navigation("Finger");
+                    b.Navigation("FingerLocation");
+                });
+
+            modelBuilder.Entity("EM.Maman.Models.LocalDbModels.TrolleyCell", b =>
+                {
+                    b.HasOne("EM.Maman.Models.LocalDbModels.Pallet", "Pallet")
+                        .WithMany()
+                        .HasForeignKey("PalletId")
+                        .HasConstraintName("FK_TrolleyCells_Pallets");
+
+                    b.HasOne("EM.Maman.Models.LocalDbModels.Trolley", "Trolley")
+                        .WithMany("TrolleyCells")
+                        .HasForeignKey("TrolleyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_TrolleyCells_Trolleys");
+
+                    b.Navigation("Pallet");
+
+                    b.Navigation("Trolley");
+                });
+
+            modelBuilder.Entity("EM.Maman.Models.LocalDbModels.Cell", b =>
+                {
+                    b.Navigation("Tasks");
+                });
+
+            modelBuilder.Entity("EM.Maman.Models.LocalDbModels.Finger", b =>
+                {
+                    b.Navigation("Tasks");
                 });
 
             modelBuilder.Entity("EM.Maman.Models.LocalDbModels.Level", b =>
                 {
                     b.Navigation("Cells");
+                });
+
+            modelBuilder.Entity("EM.Maman.Models.LocalDbModels.Trolley", b =>
+                {
+                    b.Navigation("TrolleyCells");
                 });
 #pragma warning restore 612, 618
         }

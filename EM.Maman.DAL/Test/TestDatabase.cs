@@ -95,40 +95,40 @@ namespace EM.Maman.DAL.Test
         {
             var cells = new List<Cell>();
 
-            // Level 1 cells (HeightLevel = 1)
+            // Level 1 cells (Level = 1)
             for (int i = 0; i < 23; i++)
             {
-                cells.Add(new Cell { Id = i + 1000, Position = i, HeightLevel = 1, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 1100, Position = i, HeightLevel = 1, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 1200, Position = i, HeightLevel = 1, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 1300, Position = i, HeightLevel = 1, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 1000, Position = i, Level = 1, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 1100, Position = i, Level = 1, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 1200, Position = i, Level = 1, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 1300, Position = i, Level = 1, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
             }
 
             // Level 2 cells (HeightLevel = 2)
             for (int i = 0; i < 23; i++)
             {
-                cells.Add(new Cell { Id = i + 2000, Position = i, HeightLevel = 2, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 2100, Position = i, HeightLevel = 2, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 2200, Position = i, HeightLevel = 2, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 2300, Position = i, HeightLevel = 2, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 2000, Position = i, Level = 2, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 2100, Position = i, Level = 2, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 2200, Position = i, Level = 2, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 2300, Position = i, Level = 2, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
             }
 
-            // Level 3 cells (HeightLevel = 3)
+            // Level 3 cells (Level = 3)
             for (int i = 0; i < 23; i++)
             {
-                cells.Add(new Cell { Id = i + 3000, Position = i, HeightLevel = 3, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 3100, Position = i, HeightLevel = 3, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 3200, Position = i, HeightLevel = 3, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 3300, Position = i, HeightLevel = 3, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 3000, Position = i, Level = 3, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 3100, Position = i, Level = 3, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 3200, Position = i, Level = 3, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 3300, Position = i, Level = 3, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
             }
 
-            // Level 4 cells (HeightLevel = 4)
+            // Level 4 cells (Level = 4)
             for (int i = 0; i < 23; i++)
             {
-                cells.Add(new Cell { Id = i + 4000, Position = i, HeightLevel = 4, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 4100, Position = i, HeightLevel = 4, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 4200, Position = i, HeightLevel = 4, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 4300, Position = i, HeightLevel = 4, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 4000, Position = i, Level = 4, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 4100, Position = i, Level = 4, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 4200, Position = i, Level = 4, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 4300, Position = i, Level = 4, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
             }
 
             return cells;

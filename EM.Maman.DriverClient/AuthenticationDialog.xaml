@@ -7,7 +7,7 @@
         xmlns:vm="clr-namespace:EM.Maman.DriverClient.ViewModels"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         mc:Ignorable="d"
-        Title="אימות פלט לפני העמסה" Height="450" Width="400"
+        Title="{Binding DialogDisplayTitle}" Height="450" Width="400"
         WindowStartupLocation="CenterOwner"
         WindowStyle="ToolWindow"
         ResizeMode="NoResize"
@@ -49,7 +49,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="אימות פלטים לפני העמסה" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+        <TextBlock Grid.Row="0" Text="{Binding MainPromptText}" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20"/>
 
         <!-- Pallet Details Section -->
         <Border Grid.Row="1" Style="{StaticResource DetailBorderStyle}">
@@ -70,9 +70,9 @@
                      </Grid.RowDefinitions>
 
                      <!-- Labels -->
-                     <TextBlock Grid.Row="0" Grid.Column="0" Text="פרט" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/>
-                     <TextBlock Grid.Row="0" Grid.Column="1" Text="מופע" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/>
-                     <TextBlock Grid.Row="0" Grid.Column="2" Text="מצהר" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/>
+                     <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding PalletDisplayDetail1Label}" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/>
+                     <TextBlock Grid.Row="0" Grid.Column="1" Text="מופע" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/> <!-- Label "מופע" is static -->
+                     <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding PalletDisplayDetail3Label}" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/>
                      <TextBlock Grid.Row="0" Grid.Column="3" Text="סוג פלט" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/>
                      <TextBlock Grid.Row="0" Grid.Column="4" Text="גובה" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/>
                      <TextBlock Grid.Row="0" Grid.Column="5" Text="שעה" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center"/>
@@ -80,10 +80,10 @@
 
                      <!-- Values -->
                      <Border Grid.Row="1" Grid.Column="0" Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="2">
-                         <TextBlock Text="{Binding ItemToAuthenticate.PalletDetails.ImportUnit}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
+                         <TextBlock Text="{Binding PalletDisplayDetail1Value}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
                      </Border>
-                     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ItemToAuthenticate.PalletDetails.ImportAppearance}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/>
-                     <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding ItemToAuthenticate.PalletDetails.ImportManifest}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/>
+                     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PalletDisplayDetail2Value}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/>
+                     <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding PalletDisplayDetail3Value}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center"/>
                      <Border Grid.Row="1" Grid.Column="3" Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="2">
                          <TextBlock Text="{Binding ItemToAuthenticate.PalletDetails.CargoTypeId}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
                      </Border>
@@ -100,7 +100,7 @@
              <StackPanel>
                  <TextBlock Text="אימות פלט" FontSize="16" FontWeight="Medium" Margin="0,0,0,10" HorizontalAlignment="Center"/>
                  <TextBox x:Name="UldCodeTextBox"
-                          materialDesign:HintAssist.Hint="מספר פרט"
+                          materialDesign:HintAssist.Hint="{Binding InputFieldHint}"
                           Style="{StaticResource MaterialDesignOutlinedTextBox}"
                           Text="{Binding EnteredUldCode, UpdateSourceTrigger=PropertyChanged}"
                           Margin="10,0"

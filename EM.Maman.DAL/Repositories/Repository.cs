@@ -22,7 +22,7 @@ namespace EM.Maman.DAL.Repositories
             DbSet = context.Set<TEntity>();
         }
 
-        public async Task<TEntity> GetByIdAsync(long id)
+        public virtual async Task<TEntity> GetByIdAsync(long id)
         {
             return await DbSet.FindAsync(id);
         }

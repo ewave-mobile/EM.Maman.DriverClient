@@ -69,7 +69,7 @@ namespace EM.Maman.DriverClient.ViewModels
                     if (destinationCell == null) continue;
 
                     // Calculate the expected position value for the destination
-                    int? level = destinationCell.HeightLevel;
+                    int? level = destinationCell.Level;
                     int? position = destinationCell.Position;
 
                     if (!level.HasValue || !position.HasValue) continue;
@@ -111,7 +111,7 @@ namespace EM.Maman.DriverClient.ViewModels
                     if (sourceCell == null) continue;
 
                     // Calculate the expected position value for the source
-                    int? level = sourceCell.HeightLevel;
+                    int? level = sourceCell.Level;
                     int? position = sourceCell.Position;
 
                     if (!level.HasValue || !position.HasValue) continue;

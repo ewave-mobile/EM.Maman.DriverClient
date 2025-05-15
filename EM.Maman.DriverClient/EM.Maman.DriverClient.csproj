@@ -11,10 +11,14 @@
 
   <ItemGroup>
     <None Remove="appsettings.json" />
+    <None Remove="Images\downloadIcon.svg" />
+    <None Remove="Images\error.png" />
     <None Remove="Images\ewaveMobileLogo.png" />
     <None Remove="Images\mamanBackground.jpeg" />
     <None Remove="Images\MamanLogo.png" />
+    <None Remove="Images\paintBucket.svg" />
     <None Remove="Images\taskMessagesIcon.png" />
+    <None Remove="Images\timeIcon.svg" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,6 +50,12 @@
     <Content Include="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Resource Include="Images\downloadIcon.svg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Images\error.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Resource>
     <Resource Include="Images\ewaveMobileLogo.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Resource>
@@ -55,7 +65,13 @@
     <Resource Include="Images\MamanLogo.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Resource>
+    <Resource Include="Images\paintBucket.svg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Resource>
     <Resource Include="Images\taskMessagesIcon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Images\timeIcon.svg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Resource>
   </ItemGroup>

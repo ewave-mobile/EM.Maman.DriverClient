@@ -24,6 +24,12 @@ namespace EM.Maman.DriverClient.ViewModels
             if (TrolleyVM != null)
             {
                 TrolleyVM.UpdateTrolleyPosition(level, position);
+                // Ensure selected level always matches current physical level after a position change
+                if (TrolleyVM.SelectedLevelNumber != level)
+                {
+                    _logger.LogInformation($"Physical trolley level ({level}) and selected display level ({TrolleyVM.SelectedLevelNumber}) differ on position change. Syncing display level.");
+                    TrolleyVM.SelectedLevelNumber = level;
+                }
             }
 
             if (WarehouseVM != null)

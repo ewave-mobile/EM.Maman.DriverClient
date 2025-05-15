@@ -27,5 +27,8 @@ namespace EM.Maman.Models.Interfaces
         Task BeginTransactionAsync();
         Task CommitTransactionAsync();
         Task RollbackTransactionAsync();
+
+        // Clear all data for workstation initialization
+        Task ClearAllDataAsync();
     }
 }

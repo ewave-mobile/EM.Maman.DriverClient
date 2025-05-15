@@ -13,12 +13,12 @@ public partial class Cell
 
     public int? Position { get; set; }
 
-    public int? Level { get; set; }
+    public int? Level { get; set; } // This will be the FK
+    public virtual Level LevelNavigation { get; set; } // New navigation property for 'Level'
 
     public bool? IsSecuredStorage { get; set; }
 
-    public int? HeightLevel { get; set; }
-
+    // public int? HeightLevel { get; set; } // Removed
     public int? Order { get; set; }
 
     public int? RefrigerationTypeId { get; set; }
@@ -33,7 +33,7 @@ public partial class Cell
 
     public int? Depth { get; set; }
 
-    public virtual Level HeightLevelNavigation { get; set; }
+    // public virtual Level HeightLevelNavigation { get; set; } // Removed
 
     public virtual ICollection<Task> Tasks { get; set; } = new List<Task>();
 }

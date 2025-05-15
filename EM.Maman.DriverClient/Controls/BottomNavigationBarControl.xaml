@@ -6,59 +6,160 @@
              xmlns:local="clr-namespace:EM.Maman.DriverClient.Controls"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes" 
              xmlns:viewmodels="clr-namespace:EM.Maman.DriverClient.ViewModels" 
-             xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters" 
+             xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters"
              d:DataContext="{d:DesignInstance Type=viewmodels:MainViewModel}"
              mc:Ignorable="d" 
-             d:DesignHeight="50" d:DesignWidth="800">
+             d:DesignHeight="60" d:DesignWidth="1200">
     <UserControl.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <converters:BoolInverterConverter x:Key="BoolInverterConverter"/>
-        <!-- Use MultiValue converters instead -->
         <converters:ConnectionStatusToBrushMultiConverter x:Key="ConnectionStatusToBrushMultiConverter"/>
         <converters:ConnectionStatusToTextMultiConverter x:Key="ConnectionStatusToTextMultiConverter"/>
+
+        <Style TargetType="Button" x:Key="BorderlessButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="ButtonTextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="5,0,0,0"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style TargetType="Image" x:Key="ButtonIconImage">
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="materialDesign:PackIcon" x:Key="ButtonPackIcon">
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="Rectangle" x:Key="VerticalSeparator">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="Fill" Value="Black"/>
+            <Setter Property="Margin" Value="8,0,8,0"/>
+            <Setter Property="Height" Value="25"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
     </UserControl.Resources>
     <Grid>
-        <materialDesign:Card BorderBrush="#CDCDCD" BorderThickness="1" HorizontalContentAlignment="Right" DockPanel.Dock="Bottom" Margin="0" Padding="8" UniformCornerRadius="0">
+        <materialDesign:Card BorderBrush="#CDCDCD" BorderThickness="1" HorizontalContentAlignment="Stretch" DockPanel.Dock="Bottom" Margin="0" Padding="8,0,8,0" UniformCornerRadius="0">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/> <!-- PLC Connection Status -->
+                    <ColumnDefinition Width="*"/>    <!-- New Buttons Area -->
+                    <ColumnDefinition Width="Auto"/> <!-- Warehouse Button -->
+                    <ColumnDefinition Width="Auto"/> <!-- Tasks Button -->
                 </Grid.ColumnDefinitions>
 
-                <!-- Connection Status Indicator using MultiBinding -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
-                   
-                    <TextBlock FlowDirection="RightToLeft" FontSize="14" VerticalAlignment="Center" Margin="10,0,10,0">
-                        <TextBlock.Text>
-                            <MultiBinding Converter="{StaticResource ConnectionStatusToTextMultiConverter}">
-                                <Binding Path="ConnectionStatus"/>
-                                <Binding Path="IsSimulationMode"/>
-                            </MultiBinding>
-                        </TextBlock.Text>
-                    </TextBlock>
-                    <Ellipse Width="12" Height="12" Margin="0,0,10,0">
-                        <Ellipse.Fill>
-                            <MultiBinding Converter="{StaticResource ConnectionStatusToBrushMultiConverter}">
-                                <Binding Path="ConnectionStatus"/>
-                                <Binding Path="IsSimulationMode"/>
-                            </MultiBinding>
-                        </Ellipse.Fill>
-                    </Ellipse>
-                </StackPanel>
+
+                <!-- New Buttons Area -->
+                <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0" FlowDirection="RightToLeft">
+                        <!-- Button 1: מיקרא -->
+                        <Button Style="{StaticResource BorderlessButton}">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="FormatColorFill" Style="{StaticResource ButtonPackIcon}"/>
+                              
+                                <TextBlock Text="מיקרא" Style="{StaticResource ButtonTextBlock}"/>
+                            </StackPanel>
+                        </Button>
+                        <Rectangle Style="{StaticResource VerticalSeparator}"/>
+
+                        <!-- Button 2: בוצע -->
+                        <Button Style="{StaticResource BorderlessButton}">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Background="LightGray" CornerRadius="10" Width="20" Height="20" Margin="0,0,5,0" VerticalAlignment="Center">
+                                    <TextBlock Text="38" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" FontWeight="Bold"/>
+                                </Border>
+                                <TextBlock Text="בוצע" Style="{StaticResource ButtonTextBlock}"/>
+                            </StackPanel>
+                        </Button>
+                        <Rectangle Style="{StaticResource VerticalSeparator}"/>
+
+                        <!-- Button 3: שגיאות -->
+                        <Button Style="{StaticResource BorderlessButton}">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="AlertOutline" Style="{StaticResource ButtonPackIcon}"/>
+                              
+                                <Border Background="OrangeRed" CornerRadius="10" Width="20" Height="20" Margin="5,0,5,0" VerticalAlignment="Center">
+                                    <TextBlock Text="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+                                <TextBlock Text="שגיאות" Style="{StaticResource ButtonTextBlock}"/>
+                            </StackPanel>
+                        </Button>
+                        <Rectangle Style="{StaticResource VerticalSeparator}"/>
+                        
+                        <!-- Button 4: Download -->
+                        <Button Style="{StaticResource BorderlessButton}">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="TrayArrowDown" Style="{StaticResource ButtonPackIcon}"/>
+                             
+                                <TextBlock Text="14.8.24 12:35" Style="{StaticResource ButtonTextBlock}"/>
+                            </StackPanel>
+                        </Button>
+                        <Rectangle Style="{StaticResource VerticalSeparator}"/>
+
+                        <!-- Button 5: Last Contact (Time) -->
+                        <Button Style="{StaticResource BorderlessButton}">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="ClockOutline" Style="{StaticResource ButtonPackIcon}"/>
+                                <TextBlock Text="14.8.24 12:35" Style="{StaticResource ButtonTextBlock}"/>
+                            </StackPanel>
+                        </Button>
+                        <Rectangle Style="{StaticResource VerticalSeparator}"/>
+
+                        <!-- Button 6: תקשורת (Health API) -->
+                        <Button Style="{StaticResource BorderlessButton}">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="12" Height="12" Fill="Green" VerticalAlignment="Center"/>
+                                <TextBlock Text="תקשורת תקינה" Style="{StaticResource ButtonTextBlock}"/>
+                            </StackPanel>
+                        </Button>
+                        <Rectangle Style="{StaticResource VerticalSeparator}"/>
+                        <Ellipse Width="12" Height="12" Margin="0,0,10,0">
+                            <Ellipse.Fill>
+                                <MultiBinding Converter="{StaticResource ConnectionStatusToBrushMultiConverter}">
+                                    <Binding Path="ConnectionStatus"/>
+                                    <Binding Path="IsSimulationMode"/>
+                                </MultiBinding>
+                            </Ellipse.Fill>
+                        </Ellipse>
+                        <TextBlock FlowDirection="RightToLeft" FontSize="14" VerticalAlignment="Center" Margin="10,0,10,0">
+                            <TextBlock.Text>
+                                <MultiBinding Converter="{StaticResource ConnectionStatusToTextMultiConverter}">
+                                    <Binding Path="ConnectionStatus"/>
+                                    <Binding Path="IsSimulationMode"/>
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                        
+                        <!-- Button 7: חיפוש -->
+                        <Button Style="{StaticResource BorderlessButton}">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Search" Style="{StaticResource ButtonPackIcon}"/>
+                                <TextBlock Text="חיפוש" Style="{StaticResource ButtonTextBlock}"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </ScrollViewer>
 
                 <!-- Navigation buttons (original) -->
                 <Button Grid.Column="2" Style="{StaticResource MaterialDesignFlatButton}" 
                         Command="{Binding ShowWarehouseViewCommand}" 
-                        Foreground="#CDCDCD" BorderBrush="#CDCDCD" BorderThickness="1"
+                        Foreground="#CDCDCD" BorderBrush="#CDCDCD" BorderThickness="0,1,1,1" Margin="-1,0,0,0"
                         Visibility="{Binding IsWarehouseViewActive, Converter={StaticResource BoolInverterConverter}, ConverterParameter=Visibility}">
                     <StackPanel Orientation="Horizontal">
                         <materialDesign:PackIcon Kind="Warehouse" Width="24" Height="24" Margin="0,0,0,0"/>
                     </StackPanel>
                 </Button>
                 <Button Grid.Column="3" Style="{StaticResource MaterialDesignFlatButton}" 
-                       Foreground="#CDCDCD" BorderBrush="#CDCDCD" BorderThickness="1"
+                        Foreground="#CDCDCD" BorderBrush="#CDCDCD" BorderThickness="0,1,1,1" Margin="-1,0,0,0"
                         Command="{Binding ShowTasksViewCommand}"
                         Visibility="{Binding IsWarehouseViewActive, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel Orientation="Horizontal">

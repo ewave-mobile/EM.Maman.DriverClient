@@ -115,7 +115,7 @@ namespace EM.Maman.DriverClient.ViewModels
             }
 
             var destinationCell = item.StorageTask.DestinationCell;
-            int? level = destinationCell.HeightLevel;
+            int? level = destinationCell.Level;
             int? position = destinationCell.Position;
 
             if (!level.HasValue || !position.HasValue)
@@ -155,7 +155,7 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             if (parameter is not PalletStorageTaskItem item) return false;
             return item.StorageTask?.DestinationCell != null &&
-                   item.StorageTask.DestinationCell.HeightLevel.HasValue &&
+                   item.StorageTask.DestinationCell.Level.HasValue &&
                    item.StorageTask.DestinationCell.Position.HasValue;
         }
 
@@ -183,7 +183,7 @@ namespace EM.Maman.DriverClient.ViewModels
             }
 
             var sourceCell = item.RetrievalTask.SourceCell;
-            int? level = sourceCell.HeightLevel;
+            int? level = sourceCell.Level;
             int? position = sourceCell.Position;
 
             if (!level.HasValue || !position.HasValue)
@@ -223,7 +223,7 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             if (parameter is not PalletRetrievalTaskItem item) return false;
             return item.RetrievalTask?.SourceCell != null &&
-                   item.RetrievalTask.SourceCell.HeightLevel.HasValue &&
+                   item.RetrievalTask.SourceCell.Level.HasValue &&
                    item.RetrievalTask.SourceCell.Position.HasValue;
         }
 

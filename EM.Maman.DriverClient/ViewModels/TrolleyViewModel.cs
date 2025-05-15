@@ -350,7 +350,7 @@ namespace EM.Maman.DriverClient.ViewModels
         //        };
 
         //        // Filter cells for this level
-        //        var levelCells = allCells.Where(c => c.HeightLevel == level.Number).ToList();
+        //        var levelCells = allCells.Where(c => c.Level == level.Number).ToList();
 
         //        // Create rows for this level
         //        for (int pos = 0; pos < MaxPositionsPerLevel; pos++)
@@ -448,7 +448,7 @@ namespace EM.Maman.DriverClient.ViewModels
                     };
 
                     // Filter cells for this level
-                    var levelCells = allCells.Where(c => c.HeightLevel == level.Number).ToList();
+                    var levelCells = allCells.Where(c => c.Level == level.Number).ToList();
 
                     // Create rows for this level
                     for (int pos = 0; pos < 23; pos++)
@@ -457,10 +457,10 @@ namespace EM.Maman.DriverClient.ViewModels
                         var leftFinger = allFingers.FirstOrDefault(f => f.Side == 0 && f.Position % 100 == pos);
                         var rightFinger = allFingers.FirstOrDefault(f => f.Side == 1 && f.Position % 100 == pos);
 
-                        var leftOuter = levelCells.FirstOrDefault(c => c.Side == 2 && c.Order == 1 && c.Position == pos);
-                        var leftInner = levelCells.FirstOrDefault(c => c.Side == 2 && c.Order == 0 && c.Position == pos);
-                        var rightOuter = levelCells.FirstOrDefault(c => c.Side == 1 && c.Order == 1 && c.Position == pos);
-                        var rightInner = levelCells.FirstOrDefault(c => c.Side == 1 && c.Order == 0 && c.Position == pos);
+                        var leftOuter = levelCells.FirstOrDefault(c => c.Side == 2 && c.Order == 0 && c.Position == pos);
+                        var leftInner = levelCells.FirstOrDefault(c => c.Side == 2 && c.Order == 1 && c.Position == pos);
+                        var rightOuter = levelCells.FirstOrDefault(c => c.Side == 1 && c.Order == 0 && c.Position == pos);
+                        var rightInner = levelCells.FirstOrDefault(c => c.Side == 1 && c.Order == 1 && c.Position == pos);
 
                         // Only create a row if there's something to show
                         if (leftOuter != null || leftInner != null || leftFinger != null ||
@@ -639,37 +639,37 @@ namespace EM.Maman.DriverClient.ViewModels
             // Level 0 cells
             for (int i = 0; i < 23; i++)
             {
-                cells.Add(new Cell { Id = i + 1000, Position = i, HeightLevel = 1, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 1100, Position = i, HeightLevel = 1, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 1200, Position = i, HeightLevel = 1, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 1300, Position = i, HeightLevel = 1, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 1000, Position = i, Level = 1, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 1100, Position = i, Level = 1, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 1200, Position = i, Level = 1, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 1300, Position = i, Level = 1, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
             }
 
             // Level 1 cells
             for (int i = 0; i < 23; i++)
             {
-                cells.Add(new Cell { Id = i + 2000, Position = i, HeightLevel = 2, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 2100, Position = i, HeightLevel = 2, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 2200, Position = i, HeightLevel = 2, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 2300, Position = i, HeightLevel = 2, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 2000, Position = i, Level = 2, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 2100, Position = i, Level = 2, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 2200, Position = i, Level = 2, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 2300, Position = i, Level = 2, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
             }
 
             // Level 2 cells
             for (int i = 0; i < 23; i++)
             {
-                cells.Add(new Cell { Id = i + 3000, Position = i, HeightLevel = 3, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 3100, Position = i, HeightLevel = 3, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 3200, Position = i, HeightLevel = 3, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 3300, Position = i, HeightLevel = 3, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 3000, Position = i, Level = 3, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 3100, Position = i, Level = 3, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 3200, Position = i, Level = 3, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 3300, Position = i, Level = 3, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
             }
 
             // Level 3 cells
             for (int i = 0; i < 23; i++)
             {
-                cells.Add(new Cell { Id = i + 4000, Position = i, HeightLevel = 4, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 4100, Position = i, HeightLevel = 4, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 4200, Position = i, HeightLevel = 4, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
-                cells.Add(new Cell { Id = i + 4300, Position = i, HeightLevel = 4, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 4000, Position = i, Level = 4, Side = 1, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 4100, Position = i, Level = 4, Side = 1, Order = 1, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 4200, Position = i, Level = 4, Side = 2, Order = 0, DisplayName = $"{i + 1}" });
+                cells.Add(new Cell { Id = i + 4300, Position = i, Level = 4, Side = 2, Order = 1, DisplayName = $"{i + 1}" });
             }
 
             return cells;
@@ -717,18 +717,18 @@ namespace EM.Maman.DriverClient.ViewModels
             var cellWithPalletInfoList = new List<CellWithPalletInfo>
             {
                 // Level 1 pallets
-                new CellWithPalletInfo { Cell = new Cell { Id = 1000, Position = 0, HeightLevel = 1, Side = 1, Order = 0 }, Pallet = testPallets[0] },
-                new CellWithPalletInfo { Cell = new Cell { Id = 1200, Position = 0, HeightLevel = 1, Side = 2, Order = 0 }, Pallet = testPallets[1] },
-                new CellWithPalletInfo { Cell = new Cell { Id = 1005, Position = 5, HeightLevel = 1, Side = 1, Order = 0 }, Pallet = testPallets[2] },
+                new CellWithPalletInfo { Cell = new Cell { Id = 1000, Position = 0, Level = 1, Side = 1, Order = 0 }, Pallet = testPallets[0] },
+                new CellWithPalletInfo { Cell = new Cell { Id = 1200, Position = 0, Level = 1, Side = 2, Order = 0 }, Pallet = testPallets[1] },
+                new CellWithPalletInfo { Cell = new Cell { Id = 1005, Position = 5, Level = 1, Side = 1, Order = 0 }, Pallet = testPallets[2] },
                 
                 // Level 2 pallets
-                new CellWithPalletInfo { Cell = new Cell { Id = 2003, Position = 3, HeightLevel = 2, Side = 1, Order = 0 }, Pallet = testPallets[3] },
-                new CellWithPalletInfo { Cell = new Cell { Id = 2103, Position = 3, HeightLevel = 2, Side = 1, Order = 1 }, Pallet = testPallets[4] },
-                new CellWithPalletInfo { Cell = new Cell { Id = 2210, Position = 10, HeightLevel = 2, Side = 2, Order = 0 }, Pallet = testPallets[5] },
+                new CellWithPalletInfo { Cell = new Cell { Id = 2003, Position = 3, Level = 2, Side = 1, Order = 0 }, Pallet = testPallets[3] },
+                new CellWithPalletInfo { Cell = new Cell { Id = 2103, Position = 3, Level = 2, Side = 1, Order = 1 }, Pallet = testPallets[4] },
+                new CellWithPalletInfo { Cell = new Cell { Id = 2210, Position = 10, Level = 2, Side = 2, Order = 0 }, Pallet = testPallets[5] },
                 
                 // Level 3 pallets
-                new CellWithPalletInfo { Cell = new Cell { Id = 3008, Position = 8, HeightLevel = 3, Side = 1, Order = 0 }, Pallet = testPallets[6] },
-                new CellWithPalletInfo { Cell = new Cell { Id = 3215, Position = 15, HeightLevel = 3, Side = 2, Order = 0 }, Pallet = testPallets[7] }
+                new CellWithPalletInfo { Cell = new Cell { Id = 3008, Position = 8, Level = 3, Side = 1, Order = 0 }, Pallet = testPallets[6] },
+                new CellWithPalletInfo { Cell = new Cell { Id = 3215, Position = 15, Level = 3, Side = 2, Order = 0 }, Pallet = testPallets[7] }
             };
 
             return cellWithPalletInfoList;

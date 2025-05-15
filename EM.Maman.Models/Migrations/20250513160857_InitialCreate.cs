@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -6,12 +6,11 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace EM.Maman.Models.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialSchema : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            /* // Commenting out ALL CreateTable calls for initial sync
             migrationBuilder.CreateTable(
                 name: "Alerts",
                 columns: table => new
@@ -52,7 +51,11 @@ namespace EM.Maman.Models.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1")
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    InitializedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "('0001-01-01T00:00:00.0000000')"),
+                    InitializedByEmployeeId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    WorkstationType = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ActiveTrolleyId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -143,7 +146,12 @@ namespace EM.Maman.Models.Migrations
                     CheckedOutDate = table.Column<DateTime>(type: "datetime", nullable: true),
                     LocationId = table.Column<long>(type: "bigint", nullable: true),
                     IsSecure = table.Column<bool>(type: "bit", nullable: true, defaultValueSql: "((0))"),
-                    CargoTypeId = table.Column<long>(type: "bigint", nullable: true),
+                    CargoType = table.Column<int>(type: "int", nullable: true),
+                    UpdateType = table.Column<int>(type: "int", nullable: true),
+                    StorageType = table.Column<int>(type: "int", nullable: true),
+                    HeightType = table.Column<int>(type: "int", nullable: true),
+                    CargoHeight = table.Column<int>(type: "int", nullable: true),
+                    ReportType = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
                     ImportManifest = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     ImportUnit = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     ImportAppearance = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
@@ -244,31 +252,6 @@ namespace EM.Maman.Models.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK__TaskLogs__3214EC0722E0A04E", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Tasks",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    Description = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
-                    DownloadDate = table.Column<DateTime>(type: "datetime", nullable: true),
-                    IsExecuted = table.Column<bool>(type: "bit", nullable: true, defaultValueSql: "((0))"),
-                    ExecutedDate = table.Column<DateTime>(type: "datetime", nullable: true),
-                    IsUploaded = table.Column<bool>(type: "bit", nullable: true, defaultValueSql: "((0))"),
-                    UploadDate = table.Column<DateTime>(type: "datetime", nullable: true),
-                    TaskTypeId = table.Column<long>(type: "bigint", nullable: true),
-                    CellEndLocationId = table.Column<long>(type: "bigint", nullable: true),
-                    CurrentTrolleyLocationId = table.Column<long>(type: "bigint", nullable: true),
-                    FingerLocationId = table.Column<long>(type: "bigint", nullable: true),
-                    PalletId = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    Code = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK__Tasks__3214EC0749F74CCB", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -412,6 +395,70 @@ namespace EM.Maman.Models.Migrations
                         principalColumn: "Number");
                 });
 
+            migrationBuilder.CreateTable(
+                name: "TrolleyCells",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    TrolleyId = table.Column<long>(type: "bigint", nullable: false),
+                    Position = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    PalletId = table.Column<int>(type: "int", nullable: true),
+                    StorageDate = table.Column<DateTime>(type: "datetime", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK__TrolleyC__3214EC07XXXXXXXX", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TrolleyCells_Pallets",
+                        column: x => x.PalletId,
+                        principalTable: "Pallets",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_TrolleyCells_Trolleys",
+                        column: x => x.TrolleyId,
+                        principalTable: "Trolleys",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Tasks",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    Description = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    DownloadDate = table.Column<DateTime>(type: "datetime", nullable: true),
+                    IsExecuted = table.Column<bool>(type: "bit", nullable: true, defaultValueSql: "((0))"),
+                    ExecutedDate = table.Column<DateTime>(type: "datetime", nullable: true),
+                    IsUploaded = table.Column<bool>(type: "bit", nullable: true, defaultValueSql: "((0))"),
+                    UploadDate = table.Column<DateTime>(type: "datetime", nullable: true),
+                    TaskTypeId = table.Column<long>(type: "bigint", nullable: true),
+                    CellEndLocationId = table.Column<long>(type: "bigint", nullable: true),
+                    CurrentTrolleyLocationId = table.Column<long>(type: "bigint", nullable: true),
+                    FingerLocationId = table.Column<long>(type: "bigint", nullable: true),
+                    PalletId = table.Column<int>(type: "int", maxLength: 50, nullable: true),
+                    Code = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    Status = table.Column<int>(type: "int", nullable: true, defaultValue: 1),
+                    ActiveTaskStatus = table.Column<int>(type: "int", nullable: true, defaultValue: 1)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK__Tasks__3214EC0749F74CCB", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Tasks_Cells_CellEndLocationId",
+                        column: x => x.CellEndLocationId,
+                        principalTable: "Cells",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_Tasks_Fingers_FingerLocationId",
+                        column: x => x.FingerLocationId,
+                        principalTable: "Fingers",
+                        principalColumn: "Id");
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_Cells_HeightLevel",
                 table: "Cells",
@@ -422,21 +469,33 @@ namespace EM.Maman.Models.Migrations
                 table: "Levels",
                 column: "Number",
                 unique: true);
-            */ // End comment for ALL CreateTable calls
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Tasks_CellEndLocationId",
+                table: "Tasks",
+                column: "CellEndLocationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Tasks_FingerLocationId",
+                table: "Tasks",
+                column: "FingerLocationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TrolleyCells_PalletId",
+                table: "TrolleyCells",
+                column: "PalletId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TrolleyCells_TrolleyId",
+                table: "TrolleyCells",
+                column: "TrolleyId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // Since Up is commented out, Down should likely be too,
-            // or adjusted to only drop things potentially created by other migrations if any exist.
-            // For simplicity, commenting out the entire Down method.
-            /*
             migrationBuilder.DropTable(
                 name: "Alerts");
-
-            migrationBuilder.DropTable(
-                name: "Cells");
 
             migrationBuilder.DropTable(
                 name: "CellTypes");
@@ -445,16 +504,10 @@ namespace EM.Maman.Models.Migrations
                 name: "Configurations");
 
             migrationBuilder.DropTable(
-                name: "Fingers");
-
-            migrationBuilder.DropTable(
                 name: "PalletInCell");
 
             migrationBuilder.DropTable(
                 name: "PalletMovementLogs");
-
-            migrationBuilder.DropTable(
-                name: "Pallets");
 
             migrationBuilder.DropTable(
                 name: "PendingOperation");
@@ -481,13 +534,13 @@ namespace EM.Maman.Models.Migrations
                 name: "TraceLogs");
 
             migrationBuilder.DropTable(
+                name: "TrolleyCells");
+
+            migrationBuilder.DropTable(
                 name: "TrolleyLoadingLocations");
 
             migrationBuilder.DropTable(
                 name: "TrolleyMovementLogs");
-
-            migrationBuilder.DropTable(
-                name: "Trolleys");
 
             migrationBuilder.DropTable(
                 name: "UploadTasks");
@@ -496,8 +549,19 @@ namespace EM.Maman.Models.Migrations
                 name: "Users");
 
             migrationBuilder.DropTable(
+                name: "Cells");
+
+            migrationBuilder.DropTable(
+                name: "Fingers");
+
+            migrationBuilder.DropTable(
+                name: "Pallets");
+
+            migrationBuilder.DropTable(
+                name: "Trolleys");
+
+            migrationBuilder.DropTable(
                 name: "Levels");
-            */
         }
     }
 }

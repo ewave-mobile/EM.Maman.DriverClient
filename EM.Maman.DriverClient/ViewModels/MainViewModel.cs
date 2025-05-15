@@ -207,8 +207,11 @@ namespace EM.Maman.DriverClient.ViewModels
 
             _logger.LogInformation("MainViewModel constructor START");
 
-            // Initialize trolley
-            CurrentTrolley = new Trolley { Id = 1, DisplayName = "Main Trolley", Position = 1 };
+            // CurrentTrolley will be loaded from DB during InitializeApplicationAsync.
+            // For now, TrolleyOperationsVM needs a non-null Trolley. We'll use a temporary one,
+            // which will be replaced by the DB-loaded instance in InitializeApplicationAsync.
+            var tempTrolleyForOpsVm = new Trolley { Id = 1, DisplayName = "Temp Initializing Trolley", Position = 1 };
+
 
             // Initialize view models
             TrolleyVM = trolleyViewModel;
@@ -235,8 +238,14 @@ namespace EM.Maman.DriverClient.ViewModels
             // Subscribe to position changes from OPC
             OpcVM.PositionChanged += OnPositionChanged;
 
-            // Initialize TrolleyOperationsViewModel
-            TrolleyOperationsVM = new TrolleyOperationsViewModel(TrolleyVM, CurrentTrolley);
+            // Initialize TrolleyOperationsViewModel with a temporary trolley instance.
+            // This will be updated with the DB-loaded trolley in InitializeApplicationAsync.
+            TrolleyOperationsVM = new TrolleyOperationsViewModel(
+                TrolleyVM, 
+                tempTrolleyForOpsVm,
+                _unitOfWorkFactory, // Pass the factory
+                loggerFactory.CreateLogger<TrolleyOperationsViewModel>() // Create and pass the logger
+            );
             TrolleyOperationsVM.SetMainViewModel(this);
 
             // Initialize TaskViewModel with all required dependencies

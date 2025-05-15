@@ -77,15 +77,15 @@ public partial class LocalMamanDBContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK__Cells__3214EC074D1016A6");
 
             entity.Property(e => e.DisplayName).HasMaxLength(50);
-            entity.Property(e => e.HeightLevel).HasDefaultValueSql("((0))");
+            // entity.Property(e => e.HeightLevel).HasDefaultValueSql("((0))"); // Removed
             entity.Property(e => e.IsBlocked).HasDefaultValueSql("((1))");
             entity.Property(e => e.IsSecuredStorage).HasDefaultValueSql("((0))");
             entity.Property(e => e.LastModified).HasColumnType("datetime");
 
-            entity.HasOne(d => d.HeightLevelNavigation).WithMany(p => p.Cells)
-                .HasPrincipalKey(p => p.Number)
-                .HasForeignKey(d => d.HeightLevel)
-                .HasConstraintName("FK_Cells_Levels");
+            entity.HasOne(d => d.LevelNavigation).WithMany(p => p.Cells) // Use the new navigation property
+                .HasPrincipalKey(p => p.Number)   // Level.Number is the principal key
+                .HasForeignKey(d => d.Level)      // Cell.Level is the foreign key
+                .HasConstraintName("FK_Cells_Levels"); // Constraint name can remain or be updated if desired
         });
 
         modelBuilder.Entity<CellType>(entity =>

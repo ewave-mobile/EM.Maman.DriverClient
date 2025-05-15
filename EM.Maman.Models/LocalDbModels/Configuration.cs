@@ -14,4 +14,6 @@ public partial class Configuration
     public string InitializedByEmployeeId { get; set; }
 
     public string WorkstationType { get; set; }
+
+    public int ActiveTrolleyId { get; set; }
 }

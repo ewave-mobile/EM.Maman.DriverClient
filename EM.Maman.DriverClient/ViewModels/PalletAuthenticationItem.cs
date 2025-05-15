@@ -1,5 +1,6 @@
 using EM.Maman.Models.LocalDbModels;
 using EM.Maman.Models.CustomModels; // Added for TaskDetails
+using EM.Maman.Models.Enums; // Added for UpdateType
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
@@ -18,7 +19,16 @@ namespace EM.Maman.DriverClient.ViewModels
         public Pallet PalletDetails
         {
             get => _palletDetails;
-            set { _palletDetails = value; OnPropertyChanged(); }
+            set 
+            { 
+                _palletDetails = value; 
+                OnPropertyChanged(); 
+                OnPropertyChanged(nameof(DisplayDetail1Label));
+                OnPropertyChanged(nameof(DisplayDetail1Value));
+                OnPropertyChanged(nameof(DisplayDetail2Value));
+                OnPropertyChanged(nameof(DisplayDetail3Label));
+                OnPropertyChanged(nameof(DisplayDetail3Value));
+            }
         }
 
         public TaskDetails OriginalTask
@@ -47,6 +57,36 @@ namespace EM.Maman.DriverClient.ViewModels
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        // New dynamic properties for display
+        public string DisplayDetail1Label
+        {
+            get => PalletDetails?.UpdateType == UpdateType.Export ? "שטר מטען" : "פרט";
+        }
+        public string DisplayDetail1Value
+        {
+            get => PalletDetails?.UpdateType == UpdateType.Export
+                   ? PalletDetails?.ExportAwbNumber
+                   : PalletDetails?.ImportUnit;
+        }
+
+        public string DisplayDetail2Value // Label "מופע" is static in XAML
+        {
+            get => PalletDetails?.UpdateType == UpdateType.Export
+                   ? PalletDetails?.ExportAwbAppearance
+                   : PalletDetails?.ImportAppearance;
+        }
+
+        public string DisplayDetail3Label
+        {
+            get => PalletDetails?.UpdateType == UpdateType.Export ? "אחסון" : "מצהר";
+        }
+        public string DisplayDetail3Value
+        {
+            get => PalletDetails?.UpdateType == UpdateType.Export
+                   ? PalletDetails?.ExportAwbStorage
+                   : PalletDetails?.ImportManifest;
         }
     }
 }

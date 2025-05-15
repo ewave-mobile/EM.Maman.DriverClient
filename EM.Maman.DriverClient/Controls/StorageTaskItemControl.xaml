@@ -55,10 +55,10 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Grid.Row="0" Text="פעולה נדרשת" Style="{StaticResource LabelStyle}" Margin="10,0,60,0"/>
-                            <TextBlock Grid.Column="0" Grid.Row="1" Text="אחסון פלט" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,60,0"/>
+                            <TextBlock Grid.Column="0" Grid.Row="1" Text="{Binding FullActionText}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,60,0"/>
 
                             <TextBlock Text="קומה"  Grid.Column="1" Grid.Row="0" Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
-                            <TextBlock  Grid.Column="1" Grid.Row="1" Text="{Binding StorageTask.DestinationCell.HeightLevel}" Style="{StaticResource ValueStyle}" Margin="0,0,30,0" VerticalAlignment="Center"/>
+                            <TextBlock  Grid.Column="1" Grid.Row="1" Text="{Binding StorageTask.DestinationCell.Level}" Style="{StaticResource ValueStyle}" Margin="0,0,30,0" VerticalAlignment="Center"/>
                             <TextBlock  Grid.Column="2" Grid.Row="0" Text="שורה" Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
                             <TextBlock  Grid.Column="2" Grid.Row="1" Text="{Binding StorageTask.DestinationCell.Position}" Style="{StaticResource ValueStyle}" Margin="0,0,30,0" VerticalAlignment="Center"/>
                             <TextBlock  Grid.Column="3" Grid.Row="0" Text="מיקום" Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
@@ -96,19 +96,19 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <!-- Labels -->
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="פרט" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding PalletColumn1Label}" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
                 <TextBlock Grid.Row="0" Grid.Column="1" Text="מופע" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="מצהר" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding PalletColumn3Label}" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
                 <TextBlock Grid.Row="0" Grid.Column="3" Text="סוג פלט" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
                 <TextBlock Grid.Row="0" Grid.Column="4" Text="גובה" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
                 <TextBlock Grid.Row="0" Grid.Column="5" Text="שעה" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
                 <TextBlock Grid.Row="0" Grid.Column="6" Text="סטטוס" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" Margin="5,0"/>
                 <!-- Values -->
                 <Border Grid.Row="1" Grid.Column="0" Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="2">
-                    <TextBlock Text="{Binding PalletDetails.ImportAppearance}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
+                    <TextBlock Text="{Binding PalletColumn1Value}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
                 </Border>
-                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PalletDetails.ImportAppearance}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="5,2"/>
-                <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding PalletDetails.ImportManifest}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="5,2"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PalletColumn2Value}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="5,2"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding PalletColumn3Value}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Margin="5,2"/>
                 <Border Grid.Row="1" Grid.Column="3" Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="2">
                     <TextBlock Text="{Binding PalletDetails.CargoTypeId}" Style="{StaticResource ValueStyle}" HorizontalAlignment="Center" Foreground="#1976D2"/>
                 </Border>
