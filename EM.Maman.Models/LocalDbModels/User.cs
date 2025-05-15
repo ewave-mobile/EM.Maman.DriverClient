@@ -7,11 +7,21 @@ namespace EM.Maman.Models.LocalDbModels;
 
 public partial class User
 {
-    public int Id { get; set; }
+    public int Id { get; set; } // Local DB Primary Key
 
-    public string Name { get; set; }
+    // public string Name { get; set; } // Replaced by FirstName and LastName
 
-    public string Code { get; set; }
+    public string EmployeeCode { get; set; } // Renamed from Code, this is the EmployeeCode from login
 
     public DateTime? LastLoginDate { get; set; }
+
+    public int BackendId { get; set; } // UserID from the server
+
+    public string FirstName { get; set; }
+
+    public string LastName { get; set; }
+
+    public int RoleID { get; set; } // RoleID from the server
+
+    public string Token { get; set; } // JWT received from the server
 }

@@ -1,22 +1,31 @@
-﻿using EM.Maman.Models.CustomModels;
+﻿using EM.Maman.Models.Dtos;
 using EM.Maman.Models.Enums;
-using EM.Maman.Models.Interfaces.Managers;
-using EM.Maman.Models.Interfaces.Services;
+using EM.Maman.Models.Interfaces; // For IUnitOfWork
+using EM.Maman.Models.Interfaces.Services; // For IMamanHttpService, IConnectionManager, IDispatcherService
+using EM.Maman.Models.LocalDbModels; // For User, Configuration
+using EM.Maman.Models.CustomModels; // For ConnectionStateChangedEventArgs
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using EM.Maman.Services;
 
 namespace EM.Maman.DriverClient.ViewModels
 {
+    public class CraneOption
+    {
+        public string Name { get; set; }
+        public int Id { get; set; }
+    }
+
     public class LoginViewModel : INotifyPropertyChanged
     {
-        private readonly IUserManager _userManager;
+        private readonly IMamanHttpService _mamanHttpService;
+        private readonly IUnitOfWork _unitOfWork; // Or IUnitOfWorkFactory
         private readonly IConnectionManager _connectionManager;
         private readonly IDispatcherService _dispatcherService;
         private readonly ILogger<LoginViewModel> _logger;
@@ -25,6 +34,9 @@ namespace EM.Maman.DriverClient.ViewModels
         private string _status;
         private bool _isLoggingIn;
         private RelayCommand _loginCommand;
+        private int _selectedCraneId;
+        private IEnumerable<CraneOption> _craneOptions;
+        private bool _isCraneSelectionVisible;
 
         public event PropertyChangedEventHandler PropertyChanged;
         public event EventHandler<LoginSuccessEventArgs> LoginSuccessful;
@@ -32,7 +44,25 @@ namespace EM.Maman.DriverClient.ViewModels
         public string EmployeeCode
         {
             get => _employeeCode;
-            set => SetProperty(ref _employeeCode, value);
+            set => SetProperty(ref _employeeCode, value, nameof(EmployeeCode), () => LoginCommand.RaiseCanExecuteChanged());
+        }
+
+        public int SelectedCraneId
+        {
+            get => _selectedCraneId;
+            set => SetProperty(ref _selectedCraneId, value, nameof(SelectedCraneId), () => LoginCommand.RaiseCanExecuteChanged());
+        }
+
+        public IEnumerable<CraneOption> CraneOptions
+        {
+            get => _craneOptions;
+            set => SetProperty(ref _craneOptions, value);
+        }
+
+        public bool IsCraneSelectionVisible
+        {
+            get => _isCraneSelectionVisible;
+            set => SetProperty(ref _isCraneSelectionVisible, value);
         }
 
         public string Status
@@ -44,46 +74,80 @@ namespace EM.Maman.DriverClient.ViewModels
         public bool IsLoggingIn
         {
             get => _isLoggingIn;
-            set
-            {
-                if (SetProperty(ref _isLoggingIn, value))
-                {
-                    // Update the login command's CanExecute
-                   // LoginCommand.RaiseCanExecuteChanged();
-                }
-            }
+            set => SetProperty(ref _isLoggingIn, value, nameof(IsLoggingIn), () => LoginCommand.RaiseCanExecuteChanged());
         }
 
-        public ICommand LoginCommand => _loginCommand ??= new RelayCommand(
+        public RelayCommand LoginCommand => _loginCommand ??= new RelayCommand(
             async param => await LoginAsync(),
             param => CanLogin());
 
         public string Version => $"גרסה {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version}";
 
         public LoginViewModel(
-            IUserManager userManager,
+            IMamanHttpService mamanHttpService,
+            IUnitOfWork unitOfWork, // Consider IUnitOfWorkFactory if UoW needs to be shorter-lived
             IConnectionManager connectionManager,
             IDispatcherService dispatcherService,
             ILogger<LoginViewModel> logger)
         {
-            _userManager = userManager;
-            _connectionManager = connectionManager;
-            _dispatcherService = dispatcherService;
-            _logger = logger;
+            _mamanHttpService = mamanHttpService ?? throw new ArgumentNullException(nameof(mamanHttpService));
+            _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+            _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
+            _dispatcherService = dispatcherService ?? throw new ArgumentNullException(nameof(dispatcherService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            // Start connection monitoring
+            LoadCraneOptions();
+            InitializeCraneSelectionVisibility();
+
             _connectionManager.StartConnectionMonitoring();
             _connectionManager.ConnectionStateChanged += ConnectionManager_ConnectionStateChanged;
 
-            // Initialize login form
             Status = "מוכן להתחברות";
         }
 
-        private async Task LoginAsync()
+        private void LoadCraneOptions()
+        {
+            CraneOptions = new List<CraneOption>
+            {
+                new CraneOption { Name = "Ludige", Id = 1 },
+                new CraneOption { Name = "LPV", Id = 2 },
+                new CraneOption { Name = "מצבר קטן", Id = 3 },
+                new CraneOption { Name = "מצבר גדול", Id = 4 }
+            };
+            // Set a default selection if needed, e.g., the first one or based on stored config
+            SelectedCraneId = CraneOptions.FirstOrDefault()?.Id ?? 0;
+        }
+
+        private async void InitializeCraneSelectionVisibility() // Made async for DB access
+        {
+            try
+            {
+                var configurations = await _unitOfWork.Configurations.FindAsync(c => true);
+                var configuration = configurations.FirstOrDefault();
+                IsCraneSelectionVisible = (configuration == null || configuration.CraneId == 0 || App.IsFirstInitialization);
+                if (!IsCraneSelectionVisible && configuration != null)
+                {
+                    SelectedCraneId = configuration.CraneId; // Pre-select if already configured
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error initializing crane selection visibility. Defaulting to visible.");
+                IsCraneSelectionVisible = true; // Default to visible if there's an error
+            }
+        }
+        
+        private async System.Threading.Tasks.Task LoginAsync()
         {
             if (string.IsNullOrWhiteSpace(EmployeeCode))
             {
                 Status = "נא להזין מספר עובד";
+                return;
+            }
+
+            if (IsCraneSelectionVisible && SelectedCraneId == 0)
+            {
+                Status = "נא לבחור עמדה/עגורן";
                 return;
             }
 
@@ -92,27 +156,86 @@ namespace EM.Maman.DriverClient.ViewModels
 
             try
             {
-                bool isAuthenticated = await _userManager.AuthenticateAsync(EmployeeCode);
+                LoginResultDto loginResult = await _mamanHttpService.LoginAsync(EmployeeCode, SelectedCraneId);
 
-                if (isAuthenticated)
+                if (loginResult.IsSuccess)
                 {
-                    _logger.LogInformation($"User {EmployeeCode} logged in successfully");
+                    _logger.LogInformation($"User {EmployeeCode} logged in successfully via API.");
+                    ServerLoginResponse serverData = loginResult.UserData;
+                    
+                    User localUser = await _unitOfWork.Users.GetByCodeAsync(serverData.EmployeeCode);
+                    bool isNewUser = localUser == null;
+                    if (isNewUser)
+                    {
+                        localUser = new User { EmployeeCode = serverData.EmployeeCode };
+                    }
 
-                    var currentUser = await _userManager.GetCurrentUserAsync();
+                    localUser.BackendId = serverData.UserID;
+                    localUser.FirstName = serverData.FirstName;
+                    localUser.LastName = serverData.LastName;
+                    localUser.RoleID = serverData.RoleID;
+                    localUser.Token = serverData.Token;
+                    localUser.LastLoginDate = DateTime.UtcNow;
 
-                    // Raise the login successful event
-                    OnLoginSuccessful(currentUser.Id);
+                    if (isNewUser)
+                    {
+                        await _unitOfWork.Users.AddAsync(localUser);
+                    }
+                    else
+                    {
+                        // EF Core tracks changes, so just calling CompleteAsync is enough if localUser is tracked.
+                        // If not tracked, you might need an Update method in your repository.
+                        // For simplicity, assuming it's tracked or AddAsync handles AddOrUpdate.
+                    }
+                    await _unitOfWork.CompleteAsync(); // Save user
+
+                    // Save/Update Configuration for CraneId
+                    var configurations = await _unitOfWork.Configurations.FindAsync(c => true);
+                    var configuration = configurations.FirstOrDefault();
+                    if (configuration == null)
+                    {
+                        configuration = new Configuration();
+                        await _unitOfWork.Configurations.AddAsync(configuration);
+                    }
+                    configuration.CraneId = SelectedCraneId;
+                    configuration.InitializedByEmployeeId = EmployeeCode; // Or serverData.EmployeeCode
+                    configuration.InitializedAt = DateTime.UtcNow; // Or serverData.LoginTime if available
+                    
+                    await _unitOfWork.CompleteAsync(); // Save configuration
+
+                    Status = "התחברות הצליחה!";
+                    OnLoginSuccessful(localUser.Id); // Pass local user ID
                 }
-                else
+                else if (loginResult.IsNetworkError)
                 {
-                    _logger.LogWarning($"Login failed for user code: {EmployeeCode}");
-                    Status = "מספר עובד שגוי";
+                    _logger.LogWarning($"Network error during login for {EmployeeCode}. Attempting offline login.");
+                    Status = "שגיאת רשת. מנסה התחברות אופליין...";
+                    
+                    User localUser = await _unitOfWork.Users.GetByCodeAsync(EmployeeCode);
+                    if (localUser != null)
+                    {
+                        localUser.LastLoginDate = DateTime.UtcNow;
+                        await _unitOfWork.CompleteAsync();
+                        _logger.LogInformation($"User {EmployeeCode} logged in successfully offline.");
+                        Status = "התחברות אופליין הצליחה.";
+                        OnLoginSuccessful(localUser.Id);
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"Offline login failed for {EmployeeCode}: User not found in local DB.");
+                        Status = "אין חיבור לרשת ולא ניתן להתחבר עם משתמש חדש.";
+                    }
+                }
+                else // API login failed for other reasons
+                {
+                    _logger.LogWarning($"API Login failed for {EmployeeCode}: {loginResult.ErrorMessage}");
+                    Status = loginResult.ErrorMessage;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Login error");
-                Status = "שגיאה בהתחברות";
+                _logger.LogError(ex, $"Login error for user {EmployeeCode}");
+                Status = "שגיאה קריטית בהתחברות. אנא פנה לתמיכה.";
             }
             finally
             {
@@ -122,24 +245,31 @@ namespace EM.Maman.DriverClient.ViewModels
 
         private bool CanLogin()
         {
-            return !IsLoggingIn && !string.IsNullOrWhiteSpace(EmployeeCode);
+            if (IsLoggingIn || string.IsNullOrWhiteSpace(EmployeeCode))
+                return false;
+            if (IsCraneSelectionVisible && SelectedCraneId == 0)
+                return false;
+            return true;
         }
 
         private void ConnectionManager_ConnectionStateChanged(object sender, ConnectionStateChangedEventArgs e)
         {
             _dispatcherService.Invoke(() =>
             {
-                // Update status based on connection state changes
                 if (e.ConnectionType == ConnectionType.Network)
                 {
-                    Status = e.IsConnected ? "מוכן להתחברות" : "אין חיבור לרשת";
+                    // Avoid overwriting specific login status messages like "מתחבר..." or error messages
+                    if (Status == "מוכן להתחברות" || Status == "אין חיבור לרשת")
+                    {
+                         Status = e.IsConnected ? "מוכן להתחברות" : "אין חיבור לרשת";
+                    }
                 }
             });
         }
 
-        protected virtual void OnLoginSuccessful(int userId)
+        protected virtual void OnLoginSuccessful(int localUserId)
         {
-            LoginSuccessful?.Invoke(this, new LoginSuccessEventArgs(userId));
+            LoginSuccessful?.Invoke(this, new LoginSuccessEventArgs(localUserId));
         }
 
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
@@ -147,22 +277,23 @@ namespace EM.Maman.DriverClient.ViewModels
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+        protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null, Action onChangedCallback = null)
         {
             if (Equals(field, value)) return false;
             field = value;
             OnPropertyChanged(propertyName);
+            onChangedCallback?.Invoke();
             return true;
         }
     }
 
-    public class LoginSuccessEventArgs : System.EventArgs
+    public class LoginSuccessEventArgs : System.EventArgs // Explicitly System.EventArgs
     {
-        public int UserId { get; }
+        public int LocalUserId { get; } // Changed to LocalUserId for clarity
 
-        public LoginSuccessEventArgs(int userId)
+        public LoginSuccessEventArgs(int localUserId)
         {
-            UserId = userId;
+            LocalUserId = localUserId;
         }
     }
 }

@@ -18,7 +18,7 @@ namespace EM.Maman.DAL.Repositories
         public async Task<User> GetByCodeAsync(string code)
         {
             return await Context.Users
-                .FirstOrDefaultAsync(u => u.Code == code);
+                .FirstOrDefaultAsync(u => u.EmployeeCode == code);
         }
 
         public async Task<bool> AuthenticateAsync(string code)

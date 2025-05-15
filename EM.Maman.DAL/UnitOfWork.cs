@@ -32,6 +32,7 @@ namespace EM.Maman.DAL
         private IUserRepository _userRepository;
         private IConfigurationRepository _configurationRepository;
         private ITaskTypeRepository _taskTypeRepository;
+        private ITraceLogRepository _traceLogRepository;
 
         // Constructor with IDbContextFactory (preferred)
         public UnitOfWork(IDbContextFactory<LocalMamanDBContext> contextFactory, ILogger<UnitOfWork> logger)
@@ -94,6 +95,7 @@ namespace EM.Maman.DAL
         public IUserRepository Users => _userRepository ??= new UserRepository(_context);
         public IConfigurationRepository Configurations => _configurationRepository ??= new ConfigurationRepository(_context);
         public ITaskTypeRepository TaskTypes => _taskTypeRepository ??= new TaskTypeRepository(_context);
+        public ITraceLogRepository TraceLogs => _traceLogRepository ??= new TraceLogRepository(_context);
 
         public async Task<int> CompleteAsync()
         {

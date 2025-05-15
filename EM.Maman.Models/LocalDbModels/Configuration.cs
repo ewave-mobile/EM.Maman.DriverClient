@@ -16,4 +16,6 @@ public partial class Configuration
     public string WorkstationType { get; set; }
 
     public int ActiveTrolleyId { get; set; }
+
+    public int CraneId { get; set; } // ID of the crane selected during initial setup
 }

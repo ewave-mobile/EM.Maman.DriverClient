@@ -56,7 +56,7 @@ namespace EM.Maman.BL.Managers
                         user.LastLoginDate = DateTime.Now;
                         await _unitOfWork.CompleteAsync();
 
-                        _logger.LogInformation($"User {user.Name} (ID: {user.Id}) authenticated successfully");
+                        _logger.LogInformation($"User {user.FirstName} {user.LastName} (ID: {user.Id}) authenticated successfully");
                     }
                 }
                 else
@@ -81,7 +81,7 @@ namespace EM.Maman.BL.Managers
         public void SetCurrentUser(User user)
         {
             _currentUser = user;
-            _logger.LogInformation($"Current user set to: {user.Name} (ID: {user.Id})");
+            _logger.LogInformation($"Current user set to: {user.FirstName} {user.LastName} (ID: {user.Id})");
         }
 
         public void ClearCurrentUser()

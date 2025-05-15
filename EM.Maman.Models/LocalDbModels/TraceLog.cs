@@ -2,20 +2,33 @@
 #nullable disable
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations; // Required for MaxLength attribute
 
 namespace EM.Maman.Models.LocalDbModels;
 
 public partial class TraceLog
 {
-    public long Id { get; set; }
+    public int Id { get; set; }
 
-    public string Url { get; set; }
+    public DateTime RequestTimestamp { get; set; }
 
-    public string Request { get; set; }
+    [MaxLength(10)] // e.g., GET, POST, PUT, DELETE
+    public string RequestMethod { get; set; }
 
+    [MaxLength(500)] // Max length for URL
+    public string RequestUrl { get; set; }
+
+    // MaxLength will be enforced by OnModelCreating in DbContext to 255
+    // Service layer will truncate data before saving if it's longer
     public string RequestBody { get; set; }
 
-    public string ResponseCode { get; set; }
+    public DateTime ResponseTimestamp { get; set; }
 
+    public int ResponseStatusCode { get; set; }
+
+    // MaxLength will be enforced by OnModelCreating in DbContext to 255
+    // Service layer will truncate data before saving if it's longer
     public string ResponseBody { get; set; }
+
+    public long DurationMs { get; set; }
 }

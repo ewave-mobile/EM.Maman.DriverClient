@@ -10,7 +10,8 @@ using EM.Maman.Models.Interfaces.Services;
 using EM.Maman.Models.Interfaces;
 using EM.Maman.Models.LocalDbModels;
 using EM.Maman.Services.PlcServices;
-using EM.Maman.Services;
+using EM.Maman.Services; // Already here for other services
+using EM.Maman.Models.Dtos; // Required for LoginResultDto if used in ViewModels directly, though not strictly for DI setup
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -22,6 +23,7 @@ using EM.Maman.DriverClient.Extensions;
 using EM.Maman.Models.Interfaces;
 using EM.Maman.Models.LocalDbModels;
 using System.Linq;
+using System.Net.Http;
 
 namespace EM.Maman.DriverClient
 {
@@ -410,11 +412,18 @@ namespace EM.Maman.DriverClient
                 services.AddSingleton<IOpcService, OpcUaService>();
             }
 
+            // Register HttpClient as a singleton
+            services.AddSingleton<HttpClient>();
+
             // Register Services
             services.AddSingleton<IDispatcherService, DispatcherService>();
             services.AddSingleton<IConnectionManager, ConnectionManager>();
             services.AddSingleton<ICommandQueueService, CommandQueueService>();
             services.AddSingleton<ISynchronizationService, SynchronizationService>();
+
+            // Register our new custom services
+            services.AddTransient<IDBLoggerService, DBLoggerService>();
+            services.AddTransient<IMamanHttpService, MamanHttpService>();
 
             // Register Business Layer Services
             services.AddScoped<IUserManager, UserManager>();

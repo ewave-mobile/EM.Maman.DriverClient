@@ -258,13 +258,15 @@ public partial class LocalMamanDBContext : DbContext
 
         modelBuilder.Entity<TraceLog>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__TraceLog__3214EC074AE5E671");
+            entity.HasKey(e => e.Id).HasName("PK__TraceLog__3214EC074AE5E671"); // Keep existing PK name if it's already migrated
 
-            entity.Property(e => e.Request).HasMaxLength(200);
-            entity.Property(e => e.RequestBody).HasMaxLength(200);
-            entity.Property(e => e.ResponseBody).HasMaxLength(200);
-            entity.Property(e => e.ResponseCode).HasMaxLength(50);
-            entity.Property(e => e.Url).HasMaxLength(200);
+            // New properties for TraceLog based on the updated TraceLog.cs
+            entity.Property(e => e.RequestMethod).HasMaxLength(10).IsRequired(); // e.g., GET, POST
+            entity.Property(e => e.RequestUrl).HasMaxLength(500);
+            entity.Property(e => e.RequestBody).HasMaxLength(255); // Max length for request body
+            entity.Property(e => e.ResponseBody).HasMaxLength(255); // Max length for response body
+            // ResponseStatusCode (int), RequestTimestamp (DateTime), ResponseTimestamp (DateTime), DurationMs (long)
+            // do not typically require Fluent API configuration unless specific needs arise (e.g., column type, default value)
         });
 
         modelBuilder.Entity<Trolley>(entity =>
@@ -321,11 +323,18 @@ public partial class LocalMamanDBContext : DbContext
 
         modelBuilder.Entity<User>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Users__3214EC0763E2D4F3");
+            entity.HasKey(e => e.Id).HasName("PK__Users__3214EC0763E2D4F3"); // Keep existing PK name
 
-            entity.Property(e => e.Code).HasMaxLength(50);
+            entity.Property(e => e.EmployeeCode).HasMaxLength(50); // Renamed from Code
             entity.Property(e => e.LastLoginDate).HasColumnType("datetime");
-            entity.Property(e => e.Name).HasMaxLength(50);
+            // entity.Property(e => e.Name).HasMaxLength(50); // Name was removed, replaced by FirstName, LastName
+
+            // New properties for User
+            entity.Property(e => e.FirstName).HasMaxLength(100);
+            entity.Property(e => e.LastName).HasMaxLength(100);
+            entity.Property(e => e.Token).HasMaxLength(1024); // For JWT storage
+            // BackendId (int), RoleID (int) do not typically require specific Fluent API configuration
+            // unless specific needs arise (e.g., column type, default value, index)
         });
 
         OnModelCreatingPartial(modelBuilder);

@@ -19,6 +19,8 @@ namespace EM.Maman.Models.Interfaces
         IUserRepository Users { get; }
         IConfigurationRepository Configurations { get; }
         ITaskTypeRepository TaskTypes { get; }
+        ITraceLogRepository TraceLogs { get; }
+        
 
         // Save changes
         Task<int> CompleteAsync();

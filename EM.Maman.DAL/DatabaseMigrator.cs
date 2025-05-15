@@ -70,9 +70,15 @@ namespace EM.Maman.DAL
                     // Add a default admin user
                     context.Users.Add(new User
                     {
-                        Name = "Admin",
-                        Code = "123456",
+                        FirstName = "Admin", // Using FirstName
+                        LastName = "User",   // Using LastName, can be empty if preferred
+                        EmployeeCode = "123456", // Renamed from Code
                         LastLoginDate = DateTime.Now
+                        // Initialize other new required fields for User if any, e.g., BackendId, RoleID, Token
+                        // For a seed user, these might be default values or placeholders.
+                        // BackendId = 0, // Or some default/placeholder
+                        // RoleID = 1,    // Assuming 1 is an Admin role, adjust as needed
+                        // Token = ""     // Seeded user might not have a token initially
                     });
 
                     await context.SaveChangesAsync();
