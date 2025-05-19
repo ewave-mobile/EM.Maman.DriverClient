@@ -19,5 +19,9 @@ public partial class Finger
 
     public int? Side { get; set; }
 
-    public virtual ICollection<Task> Tasks { get; set; } = new List<Task>();
+    public virtual ICollection<Task> Tasks { get; set; } = new List<Task>(); // Existing generic collection, likely for FingerLocationId
+
+    // New specific collections for explicit relationships
+    public virtual ICollection<Task> TasksAsStorageSource { get; set; } = new List<Task>();
+    public virtual ICollection<Task> TasksAsRetrievalDestination { get; set; } = new List<Task>();
 }

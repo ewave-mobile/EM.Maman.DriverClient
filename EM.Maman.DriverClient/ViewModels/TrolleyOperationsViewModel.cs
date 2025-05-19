@@ -21,6 +21,7 @@ namespace EM.Maman.DriverClient.ViewModels
         private MainViewModel _mainViewModel;
         private readonly IUnitOfWorkFactory _unitOfWorkFactory;
         private readonly ILogger<TrolleyOperationsViewModel> _logger;
+        private readonly Models.Interfaces.Services.IOpcService _opcService; // Added IOpcService
 
         public void SetMainViewModel(MainViewModel mainViewModel)
         {
@@ -60,25 +61,31 @@ namespace EM.Maman.DriverClient.ViewModels
 
         public ICommand TestLoadLeftCellCommand => _testLoadLeftCellCommand ??= new RelayCommand(async _ => await LoadPalletFromWarehouseLeftCellAsync(0), _ => true); // Assuming default to outer cell (depth 1)
         public ICommand TestLoadRightCellCommand => _testLoadRightCellCommand ??= new RelayCommand(async _ => await LoadPalletFromWarehouseRightCellAsync(0), _ => true); // Assuming default to outer cell (depth 1)
-        public ICommand TestUnloadLeftCellCommand => _testUnloadLeftCellCommand ??= new RelayCommand(async _ => await UnloadLeftCellImplementationAsync(), _ => CanUnloadLeftCell());
-        public ICommand TestUnloadRightCellCommand => _testUnloadRightCellCommand ??= new RelayCommand(async _ => await UnloadRightCellImplementationAsync(), _ => CanUnloadRightCell());
+        public ICommand TestUnloadLeftCellCommand => _testUnloadLeftCellCommand ??= new RelayCommand(async _ => await UnloadPalletFromLeftCellAsync(), _ => CanUnloadLeftCell());
+        public ICommand TestUnloadRightCellCommand => _testUnloadRightCellCommand ??= new RelayCommand(async _ => await UnloadPalletFromRightCellAsync(), _ => CanUnloadRightCell());
 
         public TrolleyOperationsViewModel(
-            TrolleyViewModel trolleyVM, 
-            Trolley currentTrolley, 
+            TrolleyViewModel trolleyVM,
+            Trolley currentTrolley,
             IUnitOfWorkFactory unitOfWorkFactory,
-            ILogger<TrolleyOperationsViewModel> logger)
+            ILogger<TrolleyOperationsViewModel> logger,
+            Models.Interfaces.Services.IOpcService opcService) // Added IOpcService parameter
         {
             TrolleyVM = trolleyVM;
             CurrentTrolley = currentTrolley;
             _unitOfWorkFactory = unitOfWorkFactory;
             _logger = logger;
-            
-            // Get the UnitOfWorkFactory from the App's ServiceProvider - This line might be redundant if injected
-            // _unitOfWorkFactory = (App.Current as App)?.ServiceProvider.GetRequiredService<IUnitOfWorkFactory>();
+            _opcService = opcService; // Assign IOpcService
+
             if (_unitOfWorkFactory == null)
             {
-                throw new InvalidOperationException("Could not resolve IUnitOfWorkFactory from ServiceProvider");
+                _logger.LogError("IUnitOfWorkFactory is null in TrolleyOperationsViewModel constructor.");
+                throw new InvalidOperationException("Could not resolve IUnitOfWorkFactory.");
+            }
+            if (_opcService == null)
+            {
+                _logger.LogError("IOpcService is null in TrolleyOperationsViewModel constructor.");
+                throw new InvalidOperationException("Could not resolve IOpcService.");
             }
         }
 
@@ -439,6 +446,16 @@ namespace EM.Maman.DriverClient.ViewModels
                 _logger.LogInformation("No pallet found in any left warehouse cell to load.");
                 MessageBox.Show("No pallet in any left warehouse cell to load.");
             }
+
+            // If a pallet was loaded onto the trolley (and not just swapped), initiate HND task creation
+            if (TrolleyVM.LeftCell.IsOccupied && TrolleyVM.LeftCell.Pallet == warehousePallet && warehousePallet != null) // Check if the loaded pallet is indeed the one from warehouse
+            {
+                Cell sourceDbCell = await GetDbCellAsync(currentRow.Position, TrolleyVM.CurrentLevelNumber, 2, warehousePalletOrder);
+                if (sourceDbCell != null && _mainViewModel != null)
+                {
+                    await _mainViewModel.InitiateHndRetrievalTaskCreation(warehousePallet, sourceDbCell);
+                }
+            }
         }
 
         public async System.Threading.Tasks.Task LoadPalletFromWarehouseRightCellAsync(int depthIndexToIgnore = 0) // depthIndexToIgnore is no longer primary driver
@@ -541,6 +558,16 @@ namespace EM.Maman.DriverClient.ViewModels
             {
                 _logger.LogInformation("No pallet found in any right warehouse cell to load.");
                 MessageBox.Show("No pallet in any right warehouse cell to load.");
+            }
+
+            // If a pallet was loaded onto the trolley (and not just swapped), initiate HND task creation
+            if (TrolleyVM.RightCell.IsOccupied && TrolleyVM.RightCell.Pallet == warehousePallet && warehousePallet != null) // Check if the loaded pallet is indeed the one from warehouse
+            {
+                Cell sourceDbCell = await GetDbCellAsync(currentRow.Position, TrolleyVM.CurrentLevelNumber, 1, warehousePalletOrder);
+                if (sourceDbCell != null && _mainViewModel != null)
+                {
+                    await _mainViewModel.InitiateHndRetrievalTaskCreation(warehousePallet, sourceDbCell);
+                }
             }
         }
 
@@ -917,9 +944,9 @@ namespace EM.Maman.DriverClient.ViewModels
         private bool CanUnloadRightCell() => TrolleyVM?.RightCell?.IsOccupied == true;
         
         // Method to unload the left cell - calls implementation in UnloadMethods.cs
-        private async System.Threading.Tasks.Task TestUnloadLeftCellAsync() => await UnloadLeftCellImplementationAsync();
+        private async System.Threading.Tasks.Task TestUnloadLeftCellAsync() => await UnloadPalletFromLeftCellAsync();
         
         // Method to unload the right cell - calls implementation in UnloadMethods.cs
-        private async System.Threading.Tasks.Task TestUnloadRightCellAsync() => await UnloadRightCellImplementationAsync();
+        private async System.Threading.Tasks.Task TestUnloadRightCellAsync() => await UnloadPalletFromRightCellAsync();
     }
 }

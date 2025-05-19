@@ -24,6 +24,8 @@ using EM.Maman.Models.Interfaces;
 using EM.Maman.Models.LocalDbModels;
 using System.Linq;
 using System.Net.Http;
+using EM.Maman.Models.Interfaces.Services; // Added for ICurrentUserContext
+using EM.Maman.DriverClient.Services; // Added for CurrentUserContext
 
 namespace EM.Maman.DriverClient
 {
@@ -424,6 +426,7 @@ namespace EM.Maman.DriverClient
             // Register our new custom services
             services.AddTransient<IDBLoggerService, DBLoggerService>();
             services.AddTransient<IMamanHttpService, MamanHttpService>();
+            services.AddSingleton<ICurrentUserContext, CurrentUserContext>(); // Added new service
 
             // Register Business Layer Services
             services.AddScoped<IUserManager, UserManager>();
@@ -444,7 +447,10 @@ namespace EM.Maman.DriverClient
                     provider.GetRequiredService<IDispatcherService>(),
                     provider.GetRequiredService<ILoggerFactory>(),
                     provider.GetRequiredService<TrolleyViewModel>(),
-                    provider.GetRequiredService<IConfiguration>()
+                    provider.GetRequiredService<IConfiguration>(),
+                    provider, // Pass the IServiceProvider itself
+                    provider.GetRequiredService<ICurrentUserContext>(), // Provide ICurrentUserContext
+                    provider.GetRequiredService<IMamanHttpService>() // Provide IMamanHttpService
                 );
             });
 

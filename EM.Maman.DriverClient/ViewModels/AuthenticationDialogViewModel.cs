@@ -45,9 +45,15 @@ namespace EM.Maman.DriverClient.ViewModels
         // Property to hold the result for the calling window
         public bool? DialogResult { get; private set; }
 
+        public bool IsNewTaskCreationAllowed { get; private set; }
+
         public AuthenticationDialogViewModel(PalletAuthenticationItem itemToAuthenticate)
         {
             ItemToAuthenticate = itemToAuthenticate;
+            // Determine if new task creation is allowed based on the authentication context
+            IsNewTaskCreationAllowed = itemToAuthenticate.AuthContextMode == AuthenticationContextMode.Storage;
+            // For Retrieval mode, new task creation is not allowed.
+            // This property can be bound to the visibility/enabled state of a "Create New Task" button in the dialog.
         }
 
         private void Confirm(object parameter)

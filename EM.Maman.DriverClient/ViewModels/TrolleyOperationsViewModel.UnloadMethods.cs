@@ -3,6 +3,10 @@ using EM.Maman.Models.DisplayModels;
 using System.Windows;
 using EM.Maman.Models.Enums;
 using Microsoft.Extensions.Logging;
+using EM.Maman.Common.Enums; // Added for OpcInOutState
+using EM.Maman.Common.Constants; // Added for OpcNodes
+using System; // Added for Exception
+using System.Linq; // Added for FirstOrDefault
 
 namespace EM.Maman.DriverClient.ViewModels
 {
@@ -15,6 +19,7 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             Pallet palletToUnload;
             int? palletIdToUpdateTask = null;
+            OpcInOutState opcUnloadState = OpcInOutState.Idle;
 
             if (unloadFromLeftTrolleyCell)
             {
@@ -24,7 +29,8 @@ namespace EM.Maman.DriverClient.ViewModels
                     MessageBox.Show("No pallet in left trolley cell to unload.");
                     return;
                 }
-                palletToUnload = await RemovePalletFromTrolleyLeftCellAsync();
+                palletToUnload = TrolleyVM.LeftCell.Pallet; // Get pallet before attempting OPC
+                opcUnloadState = OpcInOutState.OutFromLeft;
             }
             else // Unload from right trolley cell
             {
@@ -34,18 +40,44 @@ namespace EM.Maman.DriverClient.ViewModels
                     MessageBox.Show("No pallet in right trolley cell to unload.");
                     return;
                 }
-                palletToUnload = await RemovePalletFromTrolleyRightCellAsync();
+                palletToUnload = TrolleyVM.RightCell.Pallet; // Get pallet before attempting OPC
+                opcUnloadState = OpcInOutState.OutFromRight;
             }
 
             if (palletToUnload == null)
             {
-                _logger.LogError($"Failed to retrieve pallet from trolley cell during unload (From Left: {unloadFromLeftTrolleyCell}).");
-                MessageBox.Show("Failed to retrieve pallet from trolley cell during unload.");
+                _logger.LogError($"Pallet to unload is null or not found on the specified trolley side (From Left: {unloadFromLeftTrolleyCell}).");
+                MessageBox.Show("Pallet not found on the specified trolley side for unloading.");
                 return;
             }
             palletIdToUpdateTask = palletToUnload.Id;
-            _logger.LogInformation($"Pallet {palletToUnload.DisplayName} removed from trolley (From Left: {unloadFromLeftTrolleyCell}). Preparing to unload to warehouse (Target Left: {targetIsLeftWarehouseCell}).");
 
+            // OPC Command to initiate physical unload
+            try
+            {
+                _logger.LogInformation("Writing OPC command to unload: {State} ({Value}) to Node: {NodeId}", opcUnloadState, (short)opcUnloadState, OpcNodes.InOutRegister);
+                await _opcService.WriteRegisterAsync(OpcNodes.InOutRegister, (short)opcUnloadState);
+                // TODO: Add delay or check for OPC confirmation if available/needed
+                // For now, we assume the command is sent and proceed with logical unload.
+                
+                // Perform logical unload from trolley AFTER successful OPC command dispatch
+                if (unloadFromLeftTrolleyCell)
+                {
+                    await RemovePalletFromTrolleyLeftCellAsync(); 
+                }
+                else
+                {
+                    await RemovePalletFromTrolleyRightCellAsync(); 
+                }
+                _logger.LogInformation($"Pallet {palletToUnload.DisplayName} logically removed from trolley (From Left: {unloadFromLeftTrolleyCell}). Preparing to unload to warehouse (Target Left: {targetIsLeftWarehouseCell}).");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during OPC unload command or logical removal for {State}.", opcUnloadState);
+                MessageBox.Show($"Error during physical unload or internal update: {ex.Message}", "Unload Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                // Consider if pallet should be re-added to trolley VM if OPC succeeded but logical removal failed.
+                return; // Stop if OPC command or initial logical removal fails
+            }
 
             CompositeRow currentRow = GetCurrentRow();
             if (currentRow == null)
@@ -53,6 +85,9 @@ namespace EM.Maman.DriverClient.ViewModels
                 _logger.LogError("Trolley is not at a valid position for unload.");
                 MessageBox.Show("Trolley is not at a valid position.");
                 // Potentially re-add palletToUnload to trolley if critical? Or handle error more gracefully.
+                 // Re-add pallet to trolley if subsequent logic fails before DB update
+                if (opcUnloadState == OpcInOutState.OutFromLeft) await AddPalletToTrolleyLeftCellAsync(palletToUnload);
+                else if (opcUnloadState == OpcInOutState.OutFromRight) await AddPalletToTrolleyRightCellAsync(palletToUnload);
                 return;
             }
 
@@ -64,7 +99,8 @@ namespace EM.Maman.DriverClient.ViewModels
                                 "Level Mismatch", MessageBoxButton.OK, MessageBoxImage.Warning);
                 TrolleyVM.SelectedLevelNumber = TrolleyVM.CurrentLevelNumber; // Switch view to current level
                 // Re-add pallet to trolley as the operation is cancelled before unload.
-                if (unloadFromLeftTrolleyCell) await AddPalletToTrolleyLeftCellAsync(palletToUnload); else await AddPalletToTrolleyRightCellAsync(palletToUnload);
+                if (opcUnloadState == OpcInOutState.OutFromLeft) await AddPalletToTrolleyLeftCellAsync(palletToUnload);
+                else if (opcUnloadState == OpcInOutState.OutFromRight) await AddPalletToTrolleyRightCellAsync(palletToUnload);
                 return;
             }
             
@@ -93,119 +129,136 @@ namespace EM.Maman.DriverClient.ViewModels
                         MessageBox.Show($"Unloaded pallet {palletToUnload.DisplayName} to right finger. Finger pallet count: {currentRow.RightFingerPalletCount}");
                         fingerUnloadPerformed = true;
                     }
-                    // If finger exists on the side but not at this specific currentRow, it will fall through to cell unload.
                 }
-                // If no finger at the specific target location on the lowest level, proceed to cell unload.
             }
 
             if (fingerUnloadPerformed)
             {
                 if (palletIdToUpdateTask.HasValue) UpdateTaskStatus(palletIdToUpdateTask);
+                 // Set OPC back to Idle after finger unload operation.
+                try
+                {
+                    await _opcService.WriteRegisterAsync(OpcNodes.InOutRegister, (short)OpcInOutState.Idle);
+                    _logger.LogInformation("OPC InOutRegister set back to Idle after finger unload operation.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error setting OPC InOutRegister back to Idle after finger unload.");
+                }
                 return;
             }
 
-            // Regular Warehouse Cell Unload (Non-Lowest Levels OR Lowest Level without a finger at target position)
-            // This is where the "push-in" logic happens.
-            // The ShiftPalletsDeeperInWarehouseCellAsync will handle finding Order 0 cell,
-            // shifting existing pallets, and adding the newPalletToStore to Order 0.
+            // Regular Warehouse Cell Unload
             _logger.LogInformation($"Attempting to unload pallet {palletToUnload.DisplayName} to warehouse cell (Target Left: {targetIsLeftWarehouseCell}), invoking shift deeper logic.");
             await ShiftPalletsDeeperInWarehouseCellAsync(palletToUnload, currentRow, targetIsLeftWarehouseCell);
             
-            // Update UI for the cell at Order 0 (cellIndex 1)
-            // A more comprehensive UI update would query all pallets in the physical cell location and update LeftCell1Pallet, LeftCell2Pallet etc.
             UpdateWarehouseCellPallet(currentRow.Position, targetIsLeftWarehouseCell, 1, palletToUnload); 
-            MessageBox.Show($"Unloaded pallet {palletToUnload.DisplayName} to {(targetIsLeftWarehouseCell ? "left" : "right")} warehouse cell (Order 0). Deeper pallets shifted if necessary.");
+            MessageBox.Show($"Pallet {palletToUnload.DisplayName} logically unloaded to {(targetIsLeftWarehouseCell ? "left" : "right")} warehouse cell (Order 0). Deeper pallets shifted if necessary.");
 
             if (palletIdToUpdateTask.HasValue)
             {
-                UpdateTaskStatus(palletIdToUpdateTask);
+                UpdateTaskStatus(palletIdToUpdateTask); 
+            }
+
+            // Set OPC back to Idle after logical operations are complete
+            try
+            {
+                await _opcService.WriteRegisterAsync(OpcNodes.InOutRegister, (short)OpcInOutState.Idle);
+                _logger.LogInformation("OPC InOutRegister set back to Idle after warehouse cell unload operation.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting OPC InOutRegister back to Idle after warehouse cell unload.");
             }
         }
 
-
-        // Implementation of unload left cell functionality
-        private async System.Threading.Tasks.Task UnloadLeftCellImplementationAsync()
+        public async System.Threading.Tasks.Task UnloadPalletFromLeftCellAsync()
         {
-            _logger.LogInformation("UnloadLeftCellImplementationAsync called.");
+            _logger.LogInformation("UnloadPalletFromLeftCellAsync called (public).");
             if (TrolleyVM.LeftCell.IsOccupied)
             {
-                await UnloadPalletToWarehouseAsync(true, true); // Unload from Left Trolley to Left Warehouse
+                await UnloadPalletToWarehouseAsync(true, true); 
             }
-            else if (TrolleyVM.RightCell.IsOccupied) // Left is empty, but right has a pallet
+            else if (TrolleyVM.RightCell.IsOccupied) 
             {
-                _logger.LogInformation("Left trolley cell empty, right cell has pallet. Unloading right pallet to LEFT warehouse side.");
-                MessageBox.Show("Left trolley cell is empty. Unloading pallet from right trolley cell to the left warehouse side.");
-                await UnloadPalletToWarehouseAsync(false, true); // Unload from Right Trolley to Left Warehouse
+                _logger.LogInformation("Left trolley cell empty, attempting to unload from Right cell to LEFT warehouse side (if that's the intent). This might need review based on operational flow.");
+                 MessageBox.Show("Left trolley cell is empty. If a pallet is on the right and needs unloading, use the appropriate unload command for the right side or ensure the task specifies the correct unload operation.", "Unload Info", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
             {
-                _logger.LogWarning("Both trolley cells are empty. Nothing to unload.");
-                MessageBox.Show("Both trolley cells are empty. Nothing to unload.");
+                _logger.LogWarning("Left trolley cell is empty. Nothing to unload.");
+                MessageBox.Show("Left trolley cell is empty. Nothing to unload.");
             }
         }
 
-        // Implementation of unload right cell functionality
-        private async System.Threading.Tasks.Task UnloadRightCellImplementationAsync()
+        public async System.Threading.Tasks.Task UnloadPalletFromRightCellAsync()
         {
-            _logger.LogInformation("UnloadRightCellImplementationAsync called.");
+            _logger.LogInformation("UnloadPalletFromRightCellAsync called (public).");
             if (TrolleyVM.RightCell.IsOccupied)
             {
-                await UnloadPalletToWarehouseAsync(false, false); // Unload from Right Trolley to Right Warehouse
+                await UnloadPalletToWarehouseAsync(false, false);
             }
-            else if (TrolleyVM.LeftCell.IsOccupied) // Right is empty, but left has a pallet
+            else if (TrolleyVM.LeftCell.IsOccupied)
             {
-                _logger.LogInformation("Right trolley cell empty, left cell has pallet. Unloading left pallet to RIGHT warehouse side.");
-                MessageBox.Show("Right trolley cell is empty. Unloading pallet from left trolley cell to the right warehouse side.");
-                await UnloadPalletToWarehouseAsync(true, false); // Unload from Left Trolley to Right Warehouse
+                 _logger.LogInformation("Right trolley cell empty, attempting to unload from Left cell to RIGHT warehouse side (if that's the intent). This might need review.");
+                 MessageBox.Show("Right trolley cell is empty. If a pallet is on the left and needs unloading, use the appropriate unload command for the left side or ensure the task specifies the correct unload operation.", "Unload Info", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
             {
-                _logger.LogWarning("Both trolley cells are empty. Nothing to unload.");
-                MessageBox.Show("Both trolley cells are empty. Nothing to unload.");
+                _logger.LogWarning("Right trolley cell is empty. Nothing to unload.");
+                MessageBox.Show("Right trolley cell is empty. Nothing to unload.");
             }
         }
 
-        private async void UpdateTaskStatus(int? palletId) // Made async due to SaveTaskToDatabase call
+        private async void UpdateTaskStatus(int? palletId) 
         {
             if (_mainViewModel == null || palletId == null ) return;
 
-            // Find the task for this pallet in the PalletsReadyForStorage collection
             var taskItem = _mainViewModel.PalletsReadyForStorage.FirstOrDefault(
                 item => item.PalletDetails?.Id == palletId);
-
-            if (taskItem != null)
+            
+            // Also check PalletsReadyForDelivery for retrieval tasks
+            PalletRetrievalTaskItem retrievalTaskItem = null;
+            if (taskItem == null)
             {
-                // Update the task status to finished
+                retrievalTaskItem = _mainViewModel.PalletsReadyForDelivery.FirstOrDefault(
+                    item => item.PalletDetails?.Id == palletId);
+            }
+
+            if (taskItem != null && taskItem.StorageTask != null) // It's a storage task
+            {
                 taskItem.StorageTask.ActiveTaskStatus = ActiveTaskStatus.finished;
-                taskItem.StorageTask.Status = Models.Enums.TaskStatus.Completed; // Explicitly set to Completed
-                taskItem.StorageTask.ExecutedDateTime = DateTime.Now; // Set execution time
+                taskItem.StorageTask.Status = Models.Enums.TaskStatus.Completed; 
+                taskItem.StorageTask.ExecutedDateTime = DateTime.Now; 
                 _mainViewModel.OnPropertyChanged(nameof(_mainViewModel.PalletsReadyForStorage));
 
-                // Persist the ActiveTaskStatus change
-                if (_mainViewModel.TaskVM != null && taskItem.StorageTask != null)
+                if (_mainViewModel.TaskVM != null)
                 {
-                    // SaveTaskToDatabase will now save the .Status and .ExecutedDateTime as well
                     await _mainViewModel.TaskVM.SaveTaskToDatabase(taskItem.StorageTask);
                 }
-
-                // Show a message to confirm the task is complete
                 MessageBox.Show($"Storage task for pallet {palletId} has been completed.",
                                "Task Completed", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                // Set up a timer to remove the task after 5 seconds
-                var timer = new System.Timers.Timer(5000); // 5 seconds
+                var timer = new System.Timers.Timer(5000); 
                 timer.Elapsed += (sender, e) =>
                 {
                     timer.Stop();
                     _mainViewModel._dispatcherService.Invoke(() =>
                     {
-                        // Remove the task from UI collection
                         _mainViewModel.PalletsReadyForStorage.Remove(taskItem);
-                        _mainViewModel.OnPropertyChanged(nameof(_mainViewModel.HasPalletsReadyForStorage));
+                        _mainViewModel.NotifyStorageItemsChanged();
                     });
                 };
-                timer.AutoReset = false; // Only fire once
+                timer.AutoReset = false; 
                 timer.Start();
+            }
+            else if (retrievalTaskItem != null && retrievalTaskItem.RetrievalTask != null) // It's a retrieval task
+            {
+                // Note: The status update to Completed/finished for retrieval tasks
+                // is already handled in MainViewModel.ExecuteUnloadAtDestination.
+                // This UpdateTaskStatus method was originally for storage.
+                // If specific post-unload actions for retrieval are needed here, they can be added.
+                // For now, the main completion logic for retrieval is in ExecuteUnloadAtDestination.
+                 _logger.LogInformation("Retrieval task for pallet {PalletId} already marked completed by ExecuteUnloadAtDestination.", palletId);
             }
         }
     }

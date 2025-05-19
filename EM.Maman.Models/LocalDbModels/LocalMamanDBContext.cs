@@ -231,6 +231,32 @@ public partial class LocalMamanDBContext : DbContext
             entity.HasOne(d => d.CellEndLocation).WithMany(p => p.Tasks).HasForeignKey(d => d.CellEndLocationId);
 
             entity.HasOne(d => d.FingerLocation).WithMany(p => p.Tasks).HasForeignKey(d => d.FingerLocationId);
+
+            // New specific relationships
+            entity.HasOne(d => d.StorageSourceFinger)
+                .WithMany(p => p.TasksAsStorageSource)
+                .HasForeignKey(d => d.StorageSourceFingerId)
+                .HasConstraintName("FK_Task_Finger_StorageSource");
+
+            entity.HasOne(d => d.StorageDestinationCell)
+                .WithMany(p => p.TasksAsStorageDestination)
+                .HasForeignKey(d => d.StorageDestinationCellId)
+                .HasConstraintName("FK_Task_Cell_StorageDestination");
+
+            entity.HasOne(d => d.RetrievalSourceCell)
+                .WithMany(p => p.TasksAsRetrievalSource)
+                .HasForeignKey(d => d.RetrievalSourceCellId)
+                .HasConstraintName("FK_Task_Cell_RetrievalSource");
+
+            entity.HasOne(d => d.RetrievalDestinationFinger)
+                .WithMany(p => p.TasksAsRetrievalDestination)
+                .HasForeignKey(d => d.RetrievalDestinationFingerId)
+                .HasConstraintName("FK_Task_Finger_RetrievalDestination");
+
+            entity.HasOne(d => d.RetrievalDestinationCell)
+                .WithMany(p => p.TasksAsRetrievalDestination) // Cell.TasksAsRetrievalDestination will be used by Task.RetrievalDestinationCell
+                .HasForeignKey(d => d.RetrievalDestinationCellId)
+                .HasConstraintName("FK_Task_Cell_RetrievalDestination");
         });
 
         modelBuilder.Entity<TaskDetail>(entity =>

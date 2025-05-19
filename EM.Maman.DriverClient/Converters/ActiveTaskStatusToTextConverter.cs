@@ -17,11 +17,11 @@ namespace EM.Maman.DriverClient.Converters
                 switch (status)
                 {
                     case Models.Enums.ActiveTaskStatus.retrieval:
-                        return "בשליפה";
+                        return "בהעמסה";
                     case Models.Enums.ActiveTaskStatus.transit:
                         return "בנסיעה";
                     case Models.Enums.ActiveTaskStatus.storing:
-                        return "באחסון";
+                        return "בפריקה";
                     case Models.Enums.ActiveTaskStatus.finished:
                         return "הושלם";
                     default:

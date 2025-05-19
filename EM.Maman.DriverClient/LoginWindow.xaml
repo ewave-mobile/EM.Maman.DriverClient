@@ -7,11 +7,12 @@
         xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         mc:Ignorable="d"
+        x:Name="SelfLoginWindow"
         Title="כניסה" Height="{StaticResource WindowHeight}" Width="{StaticResource WindowWidth}"
         WindowState="Normal"
         WindowStyle="SingleBorderWindow"
-        DataContext="{Binding RelativeSource={RelativeSource Self}}"
         >
+        <!-- DataContext is now set in code-behind to LoginViewModel -->
 
     <Window.Resources>
         <!-- Standard BoolToVisibilityConverter -->
@@ -89,10 +90,22 @@ CaretBrush="#329DFF"
 SelectionBrush="#329DFF"
 BorderThickness="1"
 TextAlignment="Right"
-Text="{Binding EmployeeId, UpdateSourceTrigger=PropertyChanged}"/>
+Text="{Binding EmployeeCode, UpdateSourceTrigger=PropertyChanged}"/>
+
+            <!-- Status Message TextBlock -->
+            <TextBlock Text="{Binding Status}"
+                       Foreground="Red"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       Margin="0,5,0,5"
+                       Visibility="{Binding IsErrorStatus, Converter={StaticResource BoolToVisibilityConverter}}"
+                       FontSize="14"
+                       TextWrapping="Wrap"/>
+            
             <!-- Initialization Section (Visible only on first run) -->
+            <!-- Binding Path to properties on LoginWindow (code-behind) using ElementName -->
             <StackPanel x:Name="InitializationPanel"
-                        Visibility="{Binding IsFirstInitializationMode, Converter={StaticResource BoolToVisibilityConverter}}"
+                        Visibility="{Binding ElementName=SelfLoginWindow, Path=IsFirstInitializationMode, Converter={StaticResource BoolToVisibilityConverter}}"
                         HorizontalAlignment="Center" Margin="0,15,0,10">
                 <TextBlock Text="בחירת עמדת עבודה"
                            HorizontalAlignment="Right" TextAlignment="Right"
@@ -114,20 +127,21 @@ Text="{Binding EmployeeId, UpdateSourceTrigger=PropertyChanged}"/>
             <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Margin="0,20,0,0">
                 <!-- Initialization Button (Visible only on first run) -->
                 <Button Content="כניסה" Width="300" Height="45" Background="#329DFF" Foreground="White" FontSize="18"
-                        Click="Button_Click"
-                        Visibility="{Binding IsFirstInitializationMode, Converter={StaticResource BoolToVisibilityConverter}}" ClickMode="Press" />
+                        Click="Button_Click" 
+                        Visibility="{Binding ElementName=SelfLoginWindow, Path=IsFirstInitializationMode, Converter={StaticResource BoolToVisibilityConverter}}" ClickMode="Press" />
 
                 <!-- Standard Login Button (Visible only when NOT first initialization) -->
+                <!-- Binds to LoginCommand on LoginViewModel (which is the DataContext) -->
                 <Button Content="כניסה" Width="300" Height="45" Background="#329DFF" Foreground="White" FontSize="18"
-                        Click="LoginButton_Click"
-                        Visibility="{Binding IsNotFirstInitializationMode, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        Command="{Binding LoginCommand}"
+                        Visibility="{Binding ElementName=SelfLoginWindow, Path=IsNotFirstInitializationMode, Converter={StaticResource BoolToVisibilityConverter}}"/>
             </StackPanel>
            
 
         </StackPanel>
         <StackPanel Orientation="Vertical" Height="80" Width="300" VerticalAlignment="Bottom"  >
             <Image Source="/images/ewaveMobileLogo.png" Width="168" Height="28"  Stretch="Fill" HorizontalAlignment="Center" VerticalAlignment="Top"/>
-            <TextBlock Text="{Binding Version}" HorizontalAlignment="Center" TextAlignment="Right" FontSize="18" Margin="0,10,0,10" VerticalAlignment="Bottom" Foreground="White" />
+            <TextBlock Text="{Binding ElementName=SelfLoginWindow, Path=Version}" HorizontalAlignment="Center" TextAlignment="Right" FontSize="18" Margin="0,10,0,10" VerticalAlignment="Bottom" Foreground="White" />
         </StackPanel>
     </Grid>
 </Window>

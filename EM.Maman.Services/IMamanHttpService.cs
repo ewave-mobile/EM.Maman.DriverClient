@@ -6,6 +6,7 @@ namespace EM.Maman.Services
     public interface IMamanHttpService
     {
         Task<LoginResultDto> LoginAsync(string employeeCode, int craneId);
+        Task<TasksApiResponseDto> GetTasksAsync();
         
         // Placeholder for a method to set the token after successful login
         // This might be handled internally or explicitly called.

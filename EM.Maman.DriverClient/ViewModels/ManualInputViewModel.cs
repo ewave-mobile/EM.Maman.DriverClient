@@ -275,14 +275,14 @@ namespace EM.Maman.DriverClient.ViewModels
                 TaskType = Models.Enums.TaskType.Storage, // Explicitly Storage
                 Status = Models.Enums.TaskStatus.Created, // New Status
                 CreatedDateTime = DateTime.Now,
-                Code = GenerateTaskCode(),
-                SourceFingerId = _currentFingerId // Set SourceFingerId (int?)
+                Code = GenerateTaskCode()
+                // SourceFinger will be set in InitializeAsync or when currentFinger is loaded
             };
         }
 
         public async System.Threading.Tasks.Task InitializeAsync()
         {
-            await LoadFingersAsync(); // Kept in case Fingers collection is used elsewhere
+            await LoadFingersAsync(); // This will set TaskDetails.SourceFinger
         }
 
         private string GenerateTaskCode()
@@ -302,11 +302,25 @@ namespace EM.Maman.DriverClient.ViewModels
                 {
                     var fingersFromDb = await unitOfWork.Fingers.GetAllAsync();
                     Fingers = new ObservableCollection<Finger>(fingersFromDb.OrderBy(f => f.Position));
-                    // Optionally, find and set a SourceFinger object if needed for display, but ID is primary
-                    var currentFinger = Fingers.FirstOrDefault(f => f.Id == _currentFingerId);
-                    if (currentFinger != null && TaskDetails != null)
+                    var currentFingerEntity = Fingers.FirstOrDefault(f => f.Id == _currentFingerId);
+                    if (currentFingerEntity != null && TaskDetails != null)
                     {
-                        TaskDetails.SourceFinger = currentFinger; // For display on sticker if needed
+                        TaskDetails.SourceFinger = currentFingerEntity;
+                    }
+                    else if (_currentFingerId > 0 && TaskDetails != null) // Fallback if not in preloaded Fingers
+                    {
+                        // This case should ideally not happen if LoadFingersAsync is comprehensive
+                        // or if _currentFingerId always matches an existing finger.
+                        // For robustness, attempt to load it directly if TaskDetails.SourceFinger is still null.
+                        var finger = await unitOfWork.Fingers.GetByIdAsync(_currentFingerId);
+                        if (finger != null)
+                        {
+                            TaskDetails.SourceFinger = finger;
+                        }
+                        else
+                        {
+                             // Log or handle the case where the currentFingerId doesn't match any known finger
+                        }
                     }
                     StatusMessage = $"Finger information loaded.";
                 }
@@ -417,7 +431,21 @@ namespace EM.Maman.DriverClient.ViewModels
                 IsBusy = false;
                 return;
             }
-            TaskDetails.DestinationCellId = randomDestinationCellId.Value; // This is long?
+            // TaskDetails.DestinationCellId = randomDestinationCellId.Value; // This is long?
+            // Instead, load the Cell object and assign to TaskDetails.DestinationCell
+            Cell destinationCellEntity = null;
+            using (var uow = _unitOfWorkFactory.CreateUnitOfWork())
+            {
+                destinationCellEntity = await uow.Cells.GetByIdAsync(randomDestinationCellId.Value);
+            }
+
+            if (destinationCellEntity == null)
+            {
+                StatusMessage = $"Could not load destination cell details for ID {randomDestinationCellId.Value}.";
+                IsBusy = false;
+                return;
+            }
+            TaskDetails.DestinationCell = destinationCellEntity;
 
             // For TaskDetails.Name, try to get DisplayNames
             string sourceFingerName = _currentFingerId.ToString();

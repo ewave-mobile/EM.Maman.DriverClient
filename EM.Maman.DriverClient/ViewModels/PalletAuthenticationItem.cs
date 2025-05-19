@@ -7,14 +7,29 @@ using System.Windows.Input;
 
 namespace EM.Maman.DriverClient.ViewModels
 {
+    public enum AuthenticationContextMode
+    {
+        Storage,    // Standard authentication at a finger, allows new task creation if pallet not tied to existing task
+        Retrieval   // Authentication at a source cell for a retrieval task, no new task creation allowed
+    }
+
     /// <summary>
-    /// Represents a pallet waiting for authentication at a finger.
+    /// Represents a pallet waiting for authentication.
     /// </summary>
     public class PalletAuthenticationItem : INotifyPropertyChanged
     {
         private Pallet _palletDetails;
-        private TaskDetails _originalTask; // Task that brought the pallet here
+        private AuthenticationContextMode _authContextMode;
+        private TaskDetails _originalTask; // Task associated with this authentication attempt
         private ICommand _authenticateCommand;
+
+        public AuthenticationContextMode AuthContextMode
+        {
+            get => _authContextMode;
+            // Typically set at construction and not changed.
+            // If it needs to be settable with INotifyPropertyChanged:
+            // set { _authContextMode = value; OnPropertyChanged(); }
+        }
 
         public Pallet PalletDetails
         {
@@ -51,7 +66,23 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             PalletDetails = pallet;
             OriginalTask = originalTask;
+            // Determine AuthContextMode based on the task type or how this item is created.
+            // For now, let's assume it's passed in or defaulted.
+            // Defaulting to Storage for existing logic. Will be set explicitly for Retrieval.
+            _authContextMode = originalTask?.TaskType == Models.Enums.TaskType.Retrieval 
+                ? AuthenticationContextMode.Retrieval 
+                : AuthenticationContextMode.Storage;
         }
+
+        // Constructor overload to explicitly set the mode if needed,
+        // especially if an originalTask isn't always present or definitive at creation.
+        public PalletAuthenticationItem(Pallet pallet, TaskDetails originalTask, AuthenticationContextMode authMode)
+        {
+            PalletDetails = pallet;
+            OriginalTask = originalTask;
+            _authContextMode = authMode;
+        }
+
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)

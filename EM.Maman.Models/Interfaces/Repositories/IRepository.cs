@@ -11,7 +11,7 @@ namespace EM.Maman.Models.Interfaces.Repositories
 {
     public interface IRepository<TEntity> where TEntity : class
     {
-        Task<TEntity> GetByIdAsync(long id);
+        Task<TEntity> GetByIdAsync(object id); // Changed from long to object
 
         // Updated GetAllAsync to support includes
         Task<IEnumerable<TEntity>> GetAllAsync(

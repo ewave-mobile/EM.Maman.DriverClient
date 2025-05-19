@@ -210,7 +210,18 @@ namespace EM.Maman.DriverClient.ViewModels
                 MessageBox.Show($"Pallet {itemToAuth.PalletDetails.DisplayName ?? itemToAuth.PalletDetails.UldCode} authenticated successfully!",
                     "Success", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                _dispatcherService.Invoke(() => PalletsToAuthenticate.Remove(itemToAuth));
+                _dispatcherService.Invoke(() => 
+                {
+                    PalletsToAuthenticate.Remove(itemToAuth);
+                    // If no more pallets to authenticate at this finger,
+                    // and we are still at this finger, the authentication specific view can be turned off.
+                    // The ShouldShowTasksPanel will still be true if new storage/retrieval tasks are created.
+                    if (!PalletsToAuthenticate.Any() && _currentFingerPositionValue.HasValue)
+                    {
+                        IsFingerAuthenticationViewActive = false;
+                        _logger.LogInformation("Last pallet authenticated at current finger. Setting IsFingerAuthenticationViewActive to false.");
+                    }
+                });
 
                 var finger = itemToAuth.OriginalTask?.SourceFinger;
                 var pallet = itemToAuth.PalletDetails;
@@ -261,7 +272,25 @@ namespace EM.Maman.DriverClient.ViewModels
                     }
                 }
 
-                await CreateStorageTaskFromAuthenticationAsync(itemToAuth);
+                // Decide how to proceed based on the authentication context / task type
+                if (itemToAuth.AuthContextMode == AuthenticationContextMode.Storage || 
+                    (itemToAuth.OriginalTask != null && itemToAuth.OriginalTask.TaskType == Models.Enums.TaskType.Storage))
+                {
+                    await CreateStorageTaskFromAuthenticationAsync(itemToAuth);
+                }
+                else if (itemToAuth.AuthContextMode == AuthenticationContextMode.Retrieval ||
+                         (itemToAuth.OriginalTask != null && itemToAuth.OriginalTask.TaskType == Models.Enums.TaskType.Retrieval))
+                {
+                    // This method will be created in MainViewModel.TaskOperations.cs
+                    await ProcessAuthenticatedRetrievalAsync(itemToAuth); 
+                }
+                else
+                {
+                    // Fallback or error if context is unclear, though PalletAuthenticationItem constructor now defaults mode.
+                    _logger.LogWarning("Authenticated item {PalletUld} has unclear context/task type. Cannot proceed with task creation/processing.", 
+                        itemToAuth.PalletDetails?.UldCode ?? "N/A");
+                    MessageBox.Show("Authentication context is unclear. Cannot proceed.", "Processing Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
             }
             else
             {
@@ -270,6 +299,51 @@ namespace EM.Maman.DriverClient.ViewModels
                 MessageBox.Show($"Authentication failed. Entered ID '{dialogVM.EnteredUldCode}' does not match the expected {identifierTypeForMessage}.",
                     "Authentication Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
+        }
+
+        private void ExecuteAuthenticatePalletAtCell(object parameter)
+        {
+            if (parameter is not PalletRetrievalTaskItem retrievalItem || retrievalItem.RetrievalTask == null || retrievalItem.PalletDetails == null)
+            {
+                _logger.LogWarning("ExecuteAuthenticatePalletAtCell called with invalid parameter or missing details.");
+                MessageBox.Show("Cannot initiate authentication: Task or pallet details are missing.", "Authentication Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            _logger.LogInformation("Initiating authentication for pallet {PalletUld} at source cell for retrieval task ID {TaskId}.",
+                retrievalItem.PalletDetails.UldCode, retrievalItem.RetrievalTask.Id);
+
+            // Create a PalletAuthenticationItem specifically for this cell-based retrieval authentication
+            var authItem = new PalletAuthenticationItem(
+                retrievalItem.PalletDetails,
+                retrievalItem.RetrievalTask,
+                AuthenticationContextMode.Retrieval // Explicitly set mode
+            );
+
+            // Call the existing dialog showing logic
+            ExecuteShowAuthenticationDialog(authItem);
+        }
+
+        private bool CanExecuteAuthenticatePalletAtCell(object parameter)
+        {
+            if (parameter is not PalletRetrievalTaskItem retrievalItem || retrievalItem.RetrievalTask == null || retrievalItem.PalletDetails == null)
+            {
+                return false;
+            }
+            // Only allow if the task is a retrieval task and is currently at its source cell (not yet in transit to destination)
+            // and the trolley is physically at the source cell.
+            bool isRetrievalTask = retrievalItem.RetrievalTask.TaskType == Models.Enums.TaskType.Retrieval;
+            bool isAtSourceCellPhase = retrievalItem.RetrievalTask.ActiveTaskStatus == Models.Enums.ActiveTaskStatus.retrieval || 
+                                     retrievalItem.RetrievalTask.ActiveTaskStatus == Models.Enums.ActiveTaskStatus.pending; // Or whatever status indicates it's at source cell awaiting auth
+
+            // This needs a robust check that the trolley is actually at retrievalItem.RetrievalTask.SourceCell
+            // For now, we assume if this command is available on UI, the trolley is at the correct cell.
+            // A more precise check:
+            // bool trolleyAtSourceCell = _currentCellLevel == retrievalItem.RetrievalTask.SourceCell?.Level &&
+            //                            _currentCellPosition == retrievalItem.RetrievalTask.SourceCell?.Position &&
+            //                            !_currentFingerPositionValue.HasValue; // Ensure not at a finger
+
+            return isRetrievalTask && isAtSourceCellPhase; // && trolleyAtSourceCell; (add when trolley position is reliably checked)
         }
 
         #endregion

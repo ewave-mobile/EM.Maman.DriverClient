@@ -14,6 +14,17 @@ namespace EM.Maman.DAL.Repositories
             // Base constructor handles context injection
         }
 
-        // Implement PalletInCell specific methods here if needed in the future
+        public async Task<PalletInCell> GetByPalletAndCellAsync(int? palletId, long? cellId)
+        {
+            if (!palletId.HasValue || !cellId.HasValue)
+            {
+                return null;
+            }
+
+            return await Context.PalletInCells
+                .FirstOrDefaultAsync(pic => pic.PalletId == palletId.Value && pic.CellId == cellId.Value);
+        }
+
+        // Implement other PalletInCell specific methods here if needed in the future
     }
 }

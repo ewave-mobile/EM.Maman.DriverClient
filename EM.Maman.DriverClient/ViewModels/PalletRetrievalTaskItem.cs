@@ -13,8 +13,9 @@ namespace EM.Maman.DriverClient.ViewModels
     {
         private Pallet _palletDetails;
         private TaskDetails _retrievalTask;
-        private ICommand _goToRetrievalCommand;
+        private ICommand _goToRetrievalCommand; // Will be used for "Go To Destination" for items ready for delivery
         private ICommand _changeSourceCommand;
+        private ICommand _unloadCommand; // New command for unloading
         private object _dataContext;
         private bool _canExecuteChangeSourceCommand;
 
@@ -49,6 +50,15 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             get => _changeSourceCommand;
             set { _changeSourceCommand = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Command to initiate unloading of the pallet at its destination.
+        /// </summary>
+        public ICommand UnloadCommand
+        {
+            get => _unloadCommand;
+            set { _unloadCommand = value; OnPropertyChanged(); }
         }
 
         /// <summary>

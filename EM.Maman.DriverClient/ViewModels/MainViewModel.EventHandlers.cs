@@ -15,6 +15,10 @@ namespace EM.Maman.DriverClient.ViewModels
             int level = positionValue / 100;
             int position = positionValue % 100;
 
+            // Update current cell level and position for MainViewModel
+            _currentCellLevel = level;
+            _currentCellPosition = position;
+
             if (CurrentTrolley != null)
             {
                 CurrentTrolley.Position = position;
@@ -79,18 +83,6 @@ namespace EM.Maman.DriverClient.ViewModels
 
      
 
-        public void NotifyStorageItemsChanged()
-        {
-            OnPropertyChanged(nameof(HasPalletsReadyForStorage));
-            OnPropertyChanged(nameof(ShouldShowTasksPanel));
-            OnPropertyChanged(nameof(ShouldShowDefaultPhoto));
-        }
-
-        public void NotifyRetrievalItemsChanged()
-        {
-            OnPropertyChanged(nameof(HasPalletsForRetrieval));
-            OnPropertyChanged(nameof(ShouldShowTasksPanel));
-            OnPropertyChanged(nameof(ShouldShowDefaultPhoto));
-        }
+      
     }
 }

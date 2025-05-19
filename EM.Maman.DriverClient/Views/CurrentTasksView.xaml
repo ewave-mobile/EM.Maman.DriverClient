@@ -193,14 +193,11 @@
                              </StackPanel>
                          </Border>
 
-                         <!-- Retrieval Tasks Section - Visible when there are retrieval tasks -->
+                         <!-- Retrieval Tasks Section (Pallets to pick up from Source Cell) -->
                          <Border BorderThickness="1" BorderBrush="#E0E0E0" CornerRadius="10" Padding="10" Background="White" Margin="0,0,0,10"
                                  Visibility="{Binding HasPalletsForRetrieval, Converter={StaticResource BooleanToVisibilityConverter}}">
                              <StackPanel>
-                                 <!-- Retrieval Task Section Header -->
-                                 <TextBlock Text="שליפת פלט" FontSize="18" FontWeight="Bold" Margin="0,10,0,10" HorizontalAlignment="Center"/>
-
-                                 <!-- Retrieval Task List -->
+                                 <TextBlock Text="משימות שליפה (ניווט לתא מקור)" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center"/>
                                  <ItemsControl ItemsSource="{Binding PalletsForRetrieval}">
                                      <ItemsControl.ItemTemplate>
                                          <DataTemplate>
@@ -210,6 +207,23 @@
                                  </ItemsControl>
                              </StackPanel>
                          </Border>
+
+                         <!-- Pallets Ready for Delivery Section (On trolley, ready for destination) -->
+                         <Border BorderThickness="1" BorderBrush="#E0E0E0" CornerRadius="10" Padding="10" Background="White" Margin="0,0,0,10"
+                                 Visibility="{Binding HasPalletsReadyForDelivery, Converter={StaticResource BooleanToVisibilityConverter}}">
+                             <StackPanel>
+                                 <TextBlock Text="משלוחים מוכנים (על העגלה)" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center"/>
+                                 <ItemsControl ItemsSource="{Binding PalletsReadyForDelivery}">
+                                     <ItemsControl.ItemTemplate>
+                                         <DataTemplate>
+                                             <!-- Reusing RetrievalTaskItemControl as it's designed to adapt -->
+                                             <localControls:RetrievalTaskItemControl />
+                                         </DataTemplate>
+                                     </ItemsControl.ItemTemplate>
+                                 </ItemsControl>
+                             </StackPanel>
+                         </Border>
+
                      </StackPanel>
                  </ScrollViewer>
              </Border>

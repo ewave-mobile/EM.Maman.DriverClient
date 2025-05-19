@@ -38,6 +38,11 @@ namespace EM.Maman.Common.Constants
         /// </summary>
         public const string Speed = MamanBase + "speed";
 
+        /// <summary>
+        /// Register for controlling In/Out operations of pallets from/to trolley cells.
+        /// </summary>
+        public const string InOutRegister = MamanBase + "In_Out";
+
         // Other system registers
         public const string Watchdog = "ns=2;s=Watchdog";
         public const string SystemStatus = "ns=2;s=SystemStatus";

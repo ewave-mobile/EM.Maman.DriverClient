@@ -8,6 +8,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json; // For ReadFromJsonAsync and PostAsJsonAsync
 using System.Text.Json;
 using System.Threading.Tasks;
+using EM.Maman.Models.Interfaces.Services; // Added for ICurrentUserContext
 
 namespace EM.Maman.Services
 {
@@ -15,8 +16,9 @@ namespace EM.Maman.Services
     {
         private readonly HttpClient _httpClient;
         private readonly IDBLoggerService _dbLoggerService;
+        private readonly ICurrentUserContext _currentUserContext; // Added
         private readonly string _apiBaseUrl;
-        private string _currentJwtToken; // Stores the current JWT
+        // private string _currentJwtToken; // Token will be retrieved from ICurrentUserContext
 
         // Define a nested class for the login request payload
         private class LoginRequestPayload
@@ -25,10 +27,11 @@ namespace EM.Maman.Services
             public int CraneId { get; set; }
         }
 
-        public MamanHttpService(HttpClient httpClient, IConfiguration configuration, IDBLoggerService dbLoggerService)
+        public MamanHttpService(HttpClient httpClient, IConfiguration configuration, IDBLoggerService dbLoggerService, ICurrentUserContext currentUserContext) // Added ICurrentUserContext
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _dbLoggerService = dbLoggerService ?? throw new ArgumentNullException(nameof(dbLoggerService));
+            _currentUserContext = currentUserContext ?? throw new ArgumentNullException(nameof(currentUserContext)); // Added
             _apiBaseUrl = configuration?["ApiSettings:BaseUrl"] ?? throw new ArgumentNullException("ApiSettings:BaseUrl not configured in appsettings.json");
 
             if (!_apiBaseUrl.EndsWith("/"))
@@ -71,9 +74,10 @@ namespace EM.Maman.Services
                     var serverResponse = JsonSerializer.Deserialize<ServerLoginResponse>(responseContentString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                     if (serverResponse != null && serverResponse.IsSucceded)
                     {
-                        _currentJwtToken = serverResponse.Token; // Store the token
-                        // Set token for subsequent requests from this HttpClient instance
-                        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _currentJwtToken);
+                        // _currentJwtToken = serverResponse.Token; // Token is managed by CurrentUserContext after user is set
+                        // No need to set _httpClient.DefaultRequestHeaders.Authorization here for login,
+                        // as CurrentUserContext will provide it for subsequent calls.
+                        // Login itself doesn't need a prior token.
                         return LoginResultDto.Success(serverResponse);
                     }
                     else
@@ -135,5 +139,82 @@ namespace EM.Maman.Services
         //     response.EnsureSuccessStatusCode(); // Or handle errors more gracefully
         //     return await response.Content.ReadFromJsonAsync<T>();
         // }
+
+        public async Task<TasksApiResponseDto> GetTasksAsync()
+        {
+            string token = _currentUserContext.GetToken();
+            int craneId = _currentUserContext.GetCraneId();
+
+            if (string.IsNullOrEmpty(token))
+            {
+                // Log error or handle missing token
+                await _dbLoggerService.LogAsync(new TraceLog { RequestTimestamp = DateTime.UtcNow, RequestMethod = "GET", RequestUrl = "api/tasks", ResponseBody = "Error: Auth token is missing." });
+                return new TasksApiResponseDto { Result = null, Status = (int)System.Net.HttpStatusCode.Unauthorized, Exception = "Auth token is missing." };
+            }
+            if (craneId == 0)
+            {
+                 await _dbLoggerService.LogAsync(new TraceLog { RequestTimestamp = DateTime.UtcNow, RequestMethod = "GET", RequestUrl = "api/tasks", ResponseBody = "Error: CraneId is missing or invalid." });
+                return new TasksApiResponseDto { Result = null, Status = (int)System.Net.HttpStatusCode.BadRequest, Exception = "CraneId is missing or invalid." };
+            }
+
+            string requestUrl = $"{_apiBaseUrl}tasks?craneId={craneId}";
+            
+            var traceLog = new TraceLog
+            {
+                RequestTimestamp = DateTime.UtcNow,
+                RequestMethod = "GET",
+                RequestUrl = requestUrl,
+            };
+
+            HttpResponseMessage response = null;
+            string responseContentString = null;
+            var stopwatch = Stopwatch.StartNew();
+
+            try
+            {
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                response = await _httpClient.GetAsync(requestUrl);
+                responseContentString = await response.Content.ReadAsStringAsync();
+
+                traceLog.ResponseStatusCode = (int)response.StatusCode;
+                traceLog.ResponseBody = responseContentString;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var apiResponse = JsonSerializer.Deserialize<TasksApiResponseDto>(responseContentString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    return apiResponse;
+                }
+                else
+                {
+                    // Handle non-success HTTP status codes
+                    return new TasksApiResponseDto { Result = null, Status = (int)response.StatusCode, Exception = $"API Error: {response.ReasonPhrase}", IsFaulted = true };
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                traceLog.ResponseBody = $"Network Error: {ex.Message}";
+                return new TasksApiResponseDto { Result = null, Status = (int)System.Net.HttpStatusCode.ServiceUnavailable, Exception = $"Network Error: {ex.Message}", IsFaulted = true };
+            }
+            catch (JsonException ex)
+            {
+                traceLog.ResponseBody = $"JSON Deserialization Error: {ex.Message}. Raw content: {responseContentString}";
+                return new TasksApiResponseDto { Result = null, Status = (int)System.Net.HttpStatusCode.InternalServerError, Exception = $"JSON Deserialization Error: {ex.Message}", IsFaulted = true };
+            }
+            catch (Exception ex)
+            {
+                traceLog.ResponseBody = $"Unexpected Error: {ex.Message}";
+                return new TasksApiResponseDto { Result = null, Status = (int)System.Net.HttpStatusCode.InternalServerError, Exception = $"Unexpected Error: {ex.Message}", IsFaulted = true };
+            }
+            finally
+            {
+                stopwatch.Stop();
+                traceLog.DurationMs = stopwatch.ElapsedMilliseconds;
+                traceLog.ResponseTimestamp = DateTime.UtcNow;
+                if (_dbLoggerService != null)
+                {
+                    await _dbLoggerService.LogAsync(traceLog);
+                }
+            }
+        }
     }
 }

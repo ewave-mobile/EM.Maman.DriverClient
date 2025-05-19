@@ -27,8 +27,8 @@ namespace EM.Maman.Models.CustomModels
         private Finger _destinationFinger;
         private Pallet _pallet;
         private Cell _destinationCell;
-        public int? SourceFingerId { get; set; } // Added for explicit ID storage
-        public long? DestinationCellId { get; set; } // Added for explicit ID storage
+        // public int? SourceFingerId { get; set; } // Potentially redundant with new DB structure
+        // public long? DestinationCellId { get; set; } // Potentially redundant with new DB structure
         private int _userId;
         private string _operatorNotes;
         private bool _isPriority;
@@ -320,62 +320,154 @@ namespace EM.Maman.Models.CustomModels
             }
         }
         // Conversion methods to/from database model
-        public static TaskDetails FromDbModel(EM.Maman.Models.LocalDbModels.Task task, Pallet pallet = null,
-                                            Finger sourceFinger = null, Finger destFinger = null, Cell destCell = null)
+        public static TaskDetails FromDbModel(EM.Maman.Models.LocalDbModels.Task dbTask)
         {
-            if (task == null) return null;
+            if (dbTask == null) return null;
 
             var details = new TaskDetails
             {
-                Id = task.Id,
-                Code = task.Code,
-                Name = task.Name,
-                Description = task.Description,
-                TaskType = task.TaskTypeId == 1 ? Enums.TaskType.Retrieval : Enums.TaskType.Storage,
-                Status = task.Status.HasValue 
-                    ? (Enums.TaskStatus)task.Status.Value 
-                    : (task.IsExecuted == true ? Enums.TaskStatus.Completed : Enums.TaskStatus.Created),
-                CreatedDateTime = task.DownloadDate ?? DateTime.Now,
-                ExecutedDateTime = task.ExecutedDate,
-                SourceFinger = sourceFinger, // Keep for object reference
-                SourceFingerId = task.FingerLocationId.HasValue ? (int)task.FingerLocationId.Value : (int?)null, // Populate ID
-                DestinationFinger = destFinger, // Keep for object reference
-                Pallet = pallet, // This pallet is already fetched based on task.PalletId if it was a string before
-                DestinationCell = destCell, // Keep for object reference
-                DestinationCellId = task.CellEndLocationId, // Populate ID
-                IsUploaded = task.IsUploaded ?? false,
-                ActiveTaskStatus = task.ActiveTaskStatus.HasValue
-                    ? (Enums.ActiveTaskStatus)task.ActiveTaskStatus.Value
-                    : Enums.ActiveTaskStatus.retrieval, // Default might need review based on context
+                Id = dbTask.Id,
+                Code = dbTask.Code,
+                Name = dbTask.Name,
+                Description = dbTask.Description,
+                TaskType = (Enums.TaskType)dbTask.TaskTypeId, // Assumes TaskTypeId directly maps to enum int values
+                Status = dbTask.Status.HasValue
+                    ? (Enums.TaskStatus)dbTask.Status.Value
+                    : (dbTask.IsExecuted == true ? Enums.TaskStatus.Completed : Enums.TaskStatus.Created),
+                CreatedDateTime = dbTask.DownloadDate ?? DateTime.Now,
+                ExecutedDateTime = dbTask.ExecutedDate,
+                Pallet = null, // Pallet must be loaded separately and passed to an overloaded FromDbModel method or set afterwards
+                IsUploaded = dbTask.IsUploaded ?? false,
+                ActiveTaskStatus = dbTask.ActiveTaskStatus.HasValue
+                    ? (Enums.ActiveTaskStatus)dbTask.ActiveTaskStatus.Value
+                    : ( (Enums.TaskType)dbTask.TaskTypeId == Enums.TaskType.Retrieval ? Enums.ActiveTaskStatus.retrieval : Enums.ActiveTaskStatus.authentication ), // Default ActiveStatus
+                UserId = 0, // TODO: Map UserId if available in dbTask
+                OperatorNotes = "", // TODO: Map OperatorNotes if available in dbTask
+                IsPriority = false // TODO: Map IsPriority if available in dbTask
             };
-            // If task.PalletId is now int?, and Pallet object is not pre-fetched,
-            // we might need to adjust pallet loading logic elsewhere or ensure Pallet is passed correctly.
-            // For now, assuming 'pallet' parameter is correctly supplied based on the new int? PalletId.
 
+            if (details.TaskType == Enums.TaskType.Storage)
+            {
+                details.SourceFinger = dbTask.StorageSourceFinger;
+                details.DestinationCell = dbTask.StorageDestinationCell;
+            }
+            else if (details.TaskType == Enums.TaskType.Retrieval)
+            {
+                details.SourceCell = dbTask.RetrievalSourceCell;
+                details.DestinationFinger = dbTask.RetrievalDestinationFinger;
+                // Also handle HND retrieval to cell if applicable
+                if (dbTask.RetrievalDestinationCell != null)
+                {
+                    details.DestinationCell = dbTask.RetrievalDestinationCell;
+                }
+            }
+            
+            // Populate position properties from the main objects if they are set
+            if (details.SourceFinger != null) details.SourceFingerPosition = details.SourceFinger.Position;
+            if (details.DestinationFinger != null) details.DestinationFingerPosition = details.DestinationFinger.Position;
+            // Note: DestinationCell does not have a 'Position' property in the same way Finger does.
+            // SourceCell also does not have a 'Position' property in the same way Finger does.
+
+            return details;
+        }
+
+        public static TaskDetails FromDbModel(EM.Maman.Models.LocalDbModels.Task dbTask, Pallet pallet, Finger sourceFinger, Cell sourceCell, Cell destinationCell, Finger destinationFinger = null)
+        {
+            if (dbTask == null) return null;
+
+            var details = new TaskDetails
+            {
+                Id = dbTask.Id,
+                Code = dbTask.Code,
+                Name = dbTask.Name,
+                Description = dbTask.Description,
+                TaskType = (Enums.TaskType)dbTask.TaskTypeId,
+                Status = dbTask.Status.HasValue
+                    ? (Enums.TaskStatus)dbTask.Status.Value
+                    : (dbTask.IsExecuted == true ? Enums.TaskStatus.Completed : Enums.TaskStatus.Created),
+                CreatedDateTime = dbTask.DownloadDate ?? DateTime.Now,
+                ExecutedDateTime = dbTask.ExecutedDate,
+                Pallet = pallet, // Use passed pallet
+                IsUploaded = dbTask.IsUploaded ?? false,
+                ActiveTaskStatus = dbTask.ActiveTaskStatus.HasValue
+                    ? (Enums.ActiveTaskStatus)dbTask.ActiveTaskStatus.Value
+                    : ((Enums.TaskType)dbTask.TaskTypeId == Enums.TaskType.Retrieval ? Enums.ActiveTaskStatus.retrieval : Enums.ActiveTaskStatus.authentication),
+                UserId = 0, // TODO: Map UserId
+                OperatorNotes = "", // TODO: Map OperatorNotes
+                IsPriority = false, // TODO: Map IsPriority
+
+                SourceFinger = sourceFinger,
+                SourceCell = sourceCell,
+                DestinationFinger = destinationFinger,
+                DestinationCell = destinationCell
+            };
+            
+            // Populate position properties from the main objects if they are set
+            if (details.SourceFinger != null) details.SourceFingerPosition = details.SourceFinger.Position;
+            if (details.DestinationFinger != null) details.DestinationFingerPosition = details.DestinationFinger.Position;
+
+            // If specific DB navigation properties are loaded and parameters were null, use them as fallback
+            // This makes the method more robust if some callers don't have all related entities pre-loaded.
+            if (details.TaskType == Enums.TaskType.Storage)
+            {
+                if (details.SourceFinger == null) details.SourceFinger = dbTask.StorageSourceFinger;
+                if (details.DestinationCell == null) details.DestinationCell = dbTask.StorageDestinationCell;
+            }
+            else if (details.TaskType == Enums.TaskType.Retrieval)
+            {
+                if (details.SourceCell == null) details.SourceCell = dbTask.RetrievalSourceCell;
+                if (details.DestinationFinger == null) details.DestinationFinger = dbTask.RetrievalDestinationFinger;
+                if (details.DestinationCell == null && dbTask.RetrievalDestinationCell != null) // HND to cell
+                {
+                    details.DestinationCell = dbTask.RetrievalDestinationCell;
+                }
+            }
             return details;
         }
 
         public EM.Maman.Models.LocalDbModels.Task ToDbModel()
         {
-            var task = new EM.Maman.Models.LocalDbModels.Task
+            var dbTask = new EM.Maman.Models.LocalDbModels.Task
             {
-                Id = Id > 0 ? Id : 0,
+                Id = Id > 0 ? Id : 0, // EF handles Id generation for new entities if Id is 0
                 Code = Code,
                 Name = Name,
                 Description = Description,
-                TaskTypeId = (int)TaskType,
+                TaskTypeId = (long)TaskType,
                 IsExecuted = Status == Enums.TaskStatus.Completed,
                 DownloadDate = CreatedDateTime,
                 ExecutedDate = ExecutedDateTime,
-                FingerLocationId = SourceFingerId.HasValue ? (long?)SourceFingerId.Value : SourceFinger?.Id, // Prioritize ID if set
-                CellEndLocationId = DestinationCellId ?? DestinationCell?.Id, // Prioritize ID if set
-                PalletId = Pallet?.Id, // Assign int? directly
+                PalletId = Pallet?.Id,
                 IsUploaded = IsUploaded,
                 Status = (int)Status,
                 ActiveTaskStatus = (int)ActiveTaskStatus
+                // UserId, OperatorNotes, IsPriority would be set here if they were properties of TaskDetails
             };
 
-            return task;
+            if (TaskType == Enums.TaskType.Storage)
+            {
+                dbTask.StorageSourceFingerId = SourceFinger?.Id;
+                dbTask.StorageDestinationCellId = DestinationCell?.Id;
+            }
+            else if (TaskType == Enums.TaskType.Retrieval)
+            {
+                dbTask.RetrievalSourceCellId = SourceCell?.Id;
+                dbTask.RetrievalDestinationFingerId = DestinationFinger?.Id;
+                // For HND retrieval to cell
+                if (DestinationCell != null && DestinationFinger == null) // Heuristic: if DestCell is set and DestFinger is not, it's a cell-to-cell retrieval
+                {
+                     dbTask.RetrievalDestinationCellId = DestinationCell?.Id;
+                }
+                else if (DestinationCell != null && DestinationFinger != null) // If both are somehow set, prioritize finger for API tasks
+                {
+                    // This case might need more business logic if a retrieval task can have BOTH a dest finger AND a dest cell.
+                    // For now, if dest finger is set, assume it's the primary destination for retrieval.
+                    // If only dest cell is set (and it's a retrieval task), then it's HND to cell.
+                     dbTask.RetrievalDestinationCellId = (DestinationFinger == null) ? DestinationCell?.Id : null;
+                }
+            }
+
+            return dbTask;
         }
     }
 }

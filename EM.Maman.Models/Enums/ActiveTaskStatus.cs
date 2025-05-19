@@ -13,5 +13,9 @@ namespace EM.Maman.Models.Enums
         transit = 2,
         storing = 3,
         finished = 4,
+        pending = 5,
+        pending_authentication = 6,
+        authentication = 7,
+        arrived_at_destination = 8
     }
 }

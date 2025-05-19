@@ -7,6 +7,7 @@ namespace EM.Maman.Models.Interfaces.Repositories
     // Inherits common methods like AddRangeAsync from IRepository<PalletInCell>
     public interface IPalletInCellRepository : IRepository<PalletInCell>
     {
-        // Define PalletInCell specific methods here if needed in the future
+        Task<PalletInCell> GetByPalletAndCellAsync(int? palletId, long? cellId);
+        // Define other PalletInCell specific methods here if needed in the future
     }
 }

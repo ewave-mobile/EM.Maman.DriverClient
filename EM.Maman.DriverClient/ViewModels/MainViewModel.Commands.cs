@@ -17,6 +17,8 @@ namespace EM.Maman.DriverClient.ViewModels
         private RelayCommand _goToRetrievalLocationCommand;
         private RelayCommand _changeSourceCommand;
         private RelayCommand _openCreateTaskDialogCommand;
+        private RelayCommand _toggleLogoutDrawerCommand; // Added
+        private RelayCommand _logoutCommand; // Added
 
         #endregion
 
@@ -32,6 +34,9 @@ namespace EM.Maman.DriverClient.ViewModels
         public ICommand GoToRetrievalLocationCommand => _goToRetrievalLocationCommand ??= new RelayCommand(ExecuteGoToRetrievalLocation, CanExecuteGoToRetrievalLocation);
         public ICommand ChangeSourceCommand => _changeSourceCommand ??= new RelayCommand(ExecuteChangeSource, CanExecuteChangeSource);
         public ICommand OpenCreateTaskDialogCommand => _openCreateTaskDialogCommand ??= new RelayCommand(ExecuteOpenCreateTaskDialog);
+        public ICommand ToggleLogoutDrawerCommand => _toggleLogoutDrawerCommand ??= new RelayCommand(_ => IsLogoutDrawerOpen = !IsLogoutDrawerOpen); // Added
+        public ICommand LogoutCommand => _logoutCommand ??= new RelayCommand(_ => ExecuteLogout()); // Corrected: Wrapped in lambda
+
 
         // Trolley Commands
         public ICommand MoveTrolleyUpCommand { get; private set; }
@@ -56,6 +61,11 @@ namespace EM.Maman.DriverClient.ViewModels
             TestLoadRightCellCommand = TrolleyOperationsVM.TestLoadRightCellCommand;
             TestUnloadLeftCellCommand = TrolleyOperationsVM.TestUnloadLeftCellCommand;
             TestUnloadRightCellCommand = TrolleyOperationsVM.TestUnloadRightCellCommand;
+
+            // Initialize new retrieval commands
+            GoToRetrievalDestinationCommand = new RelayCommand(ExecuteGoToRetrievalDestination, CanExecuteGoToRetrievalDestination);
+            UnloadAtDestinationCommand = new RelayCommand(ExecuteUnloadAtDestination, CanExecuteUnloadAtDestination);
+            AuthenticatePalletAtCellCommand = new RelayCommand(ExecuteAuthenticatePalletAtCell, CanExecuteAuthenticatePalletAtCell); // This was already added in the previous step by mistake, ensuring it's here.
         }
 
         #endregion

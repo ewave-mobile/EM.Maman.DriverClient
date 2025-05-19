@@ -35,5 +35,10 @@ public partial class Cell
 
     // public virtual Level HeightLevelNavigation { get; set; } // Removed
 
-    public virtual ICollection<Task> Tasks { get; set; } = new List<Task>();
+    public virtual ICollection<Task> Tasks { get; set; } = new List<Task>(); // Existing generic collection, likely for CellEndLocationId
+
+    // New specific collections for explicit relationships
+    public virtual ICollection<Task> TasksAsStorageDestination { get; set; } = new List<Task>();
+    public virtual ICollection<Task> TasksAsRetrievalSource { get; set; } = new List<Task>();
+    public virtual ICollection<Task> TasksAsRetrievalDestination { get; set; } = new List<Task>();
 }

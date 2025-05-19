@@ -18,6 +18,11 @@ namespace EM.Maman.DAL.Repositories
         public async Task<IEnumerable<Models.LocalDbModels.Task>> GetPendingTasksAsync()
         {
             return await Context.Tasks
+                .Include(t => t.StorageSourceFinger)
+                .Include(t => t.StorageDestinationCell)
+                .Include(t => t.RetrievalSourceCell)
+                .Include(t => t.RetrievalDestinationFinger)
+                .Include(t => t.RetrievalDestinationCell)
                 .Where(t => t.IsExecuted == false)
                 .ToListAsync();
         }
@@ -25,13 +30,24 @@ namespace EM.Maman.DAL.Repositories
         public async Task<IEnumerable<Models.LocalDbModels.Task>> GetTasksByPalletIdAsync(int palletId)
         {
             return await Context.Tasks
+                .Include(t => t.StorageSourceFinger)
+                .Include(t => t.StorageDestinationCell)
+                .Include(t => t.RetrievalSourceCell)
+                .Include(t => t.RetrievalDestinationFinger)
+                .Include(t => t.RetrievalDestinationCell)
                 .Where(t => t.PalletId == palletId)
                 .ToListAsync();
         }
 
         public async Task<Models.LocalDbModels.Task> GetTaskWithDetailsAsync(int taskId)
         {
-            throw new NotImplementedException();
+            return await Context.Tasks
+                .Include(t => t.StorageSourceFinger)
+                .Include(t => t.StorageDestinationCell)
+                .Include(t => t.RetrievalSourceCell)
+                .Include(t => t.RetrievalDestinationFinger)
+                .Include(t => t.RetrievalDestinationCell)
+                .FirstOrDefaultAsync(t => t.Id == taskId);
         }
     }
 }

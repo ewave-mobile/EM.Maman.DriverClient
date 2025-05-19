@@ -32,6 +32,7 @@ namespace EM.Maman.DriverClient.ViewModels
 
         private string _employeeCode;
         private string _status;
+        private bool _isErrorStatus; // Added
         private bool _isLoggingIn;
         private RelayCommand _loginCommand;
         private int _selectedCraneId;
@@ -68,7 +69,19 @@ namespace EM.Maman.DriverClient.ViewModels
         public string Status
         {
             get => _status;
-            set => SetProperty(ref _status, value);
+            set
+            {
+                // Determine if the new status is an error message
+                bool isError = !(value == "מתחבר..." || value == "התחברות הצליחה!" || value == "התחברות אופליין הצליחה." || value == "מוכן להתחברות" || string.IsNullOrEmpty(value) || value == "אין חיבור לרשת");
+                SetProperty(ref _status, value, nameof(Status));
+                IsErrorStatus = isError; // Update IsErrorStatus based on the new status
+            }
+        }
+
+        public bool IsErrorStatus
+        {
+            get => _isErrorStatus;
+            private set => SetProperty(ref _isErrorStatus, value, nameof(IsErrorStatus));
         }
 
         public bool IsLoggingIn
@@ -102,7 +115,7 @@ namespace EM.Maman.DriverClient.ViewModels
             _connectionManager.StartConnectionMonitoring();
             _connectionManager.ConnectionStateChanged += ConnectionManager_ConnectionStateChanged;
 
-            Status = "מוכן להתחברות";
+            Status = "מוכן להתחברות"; // This will set IsErrorStatus to false
         }
 
         private void LoadCraneOptions()
@@ -137,22 +150,22 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
         
-        private async System.Threading.Tasks.Task LoginAsync()
+        public async System.Threading.Tasks.Task LoginAsync()
         {
             if (string.IsNullOrWhiteSpace(EmployeeCode))
             {
-                Status = "נא להזין מספר עובד";
+                Status = "נא להזין מספר עובד"; // Error
                 return;
             }
 
             if (IsCraneSelectionVisible && SelectedCraneId == 0)
             {
-                Status = "נא לבחור עמדה/עגורן";
+                Status = "נא לבחור עמדה/עגורן"; // Error
                 return;
             }
 
             IsLoggingIn = true;
-            Status = "מתחבר...";
+            Status = "מתחבר..."; // Not an error
 
             try
             {
@@ -161,6 +174,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 if (loginResult.IsSuccess)
                 {
                     _logger.LogInformation($"User {EmployeeCode} logged in successfully via API.");
+                    Status = "התחברות הצליחה!"; // Not an error
                     ServerLoginResponse serverData = loginResult.UserData;
                     
                     User localUser = await _unitOfWork.Users.GetByCodeAsync(serverData.EmployeeCode);
@@ -173,7 +187,7 @@ namespace EM.Maman.DriverClient.ViewModels
                     localUser.BackendId = serverData.UserID;
                     localUser.FirstName = serverData.FirstName;
                     localUser.LastName = serverData.LastName;
-                    localUser.RoleID = serverData.RoleID;
+                    localUser.RoleID = serverData.RoleID ?? 0;
                     localUser.Token = serverData.Token;
                     localUser.LastLoginDate = DateTime.UtcNow;
 
@@ -203,13 +217,13 @@ namespace EM.Maman.DriverClient.ViewModels
                     
                     await _unitOfWork.CompleteAsync(); // Save configuration
 
-                    Status = "התחברות הצליחה!";
+                    // Status already set to "התחברות הצליחה!"
                     OnLoginSuccessful(localUser.Id); // Pass local user ID
                 }
                 else if (loginResult.IsNetworkError)
                 {
                     _logger.LogWarning($"Network error during login for {EmployeeCode}. Attempting offline login.");
-                    Status = "שגיאת רשת. מנסה התחברות אופליין...";
+                    Status = "אין חיבור לרשת או שלא ניתן להגיע לשרת. מנסה התחברות אופליין..."; // Error
                     
                     User localUser = await _unitOfWork.Users.GetByCodeAsync(EmployeeCode);
                     if (localUser != null)
@@ -217,25 +231,25 @@ namespace EM.Maman.DriverClient.ViewModels
                         localUser.LastLoginDate = DateTime.UtcNow;
                         await _unitOfWork.CompleteAsync();
                         _logger.LogInformation($"User {EmployeeCode} logged in successfully offline.");
-                        Status = "התחברות אופליין הצליחה.";
+                        Status = "התחברות אופליין הצליחה."; // Not an error
                         OnLoginSuccessful(localUser.Id);
                     }
                     else
                     {
                         _logger.LogWarning($"Offline login failed for {EmployeeCode}: User not found in local DB.");
-                        Status = "אין חיבור לרשת ולא ניתן להתחבר עם משתמש חדש.";
+                        Status = "התחברות אופליין נכשלה: משתמש לא קיים מקומית. נדרש חיבור רשת להתחברות ראשונית."; // Error
                     }
                 }
-                else // API login failed for other reasons
+                else // API login failed for other reasons (e.g., bad credentials, server-side validation)
                 {
                     _logger.LogWarning($"API Login failed for {EmployeeCode}: {loginResult.ErrorMessage}");
-                    Status = loginResult.ErrorMessage;
+                    Status = loginResult.ErrorMessage; // This will be an error
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Login error for user {EmployeeCode}");
-                Status = "שגיאה קריטית בהתחברות. אנא פנה לתמיכה.";
+                Status = "שגיאה קריטית בתהליך ההתחברות. אנא פנה לתמיכה."; // Error
             }
             finally
             {
@@ -258,10 +272,11 @@ namespace EM.Maman.DriverClient.ViewModels
             {
                 if (e.ConnectionType == ConnectionType.Network)
                 {
-                    // Avoid overwriting specific login status messages like "מתחבר..." or error messages
-                    if (Status == "מוכן להתחברות" || Status == "אין חיבור לרשת")
+                    // Avoid overwriting specific login status messages like "מתחבר..." or other error messages
+                    // Only update if current status is a non-error, neutral message.
+                    if (!IsErrorStatus && (Status == "מוכן להתחברות" || Status == "אין חיבור לרשת" || string.IsNullOrEmpty(Status)))
                     {
-                         Status = e.IsConnected ? "מוכן להתחברות" : "אין חיבור לרשת";
+                         Status = e.IsConnected ? "מוכן להתחברות" : "אין חיבור לרשת"; // "אין חיבור לרשת" will set IsErrorStatus
                     }
                 }
             });

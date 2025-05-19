@@ -55,28 +55,57 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Grid.Row="0" Text="פעולה נדרשת" Style="{StaticResource LabelStyle}" Margin="10,0,60,0"/>
-                            <TextBlock Grid.Column="0" Grid.Row="1" Text="שליפת פלט" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,60,0"/>
+                            <TextBlock Grid.Column="0" Grid.Row="0" Text="פעולה נדרשת" Style="{StaticResource LabelStyle}" Margin="10,0,10,0"/>
+                            <TextBlock Grid.Column="0" Grid.Row="1" Text="שליפת פלט" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,10,0"/>
 
-                            <TextBlock Text="קומה"  Grid.Column="1" Grid.Row="0" Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
-                            <TextBlock  Grid.Column="1" Grid.Row="1" Text="{Binding RetrievalTask.SourceCell.HeightLevel}" Style="{StaticResource ValueStyle}" Margin="0,0,30,0" VerticalAlignment="Center"/>
-                            <TextBlock  Grid.Column="2" Grid.Row="0" Text="שורה" Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
-                            <TextBlock  Grid.Column="2" Grid.Row="1" Text="{Binding RetrievalTask.SourceCell.Position}" Style="{StaticResource ValueStyle}" Margin="0,0,30,0" VerticalAlignment="Center"/>
-                            <TextBlock  Grid.Column="3" Grid.Row="0" Text="מיקום" Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
-                            <TextBlock  Grid.Column="3" Grid.Row="1"  Style="{StaticResource ValueStyle}" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                            <!-- Add Finger Position Indicator if needed -->
+                            <TextBlock Text="מקור: קומה"  Grid.Column="1" Grid.Row="0" Style="{StaticResource LabelStyle}" VerticalAlignment="Center" Margin="5,0"/>
+                            <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding RetrievalTask.SourceCell.Level}" Style="{StaticResource ValueStyle}" VerticalAlignment="Center" Margin="5,0"/>
+                            <TextBlock Text="שורה"  Grid.Column="2" Grid.Row="0" Style="{StaticResource LabelStyle}" VerticalAlignment="Center" Margin="5,0"/>
+                            <TextBlock Grid.Column="2" Grid.Row="1" Text="{Binding RetrievalTask.SourceCell.Position}" Style="{StaticResource ValueStyle}" VerticalAlignment="Center" Margin="5,0"/>
+                            
+                            <TextBlock Text="יעד (אצבע)" Grid.Column="3" Grid.Row="0" Style="{StaticResource LabelStyle}" VerticalAlignment="Center" Margin="5,0"
+                                       Visibility="{Binding RetrievalTask.DestinationFinger, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=VisibleIfNotNull}"/>
+                            <TextBlock Grid.Column="3" Grid.Row="1" Text="{Binding RetrievalTask.DestinationFinger.DisplayName}" Style="{StaticResource ValueStyle}" VerticalAlignment="Center" Margin="5,0"
+                                       Visibility="{Binding RetrievalTask.DestinationFinger, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=VisibleIfNotNull}"/>
+                            
+                            <TextBlock Text="יעד (תא)" Grid.Column="3" Grid.Row="0" Style="{StaticResource LabelStyle}" VerticalAlignment="Center" Margin="5,0"
+                                       Visibility="{Binding RetrievalTask.DestinationCell, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=VisibleIfNotNull}"/>
+                            <StackPanel Grid.Column="3" Grid.Row="1" Orientation="Horizontal"
+                                        Visibility="{Binding RetrievalTask.DestinationCell, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=VisibleIfNotNull}">
+                                <TextBlock Text="L" Style="{StaticResource ValueStyle}" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                <TextBlock Text="{Binding RetrievalTask.DestinationCell.Level}" Style="{StaticResource ValueStyle}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                <TextBlock Text="P" Style="{StaticResource ValueStyle}" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                <TextBlock Text="{Binding RetrievalTask.DestinationCell.Position}" Style="{StaticResource ValueStyle}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            </StackPanel>
                         </Grid>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="שינוי"
-                                Command="{Binding DataContext.ChangeSourceCommand, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:CurrentTasksView}}}"
+                    <StackPanel Grid.Column="2" Orientation="Vertical" HorizontalAlignment="Right">
+                        <!-- Buttons for State 1: At Source, needs auth/pickup -->
+                        <Button Content="GO (מקור)" ToolTip="נווט לתא המקור"
+                                Command="{Binding GoToRetrievalCommand}" CommandParameter="{Binding}"
+                                Style="{StaticResource MaterialDesignRaisedButton}" Background="#FF9800" Width="150" Margin="0,0,5,5"
+                                Visibility="{Binding RetrievalTask.ActiveTaskStatus, Converter={StaticResource ActiveTaskStatusToVisibilityConverter}, ConverterParameter=ShowIfRetrievalPendingAtSource}"/>
+                        <Button Content="אימות והעמסה" ToolTip="אמת פלט בתא המקור והעמס לעגלה"
+                                Command="{Binding DataContext.AuthenticatePalletAtCellCommand, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:CurrentTasksView}}}"
                                 CommandParameter="{Binding}"
+                                Style="{StaticResource MaterialDesignRaisedButton}" Background="#4CAF50" Width="150" Margin="0,0,5,0"
+                                Visibility="{Binding RetrievalTask.ActiveTaskStatus, Converter={StaticResource ActiveTaskStatusToVisibilityConverter}, ConverterParameter=ShowIfRetrievalPendingAtSource}"/>
+                        
+                        <!-- Buttons for State 2: On Trolley, ready for delivery -->
+                        <Button Content="GO (יעד)" ToolTip="נווט ליעד"
+                                Command="{Binding GoToRetrievalCommand}" CommandParameter="{Binding}"
+                                Style="{StaticResource MaterialDesignRaisedButton}" Background="#2196F3" Width="150" Margin="0,0,5,5"
+                                Visibility="{Binding RetrievalTask.ActiveTaskStatus, Converter={StaticResource ActiveTaskStatusToVisibilityConverter}, ConverterParameter=ShowIfRetrievalInTransitToDest}"/>
+                        <Button Content="פרוק ביעד" ToolTip="פרוק פלט ביעד"
+                                Command="{Binding UnloadCommand}" CommandParameter="{Binding}"
+                                Style="{StaticResource MaterialDesignRaisedButton}" Background="#E91E63" Width="150" Margin="0,0,5,0"
+                                Visibility="{Binding RetrievalTask.ActiveTaskStatus, Converter={StaticResource ActiveTaskStatusToVisibilityConverter}, ConverterParameter=ShowIfRetrievalAtDest}"/>
+                        
+                        <Button Content="שינוי מקור/יעד"
+                                Command="{Binding ChangeSourceCommand}" CommandParameter="{Binding}"
                                 IsEnabled="{Binding CanExecuteChangeSourceCommand}"
-                                Style="{StaticResource MaterialDesignOutlinedButton}" Width="100" Margin="0,0,20,0" />
-                        <Button Content="GO"
-                                Command="{Binding DataContext.GoToRetrievalLocationCommand, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:CurrentTasksView}}}"
-                                CommandParameter="{Binding}"
-                                Style="{StaticResource MaterialDesignRaisedButton}" Background="#2196F3" Width="100" Margin="0,0,20,0"/>
+                                Style="{StaticResource MaterialDesignOutlinedButton}" Width="150" Margin="0,5,5,0" />
                     </StackPanel>
                 </Grid>
             </Border>

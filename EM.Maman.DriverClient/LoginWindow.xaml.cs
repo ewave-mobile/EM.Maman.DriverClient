@@ -1,4 +1,4 @@
-﻿﻿using EM.Maman.Models.Interfaces;
+﻿﻿﻿using EM.Maman.Models.Interfaces;
 using EM.Maman.Models.LocalDbModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -18,6 +18,7 @@ using DbTask = EM.Maman.Models.LocalDbModels.Task; // Alias for model Task
 using EM.Maman.DAL.Test;
 using EM.Maman.DriverClient.ViewModels;
 using System.Text;
+using EM.Maman.DriverClient.ViewModels; // Added for LoginViewModel
 // using System.Diagnostics; // Removed Stopwatch using
 
 namespace EM.Maman.DriverClient
@@ -26,17 +27,22 @@ namespace EM.Maman.DriverClient
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly IUnitOfWorkFactory _unitOfWorkFactory;
-
+        private readonly LoginViewModel _loginViewModel; // Added
         private readonly ILogger<LoginWindow> _logger;
 
+        // This EmployeeId property is primarily for the View's direct use during initialization.
+        // The LoginViewModel will have its own EmployeeCode property for binding.
         private string _employeeId;
         public string EmployeeId
         {
             get => _employeeId;
             set
             {
+                // If DataContext is LoginViewModel, this setter might not be hit directly from XAML.
+                // We'll ensure _loginViewModel.EmployeeCode is updated.
                 if (SetProperty(ref _employeeId, value))
                 {
+                    if (_loginViewModel != null) _loginViewModel.EmployeeCode = value; // Sync with ViewModel
                     InitializeCommand?.RaiseCanExecuteChanged();
                 }
             }
@@ -81,23 +87,62 @@ namespace EM.Maman.DriverClient
         // private RadioButton _smallBatteryRadioButton; // No longer needed
         // private RadioButton _lpvRadioButton; // No longer needed
 
-        public LoginWindow(IServiceProvider serviceProvider, IUnitOfWorkFactory unitOfWorkFactory, ILogger<LoginWindow> logger)
+        public LoginWindow(IServiceProvider serviceProvider, IUnitOfWorkFactory unitOfWorkFactory, LoginViewModel loginViewModel, ILogger<LoginWindow> logger)
         {
             _serviceProvider = serviceProvider;
             _unitOfWorkFactory = unitOfWorkFactory;
+            _loginViewModel = loginViewModel ?? throw new ArgumentNullException(nameof(loginViewModel));
             _logger = logger;
 
-            InitializeComponent(); // This might still cause compile error until user fixes build issue
+            InitializeComponent(); 
 
             IsFirstInitializationMode = App.IsFirstInitialization;
+            
+            _loginViewModel.LoginSuccessful += LoginViewModel_LoginSuccessful;
+            // Set DataContext to the ViewModel for MVVM bindings
+            DataContext = _loginViewModel; 
 
-            // CreateBasicUI(); // Ensure this remains commented out
-            // _logger.LogInformation("Created basic UI programmatically"); // Comment out log if CreateBasicUI is removed
+            // Initialize properties on LoginWindow that are still used by its own logic or specific XAML bindings
+            // (e.g., if EmployeeId TextBox was bound to LoginWindow.EmployeeId and needs to sync with LoginViewModel.EmployeeCode)
+            // If EmployeeId TextBox binds directly to _loginViewModel.EmployeeCode, this line might not be needed for EmployeeId.
+            // However, IsFirstInitializationMode is a property of LoginWindow.
+            // We need to ensure EmployeeId from LoginWindow (if still used by init logic) is synced or init logic uses ViewModel's EmployeeCode.
+            if (_loginViewModel.EmployeeCode != null)
+            {
+                this.EmployeeId = _loginViewModel.EmployeeCode;
+            }
 
-            SelectWorkstationCommand = new RelayCommand(ExecuteSelectWorkstation);
-            InitializeCommand = new RelayCommand(ExecuteInitialize, CanExecuteInitialize);
-            DataContext = this; // Set DataContext to the window itself
+
+            SelectWorkstationCommand = new RelayCommand(ExecuteSelectWorkstation); // This command is on LoginWindow
+            InitializeCommand = new RelayCommand(ExecuteInitialize, CanExecuteInitialize); // This command is on LoginWindow
         }
+
+        private async void LoginViewModel_LoginSuccessful(object sender, LoginSuccessEventArgs e) // Make async
+        {
+            _logger.LogInformation("Login successful event received. UserID: {UserId}. Navigating to MainWindow.", e.LocalUserId);
+            
+            var mainWindow = _serviceProvider.GetRequiredService<MainWindow>(); 
+            var mainViewModel = mainWindow.DataContext as MainViewModel;
+
+            if (mainViewModel != null)
+            {
+                await mainViewModel.SetCurrentUserAsync(e.LocalUserId); 
+            }
+            else
+            {
+                _logger.LogError("Could not obtain MainViewModel instance to set current user.");
+                MessageBox.Show("Critical error: Could not initialize user session. Please restart.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Application.Current.Shutdown();
+                return;
+            }
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                mainWindow.Show();
+                this.Close();
+            });
+        }
+
 
         // CreateBasicUI method should be removed or fully commented out if not used
         /*
@@ -118,12 +163,20 @@ namespace EM.Maman.DriverClient
         public string Version => $"גרסה {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version}";
         // public string Greeting => "hi"; // Example property, remove if not needed
 
-        private void LoginButton_Click(object sender, RoutedEventArgs e)
+        // LoginButton_Click is no longer needed if the standard login button uses Command binding to LoginViewModel.LoginCommand
+        /*
+        private async void LoginButton_Click(object sender, RoutedEventArgs e)
         {
-            _logger.LogInformation("Standard login attempt for Employee ID: {EmployeeId}", EmployeeId);
-            // Add actual login logic if needed, or just navigate
-            NavigateToMainWindow();
+            _logger.LogInformation("Standard login attempt for Employee ID: {EmployeeId}", _loginViewModel.EmployeeCode);
+            if (_loginViewModel != null)
+            {
+                // EmployeeCode should already be set on _loginViewModel via XAML binding
+                // _loginViewModel.EmployeeCode = this.EmployeeId; // Ensure ViewModel has the code
+                await _loginViewModel.LoginAsync();
+            }
+            // Navigation is handled by LoginViewModel_LoginSuccessful event
         }
+        */
 
         private void WorkstationRadioButton_Checked(object sender, RoutedEventArgs e)
         {
@@ -141,42 +194,102 @@ namespace EM.Maman.DriverClient
         // This click handler might be redundant if InitializeCommand works,
         // but keep it for now if the command binding was problematic.
         // Ensure the Command binding is removed from the button in XAML if using this.
-        private async void Button_Click(object sender, RoutedEventArgs e)
+        private async void Button_Click(object sender, RoutedEventArgs e) // This is for the INITIALIZE button
         {
-             _logger.LogInformation("Initialize button clicked via direct event (Button_Click).");
+            _logger.LogInformation("Initialize button clicked (Button_Click).");
 
-            // Check if we have all required information
+            // EmployeeId for initialization will now come from _loginViewModel.EmployeeCode due to XAML binding
+            // Or, if EmployeeId TextBox was bound to LoginWindow.EmployeeId, ensure it's up-to-date.
+            // For simplicity, assume EmployeeId TextBox is bound to _loginViewModel.EmployeeCode.
+            string currentEmployeeId = _loginViewModel.EmployeeCode;
+
+
             if (string.IsNullOrEmpty(SelectedWorkstationType))
             {
-                _logger.LogWarning("No workstation selected. Prompting user to select one.");
-                MessageBox.Show("Please select a workstation type.",
-                    "Workstation Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+                _logger.LogWarning("No workstation selected for initialization.");
+                MessageBox.Show("Please select a workstation type.", "Workstation Required", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(EmployeeId))
+            if (string.IsNullOrWhiteSpace(currentEmployeeId))
             {
-                _logger.LogWarning("No employee ID entered. Prompting user to enter one.");
-                 MessageBox.Show("Please enter your Employee ID.",
-                    "Employee ID Required", MessageBoxButton.OK, MessageBoxImage.Warning);
-                 // Consider focusing the TextBox: this.FindName("EmployeeIdTextBox") as TextBox)?.Focus();
+                _logger.LogWarning("No employee ID entered for initialization.");
+                MessageBox.Show("Please enter your Employee ID.", "Employee ID Required", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
+            
+            // Update the LoginWindow's EmployeeId property if it's still used by InitializeWorkstationAsync directly
+            this.EmployeeId = currentEmployeeId;
 
-            _logger.LogInformation("All conditions met. Starting initialization with Workstation: {WorkstationType}, Employee ID: {EmployeeId}",
-                SelectedWorkstationType, EmployeeId);
+            _logger.LogInformation("Starting initialization with Workstation: {WorkstationType}, Employee ID: {EmployeeId}", SelectedWorkstationType, currentEmployeeId);
 
             try
             {
-                MessageBox.Show($"Starting initialization for {SelectedWorkstationType}.\nThis may take a moment...",
-                    "Initialization Started", MessageBoxButton.OK, MessageBoxImage.Information);
+                // Disable button to prevent multiple clicks?
+                var button = sender as Button;
+                if (button != null) button.IsEnabled = false;
 
-                await InitializeWorkstationAsync(SelectedWorkstationType);
+                MessageBox.Show($"Starting initialization for {SelectedWorkstationType}.\nThis may take a moment...", "Initialization Started", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                bool initSuccess = await InitializeWorkstationAsync(SelectedWorkstationType); // Modified to return bool
+
+                if (initSuccess)
+                {
+                    _logger.LogInformation("Initialization successful. Proceeding to login via ViewModel.");
+                    // Now, perform login using LoginViewModel
+                    // EmployeeCode should already be set on _loginViewModel via binding
+                    // _loginViewModel.EmployeeCode = currentEmployeeId; // Already set by binding
+
+                    int craneId = MapWorkstationTypeToCraneId(SelectedWorkstationType);
+                    if (craneId == 0)
+                    {
+                        _logger.LogError($"Could not map workstation type '{SelectedWorkstationType}' to a valid CraneId. Aborting login.");
+                        MessageBox.Show($"Configuration error: Unknown workstation type '{SelectedWorkstationType}'. Cannot proceed with login.", "Login Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        if (button != null) button.IsEnabled = true;
+                        return;
+                    }
+                    _loginViewModel.SelectedCraneId = craneId;
+                    
+                    await _loginViewModel.LoginAsync();
+                    // Navigation is handled by _loginViewModel.LoginSuccessful event
+                }
+                else
+                {
+                    _logger.LogError("Initialization failed. Login step will be skipped.");
+                    // MessageBox is shown in InitializeWorkstationAsync for failure
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in Button_Click handler during initialization");
-                MessageBox.Show($"An error occurred during initialization: {ex.Message}", "Initialization Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                _logger.LogError(ex, "Error in Button_Click (Initialize) handler.");
+                MessageBox.Show($"An error occurred: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                var button = sender as Button;
+                if (button != null) button.IsEnabled = true;
+            }
+        }
+
+        private int MapWorkstationTypeToCraneId(string workstationType)
+        {
+            if (_loginViewModel?.CraneOptions == null) return 0;
+            // Normalize names if necessary, or use a more robust mapping
+            // Current LoginViewModel.CraneOptions: "Ludige", "LPV", "מצבר קטן", "מצבר גדול"
+            // Current LoginWindow Tags: "לודיגה", "מצבר גדול", "מצבר קטן", "LPV"
+            switch (workstationType)
+            {
+                case "לודיגה": // Assuming this matches "Ludige"
+                    return _loginViewModel.CraneOptions.FirstOrDefault(c => c.Name.Equals("Ludige", StringComparison.OrdinalIgnoreCase))?.Id ?? 0;
+                case "LPV":
+                    return _loginViewModel.CraneOptions.FirstOrDefault(c => c.Name.Equals("LPV", StringComparison.OrdinalIgnoreCase))?.Id ?? 0;
+                case "מצבר קטן":
+                    return _loginViewModel.CraneOptions.FirstOrDefault(c => c.Name.Equals("מצבר קטן", StringComparison.OrdinalIgnoreCase))?.Id ?? 0;
+                case "מצבר גדול":
+                    return _loginViewModel.CraneOptions.FirstOrDefault(c => c.Name.Equals("מצבר גדול", StringComparison.OrdinalIgnoreCase))?.Id ?? 0;
+                default:
+                    _logger.LogWarning($"Unknown workstation type for CraneId mapping: {workstationType}");
+                    return 0;
             }
         }
 
@@ -196,100 +309,103 @@ namespace EM.Maman.DriverClient
             return canExecute;
         }
 
-        private async void ExecuteInitialize(object parameter)
+        private async void ExecuteInitialize(object parameter) // This is for the InitializeCommand on LoginWindow
         {
             _logger.LogInformation("Initialize command executed (ExecuteInitialize).");
-            if (!CanExecuteInitialize(null))
+            
+            string currentEmployeeId = _loginViewModel.EmployeeCode; // Get from ViewModel
+            this.EmployeeId = currentEmployeeId; // Sync to local property if still used by CanExecuteInitialize or InitializeWorkstationAsync
+
+            if (!CanExecuteInitialize(null)) // CanExecuteInitialize uses LoginWindow's EmployeeId and SelectedWorkstationType
             {
-                 _logger.LogWarning("Initialize command executed but conditions not met (Workstation: {SelectedWorkstation}, EmployeeId: {EmployeeId})", SelectedWorkstationType, EmployeeId);
-                 MessageBox.Show("Please select a workstation and enter your Employee ID.", "Initialization Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                 return;
+                _logger.LogWarning("Initialize command executed but conditions not met (Workstation: {SelectedWorkstation}, EmployeeId: {EmployeeId})", SelectedWorkstationType, currentEmployeeId);
+                MessageBox.Show("Please select a workstation and enter your Employee ID.", "Initialization Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
             }
-            await InitializeWorkstationAsync(SelectedWorkstationType);
-        }
 
-        private async System.Threading.Tasks.Task InitializeWorkstationAsync(string workstationType)
-        {
-            // Database connection check has been removed as it was not correctly checking the connection
-            // Any actual database connection errors will be caught by the try-catch blocks in the subsequent operations
-
-            _logger.LogInformation("Starting first-time initialization for Workstation: {WorkstationType}, Employee ID: {EmployeeId}", workstationType, EmployeeId);
-
-            // EmployeeId check already done in Button_Click/ExecuteInitialize
-
-            try
+            bool initSuccess = await InitializeWorkstationAsync(SelectedWorkstationType);
+            if (initSuccess)
             {
-                // Create a new UnitOfWork for this operation
-                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                _logger.LogInformation("Initialization successful via command. Proceeding to login via ViewModel.");
+                int craneId = MapWorkstationTypeToCraneId(SelectedWorkstationType);
+                 if (craneId == 0)
                 {
-                    _logger.LogInformation("Clearing existing data before seeding...");
-                    bool cleared = await ClearAllDataAsync(unitOfWork); // Use the return value
-
-                    if (!cleared)
-                    {
-                        _logger.LogError("Database clearing failed. Aborting initialization.");
-                        MessageBox.Show("Failed to clear existing database data. Initialization aborted.", "Initialization Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                        return; // Stop if clearing failed
-                    }
-
-                    // Prepare predefined data
-                    _logger.LogInformation("Gathering predefined data for {WorkstationType}...", workstationType);
-                    List<Level> predefinedLevels = GetPredefinedLevels();
-                    List<Cell> predefinedCells = GetPredefinedCells(); // These will have ID=0 initially
-                    List<Pallet> predefinedPallets = GetPredefinedPallets(); // These will have ID=0 initially
-                    List<Finger> predefinedFingers = GetPredefinedFingers(); // These will have ID=0 initially
-
-                    // Add base data (Levels, Cells, Pallets, Fingers)
-                    await AddAllDataAsync(unitOfWork, predefinedLevels, predefinedCells, predefinedPallets, predefinedFingers);
-                    // IMPORTANT: After AddAllDataAsync completes and saves, the IDs of the objects
-                    // in the predefinedCells, predefinedPallets, predefinedFingers lists *might* be updated
-                    // by EF Core depending on the repository implementation. If not, we need to re-fetch them.
-                    // For safety, let's re-fetch the necessary items by their unique properties before creating associations.
-
-                    var savedCells = (await unitOfWork.Cells.GetAllAsync()).ToList();
-                    var savedPallets = (await unitOfWork.Pallets.GetAllAsync()).ToList();
-                    var savedFingers = (await unitOfWork.Fingers.GetAllAsync()).ToList();
-
-
-                    // Create tasks and pallet-in-cell associations using the *saved* entities with correct IDs
-                    List<DbTask> predefinedTasks = GetPredefinedTasks(savedCells, savedPallets, savedFingers);
-                    List<PalletInCell> predefinedPalletInCells = GetPredefinedPalletInCells(savedCells, savedPallets);
-
-                    // Add tasks and associations
-                    await AddTasksAndAssociationsAsync(unitOfWork, predefinedTasks, predefinedPalletInCells);
-
-                    // Create the Trolley for this workstation
-                    _logger.LogInformation("Creating Main Trolley for workstation: {WorkstationType}", SelectedWorkstationType);
-                    var newTrolley = new Trolley
-                    {
-                        // Id will be generated by the database
-                        DisplayName = SelectedWorkstationType,
-                        Position = 1, // Default initial position, adjust if needed
-                        // Add any other mandatory default properties for Trolley here
-                        // For example, Capacity if it's required:
-                        // Capacity = 2 
-                    };
-                    await unitOfWork.Trolleys.AddAsync(newTrolley);
-                    await unitOfWork.CompleteAsync(); // Save to get the ID for newTrolley
-
-                    _logger.LogInformation("Created new Trolley (ID: {TrolleyId}, DisplayName: {DisplayName}) for workstation.", newTrolley.Id, newTrolley.DisplayName);
-
-                    // Finally, add the configuration, now including the ActiveTrolleyId
-                    await AddConfigurationAsync(unitOfWork, (int)newTrolley.Id); 
-                } // UnitOfWork disposed here, along with its DbContext
-
-                _logger.LogInformation("Initialization completed successfully.");
-                NavigateToMainWindow(); // Navigate only after successful initialization
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during first-time initialization for Workstation: {WorkstationType}", workstationType);
-                MessageBox.Show($"Failed to initialize workstation '{workstationType}'.\nPlease check the application logs for details.\n\nError: {ex.Message}",
-                                "Initialization Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    _logger.LogError($"Could not map workstation type '{SelectedWorkstationType}' to a valid CraneId. Aborting login.");
+                    MessageBox.Show($"Configuration error: Unknown workstation type '{SelectedWorkstationType}'. Cannot proceed with login.", "Login Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                _loginViewModel.SelectedCraneId = craneId;
+                // EmployeeCode should already be on _loginViewModel
+                await _loginViewModel.LoginAsync();
+                // Navigation handled by LoginSuccessful event
             }
         }
 
         // Returns true if successful, false otherwise.
+        private async Task<bool> InitializeWorkstationAsync(string workstationType)
+        {
+            // EmployeeId for logging within this method will use this.EmployeeId, which should be set by the caller (Button_Click or ExecuteInitialize)
+            // from _loginViewModel.EmployeeCode.
+            _logger.LogInformation("Starting first-time initialization for Workstation: {WorkstationType}, Employee ID: {EmployeeId}", workstationType, this.EmployeeId);
+
+            try
+            {
+                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                {
+                    _logger.LogInformation("Clearing existing data before seeding...");
+                    bool cleared = await ClearAllDataAsync(unitOfWork);
+                    if (!cleared)
+                    {
+                        _logger.LogError("Database clearing failed. Aborting initialization.");
+                        MessageBox.Show("Failed to clear existing database data. Initialization aborted.", "Initialization Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return false; 
+                    }
+
+                    _logger.LogInformation("Gathering predefined data for {WorkstationType}...", workstationType);
+                    List<Level> predefinedLevels = GetPredefinedLevels();
+                    List<Cell> predefinedCells = GetPredefinedCells();
+                    List<Pallet> predefinedPallets = GetPredefinedPallets();
+                    List<Finger> predefinedFingers = GetPredefinedFingers();
+
+                    await AddAllDataAsync(unitOfWork, predefinedLevels, predefinedCells, predefinedPallets, predefinedFingers);
+                    
+                    var savedCells = (await unitOfWork.Cells.GetAllAsync()).ToList();
+                    var savedPallets = (await unitOfWork.Pallets.GetAllAsync()).ToList();
+                    var savedFingers = (await unitOfWork.Fingers.GetAllAsync()).ToList();
+
+                    List<DbTask> predefinedTasks = GetPredefinedTasks(savedCells, savedPallets, savedFingers);
+                    List<PalletInCell> predefinedPalletInCells = GetPredefinedPalletInCells(savedCells, savedPallets);
+
+                    await AddTasksAndAssociationsAsync(unitOfWork, predefinedTasks, predefinedPalletInCells);
+
+                    _logger.LogInformation("Creating Main Trolley for workstation: {WorkstationType}", SelectedWorkstationType);
+                    var newTrolley = new Trolley
+                    {
+                        DisplayName = SelectedWorkstationType,
+                        Position = 1,
+                    };
+                    await unitOfWork.Trolleys.AddAsync(newTrolley);
+                    await unitOfWork.CompleteAsync(); 
+
+                    _logger.LogInformation("Created new Trolley (ID: {TrolleyId}, DisplayName: {DisplayName}) for workstation.", newTrolley.Id, newTrolley.DisplayName);
+                    
+                    // Pass this.EmployeeId (which was set from ViewModel's EmployeeCode)
+                    await AddConfigurationAsync(unitOfWork, (int)newTrolley.Id, this.EmployeeId); 
+                } 
+
+                _logger.LogInformation("Initialization completed successfully.");
+                // REMOVED: NavigateToMainWindow(); // Navigation is now handled after LoginViewModel.LoginAsync succeeds
+                return true; // Indicate success
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during first-time initialization for Workstation: {WorkstationType}", workstationType);
+                MessageBox.Show($"Failed to initialize workstation '{workstationType}'.\nPlease check logs.\nError: {ex.Message}",
+                                "Initialization Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false; // Indicate failure
+            }
+        }
+
         private async System.Threading.Tasks.Task<bool> ClearAllDataAsync(IUnitOfWork unitOfWork)
         {
             try
@@ -510,28 +626,28 @@ namespace EM.Maman.DriverClient
             }
         }
 
-        private async System.Threading.Tasks.Task AddConfigurationAsync(IUnitOfWork unitOfWork, int activeTrolleyId)
+        private async System.Threading.Tasks.Task AddConfigurationAsync(IUnitOfWork unitOfWork, int activeTrolleyId, string initializedByEmployeeId)
         {
             try
             {
-                // Ensure configuration doesn't already exist (though Clear should handle this)
                 if (!await unitOfWork.Configurations.AnyAsync())
                 {
                     var newConfiguration = new Configuration
                     {
-                        WorkstationType = SelectedWorkstationType,
-                        InitializedByEmployeeId = EmployeeId,
+                        WorkstationType = SelectedWorkstationType, // From LoginWindow property
+                        InitializedByEmployeeId = initializedByEmployeeId, // Passed in
                         InitializedAt = DateTime.UtcNow,
-                        ActiveTrolleyId = activeTrolleyId // Store the ID of the trolley created for this workstation
+                        ActiveTrolleyId = activeTrolleyId,
+                        // CraneId will be set by LoginViewModel after successful login
                     };
                     await unitOfWork.Configurations.AddAsync(newConfiguration);
-                    await unitOfWork.CompleteAsync(); // Save the configuration
+                    await unitOfWork.CompleteAsync();
                     _logger.LogInformation("Configuration added successfully with WorkstationType: {WorkstationType}, EmployeeId: {EmployeeId}, ActiveTrolleyId: {ActiveTrolleyId}",
-                        SelectedWorkstationType, EmployeeId, activeTrolleyId);
+                        SelectedWorkstationType, initializedByEmployeeId, activeTrolleyId);
                 }
                 else
                 {
-                     _logger.LogWarning("Configuration already exists, skipping add. This might indicate an issue if first-time setup is re-run without proper DB clearing for Configurations table.");
+                    _logger.LogWarning("Configuration already exists, skipping add. This might indicate an issue if first-time setup is re-run without proper DB clearing for Configurations table.");
                 }
             }
             catch (Exception ex)

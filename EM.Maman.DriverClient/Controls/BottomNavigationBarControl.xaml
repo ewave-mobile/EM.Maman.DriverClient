@@ -140,12 +140,36 @@
                         </TextBlock>
                         
                         <!-- Button 7: חיפוש -->
-                        <Button Style="{StaticResource BorderlessButton}">
+                        <Button Style="{StaticResource BorderlessButton}" Command="{Binding ShowSearchViewCommand}">
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="Search" Style="{StaticResource ButtonPackIcon}"/>
                                 <TextBlock Text="חיפוש" Style="{StaticResource ButtonTextBlock}"/>
                             </StackPanel>
                         </Button>
+                        <Rectangle Style="{StaticResource VerticalSeparator}"/>
+
+                        <!-- NEW USER PROFILE BUTTON AND DRAWER -->
+                        <Grid>
+                            <Button Style="{StaticResource BorderlessButton}" Command="{Binding ToggleLogoutDrawerCommand}" Padding="5">
+                                <StackPanel Orientation="Horizontal" FlowDirection="LeftToRight">
+                                    <Border Background="DodgerBlue" CornerRadius="12" Width="24" Height="24" Margin="0,0,5,0">
+                                        <TextBlock Text="{Binding CurrentUserInitial}" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
+                                    </Border>
+                                    <materialDesign:PackIcon Kind="ChevronDown" Width="16" Height="16" VerticalAlignment="Center" Foreground="Gray"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Popup IsOpen="{Binding IsLogoutDrawerOpen, Mode=TwoWay}" StaysOpen="False" Placement="Top" HorizontalOffset="-50" VerticalOffset="-10">
+                                <Border Background="White" BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="5" MinWidth="100" Effect="{DynamicResource MaterialDesignShadowDepth1}">
+                                    <StackPanel>
+                                        <Button Command="{Binding LogoutCommand}" Style="{StaticResource BorderlessButton}" HorizontalAlignment="Stretch" Padding="8,5">
+                                            <TextBlock Text="להתנתק" HorizontalAlignment="Center" Foreground="Black"/>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <!-- End of New User Profile Button -->
                     </StackPanel>
                 </ScrollViewer>
 

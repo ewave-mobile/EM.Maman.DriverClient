@@ -51,7 +51,7 @@ namespace EM.Maman.DriverClient.ViewModels
             {
                 using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
                 {
-                    var dbTrolley = await unitOfWork.Trolleys.GetByIdAsync(activeTrolleyId.Value);
+                    var dbTrolley = await unitOfWork.Trolleys.GetByIdAsync((long)activeTrolleyId.Value); // Cast to long
 
                     if (dbTrolley == null)
                     {
