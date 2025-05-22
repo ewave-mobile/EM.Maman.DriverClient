@@ -139,6 +139,7 @@ namespace EM.Maman.DriverClient
             Application.Current.Dispatcher.Invoke(() =>
             {
                 mainWindow.Show();
+                mainWindow.Activate(); // Explicitly activate
                 this.Close();
             });
         }

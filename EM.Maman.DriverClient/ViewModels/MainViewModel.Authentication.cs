@@ -172,9 +172,50 @@ namespace EM.Maman.DriverClient.ViewModels
             var dialogVM = new AuthenticationDialogViewModel(item);
             var dialog = new AuthenticationDialog
             {
-                DataContext = dialogVM,
-                Owner = Application.Current.MainWindow
+                DataContext = dialogVM
+                // Owner will be set below after checks
             };
+
+            var owner = Application.Current.MainWindow;
+
+            _logger.LogInformation("Attempting to show AuthenticationDialog. Current Application.MainWindow is '{OwnerType}', IsNull: {IsNull}, IsLoaded: {IsLoaded}, IsVisible: {IsVisible}, IsActive: {IsActive}. Dialog instance hash: {DialogHash}",
+                owner?.GetType().FullName ?? "null",
+                owner == null,
+                owner?.IsLoaded,
+                owner?.IsVisible,
+                owner?.IsActive,
+                dialog.GetHashCode());
+
+            if (owner != null && owner != dialog && owner.IsLoaded) // owner.IsVisible might also be a good check
+            {
+                dialog.Owner = owner;
+                _logger.LogInformation("Set Owner of AuthenticationDialog to '{OwnerType}'.", owner.GetType().FullName);
+            }
+            else if (owner == dialog)
+            {
+                _logger.LogWarning("Attempted to set dialog Owner to itself. Owner will not be set for dialog hash: {DialogHash}.", dialog.GetHashCode());
+            }
+            else
+            {
+                _logger.LogWarning("Application.Current.MainWindow ('{OwnerType}') is not suitable to be an owner (IsNull: {IsNull}, IsLoaded: {IsLoaded}, IsVisible: {IsVisible}, IsActive: {IsActive}). Dialog hash: {DialogHash}. Dialog will be shown without an owner.",
+                    owner?.GetType().FullName ?? "null",
+                    owner == null,
+                    owner?.IsLoaded,
+                    owner?.IsVisible,
+                    owner?.IsActive,
+                    dialog.GetHashCode());
+                // Fallback: try to find any active, visible window that is not the dialog itself
+                var fallbackOwner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive && w.IsVisible && w != dialog);
+                if (fallbackOwner != null)
+                {
+                    dialog.Owner = fallbackOwner;
+                    _logger.LogInformation("Set Owner of AuthenticationDialog to fallback owner '{OwnerType}'.", fallbackOwner.GetType().FullName);
+                }
+                else
+                {
+                    _logger.LogWarning("No suitable fallback owner found for AuthenticationDialog.");
+                }
+            }
 
             bool? result = dialog.ShowDialog();
 

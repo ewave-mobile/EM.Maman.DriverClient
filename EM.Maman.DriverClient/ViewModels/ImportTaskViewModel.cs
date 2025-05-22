@@ -193,6 +193,10 @@ namespace EM.Maman.DriverClient.ViewModels
 
             // Assign the selected finger (already done via binding, but ensure it's set)
             TaskDetails.SourceFinger = SelectedSourceFinger;
+            if (SelectedSourceFinger != null) // Ensure selected finger is not null
+            {
+                TaskDetails.SourceFingerPosition = SelectedSourceFinger.Position; // Explicitly set/re-affirm SourceFingerPosition
+            }
 
             // Set a descriptive name
             TaskDetails.Name = $"Import {TaskDetails.Pallet?.DisplayName ?? "N/A"} from {TaskDetails.SourceFinger?.DisplayName ?? "N/A"}";
@@ -218,7 +222,8 @@ namespace EM.Maman.DriverClient.ViewModels
                 UldAirline = UldAirline,
                 Description = PalletDescription,
                 ReceivedDate = DateTime.Now,
-                IsSecure = IsSecurePallet // Assign IsSecure
+                IsSecure = IsSecurePallet, // Assign IsSecure
+                UpdateType = Models.Enums.UpdateType.Import // Explicitly set for storage/import tasks
             };
         }
 

@@ -503,7 +503,9 @@ namespace EM.Maman.DriverClient.ViewModels
                         {
                             _logger.LogInformation("Manual task (ID: {TaskId}) created and saved.", newTaskDetails.Id);
                             TaskVM.Tasks.Add(newTaskDetails);
-                            await TaskVM.LoadAvailableStorageFingersAsync();
+                            await System.Threading.Tasks.Task.Delay(150); // Added delay
+                            // UpdateFilteredListsAsync will call LoadAvailableStorageFingersAsync with the updated PendingTasks
+                            await TaskVM.UpdateFilteredListsAsync(); 
 
                             if (newTaskDetails.IsImportTask &&
                                 newTaskDetails.SourceFinger?.Id != null &&

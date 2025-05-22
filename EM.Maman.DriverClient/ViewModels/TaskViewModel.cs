@@ -1,4 +1,4 @@
-﻿﻿﻿﻿using EM.Maman.Models.CustomModels;
+﻿﻿﻿﻿﻿using EM.Maman.Models.CustomModels;
 using EM.Maman.Models.Interfaces.Services;
 using EM.Maman.Models.Interfaces;
 using EM.Maman.Models.LocalDbModels;
@@ -122,7 +122,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 {
                     _tasks = value;
                     OnPropertyChanged();
-                    UpdateFilteredLists();
+                    _ = UpdateFilteredListsAsync(); // Fire and forget as property setter cannot be async
                 }
             }
         }
@@ -194,13 +194,15 @@ namespace EM.Maman.DriverClient.ViewModels
                     _availableStorageFingers = value;
                     OnPropertyChanged();
                     // Update the count property when the collection changes
-                    OnPropertyChanged(nameof(StorageTasksCount)); // Re-using StorageTasksCount name for simplicity, but represents finger count now
+                    OnPropertyChanged(nameof(AvailableStorageFingerCount)); 
                 }
             }
         }
 
-        // Re-purpose StorageTasksCount to show the count of available fingers for the header
-        public int StorageTasksCount => AvailableStorageFingers?.Count ?? 0;
+        // Counts available fingers for the storage header
+        public int AvailableStorageFingerCount => AvailableStorageFingers?.Count ?? 0;
+        // Counts actual pending storage task items
+        public int PendingStorageItemCount => StorageTasks?.Count ?? 0;
         public int RetrievalTasksCount => RetrievalTasks?.Count ?? 0; // Keep retrieval count as is
 
         public bool IsStorageTabSelected
@@ -384,8 +386,7 @@ namespace EM.Maman.DriverClient.ViewModels
         /// </summary>
         public async System.Threading.Tasks.Task InitializeAsync() // Fully qualify Task
         {
-            await LoadTasksAsync();
-            await LoadAvailableStorageFingersAsync(); // Also load finger info on init
+            await LoadTasksAsync(); // This will trigger UpdateFilteredListsAsync, which now calls LoadAvailableStorageFingersAsync
             // Any other async init needed for this VM
         }
 
@@ -412,7 +413,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 {
                     _logger.LogInformation("Task ID {TaskId} is completed. Adding to recently completed for 5s display.", updatedTaskDetails.Id);
                     _recentlyCompletedTaskIds.Add(updatedTaskDetails.Id);
-                    UpdateFilteredLists(); // Show with green bar
+                    _ = UpdateFilteredListsAsync(); // Show with green bar
 
                     System.Threading.Tasks.Task.Run(async () =>
                     {
@@ -423,7 +424,7 @@ namespace EM.Maman.DriverClient.ViewModels
                             {
                                 _recentlyCompletedTaskIds.Remove(updatedTaskDetails.Id);
                                 _logger.LogInformation("5s elapsed for Task ID {TaskId}. Removing from recently completed and re-filtering.", updatedTaskDetails.Id);
-                                UpdateFilteredLists(); // Re-filter to move it out of pending
+                                _ = UpdateFilteredListsAsync(); // Re-filter to move it out of pending
                             }
                         });
                     });
@@ -431,9 +432,9 @@ namespace EM.Maman.DriverClient.ViewModels
                 else if (!_recentlyCompletedTaskIds.Contains(updatedTaskDetails.Id))
                 {
                     // If not recently completed or already processed by timer, update lists normally
-                    UpdateFilteredLists();
+                    _ = UpdateFilteredListsAsync();
                 }
-                // If it IS in _recentlyCompletedTaskIds, UpdateFilteredLists() was already called when it was added.
+                // If it IS in _recentlyCompletedTaskIds, UpdateFilteredListsAsync() was already called when it was added.
                 // It will be called again when removed by the timer.
             }
             else
@@ -729,7 +730,7 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
-        private void UpdateFilteredLists()
+        internal async System.Threading.Tasks.Task UpdateFilteredListsAsync()
         {
             // Tasks that are genuinely pending (Created or InProgress) OR are recently completed (green bar phase)
             PendingTasks = new ObservableCollection<TaskDetails>(
@@ -759,7 +760,13 @@ namespace EM.Maman.DriverClient.ViewModels
                      .ThenBy(t => t.CreatedDateTime));
             
             OnPropertyChanged(nameof(RetrievalTasksCount));
-            OnPropertyChanged(nameof(StorageTasksCount)); // Though this is now finger count, re-evaluating pending tasks might affect it if logic changes
+            OnPropertyChanged(nameof(AvailableStorageFingerCount)); 
+            OnPropertyChanged(nameof(PendingStorageItemCount));
+
+            // Add this call here:
+            // This ensures that whenever the filtered task lists are updated,
+            // the finger storage information (which depends on PendingTasks) is also refreshed.
+            await LoadAvailableStorageFingersAsync(this.PendingTasks); 
         }
 
         private async void ExecuteNextNavigation()
@@ -866,7 +873,8 @@ namespace EM.Maman.DriverClient.ViewModels
                 if (saved)
                 {
                     Tasks.Add(viewModel.TaskDetails); // Add after saving (ID might be updated)
-                    await LoadAvailableStorageFingersAsync(); // Refresh finger counts
+                    await System.Threading.Tasks.Task.Delay(150); // Added delay
+                    await UpdateFilteredListsAsync(); // Ensure PendingTasks is updated before finger counts are recalculated
                     StatusMessage = "Storage task created.";
                 }
             }
@@ -886,7 +894,8 @@ namespace EM.Maman.DriverClient.ViewModels
                 if (saved)
                 {
                     Tasks.Add(viewModel.TaskDetails); // Add after saving (ID might be updated)
-                    await LoadAvailableStorageFingersAsync(); // Refresh finger counts (might be relevant if retrieval can be from finger)
+                    await System.Threading.Tasks.Task.Delay(150); // Added delay
+                    await UpdateFilteredListsAsync(); // Ensure PendingTasks is updated before finger counts are recalculated
                     StatusMessage = "Retrieval task created.";
                 }
             }
@@ -904,7 +913,8 @@ namespace EM.Maman.DriverClient.ViewModels
                 if (saved)
                 {
                     Tasks.Add(dialog.TaskDetails); // Add after saving (ID might be updated)
-                    await LoadAvailableStorageFingersAsync(); // Refresh finger counts
+                    await System.Threading.Tasks.Task.Delay(150); // Added delay
+                    await UpdateFilteredListsAsync(); // Ensure PendingTasks is updated before finger counts are recalculated
                     StatusMessage = dialog.TaskDetails.IsImportTask ? "Storage task created." : "Retrieval task created.";
                 }
             }
@@ -1026,7 +1036,7 @@ namespace EM.Maman.DriverClient.ViewModels
 
             if (saved)
             {
-                UpdateFilteredLists(); // Update lists to reflect InProgress status
+                await UpdateFilteredListsAsync(); // Update lists to reflect InProgress status
 
                 if (ActiveTask.TaskType == Models.Enums.TaskType.Retrieval)
                 {
@@ -1046,7 +1056,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 _logger.LogError("Failed to save status for starting task {TaskId}. Reverting.", SelectedTask.Id);
                 ActiveTask.Status = Models.Enums.TaskStatus.Created; // Example revert
                 // ActiveTask = null; // Do not nullify ActiveTask here, allow UI to reflect failed start
-                // UpdateFilteredLists(); // Re-filter if status reverted
+                _ = UpdateFilteredListsAsync(); // Re-filter if status reverted
                 MessageBox.Show("Failed to save task start status. Please try again.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             // Removed duplicate InitializeTaskWorkflow();
@@ -1265,7 +1275,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 TotalSteps = 0;
 
                 // Refresh the task lists
-                UpdateFilteredLists();
+                await UpdateFilteredListsAsync();
             }
             catch (Exception ex)
             {
@@ -1304,24 +1314,32 @@ namespace EM.Maman.DriverClient.ViewModels
                 TotalSteps = 0;
 
                 // Refresh the task lists
-                UpdateFilteredLists();
+                await UpdateFilteredListsAsync();
             }
         }
 
         private async void RefreshTasks() // Make async
         {
-            await LoadTasksAsync();
-            await LoadAvailableStorageFingersAsync(); // Load finger info as well
+            await LoadTasksAsync(); // This will trigger UpdateFilteredListsAsync, which now calls LoadAvailableStorageFingersAsync
         }
 
         /// <summary>
         /// Loads the list of available storage fingers and their pallet counts.
         /// </summary>
-        public async System.Threading.Tasks.Task LoadAvailableStorageFingersAsync() // Fully qualify Task
+        public async System.Threading.Tasks.Task LoadAvailableStorageFingersAsync(ObservableCollection<TaskDetails> currentPendingTasks) // Fully qualify Task
         {
+            if (currentPendingTasks == null)
+            {
+                _logger.LogWarning("LoadAvailableStorageFingersAsync called with null currentPendingTasks.");
+                // Optionally clear AvailableStorageFingers or return
+                _dispatcherService.Invoke(() => {
+                    if (AvailableStorageFingers != null) AvailableStorageFingers.Clear();
+                });
+                return;
+            }
             try
             {
-                _logger.LogInformation("Loading available storage fingers...");
+                _logger.LogInformation("Loading available storage fingers based on current pending tasks count: {PendingCount}", currentPendingTasks.Count);
                 var storageFingers = new ObservableCollection<FingerStorageInfo>();
 
                 // Create a new UnitOfWork instance for this operation
@@ -1330,17 +1348,25 @@ namespace EM.Maman.DriverClient.ViewModels
                     // Get all fingers
                     var allFingers = await unitOfWork.Fingers.GetAllAsync(); // Assuming GetAllAsync exists
 
-                    // Get all pending tasks
-                    // We can use the already filtered PendingTasks collection
-                    var pendingTasks = PendingTasks;
-
                     foreach (var finger in allFingers) // Load all fingers
                     {
                         int palletCount = 0;
                         try
                         {
-                            // Count pending tasks where the SourceFingerPosition matches the finger's Position
-                            palletCount = pendingTasks.Count(task => task.SourceFingerPosition.HasValue && task.SourceFingerPosition.Value == finger.Position);
+                            // Count pending storage tasks where the SourceFingerPosition matches the finger's Position
+                            palletCount = currentPendingTasks.Count(task => task.IsImportTask && task.SourceFingerPosition.HasValue && task.SourceFingerPosition.Value == finger.Position);
+                            if (finger.DisplayName == "L05") // Example logging for L05
+                            {
+                                _logger.LogInformation("Finger L05: Position {Position}. Calculated PalletCount: {PalletCount} from {PendingCount} pending tasks.", finger.Position, palletCount, currentPendingTasks.Count);
+                                foreach(var task in currentPendingTasks.Where(t => t.SourceFingerPosition.HasValue && t.SourceFingerPosition.Value == finger.Position))
+                                {
+                                    _logger.LogInformation("L05 Relevant Task: ID {TaskId}, IsImportTask: {IsImport}, SourceFingerPos: {SFP}", task.Id, task.IsImportTask, task.SourceFingerPosition);
+                                }
+                                foreach(var task in currentPendingTasks.Where(t => !(t.SourceFingerPosition.HasValue && t.SourceFingerPosition.Value == finger.Position) && t.IsImportTask))
+                                {
+                                     _logger.LogInformation("L05 Non-Matching Import Task: ID {TaskId}, IsImportTask: {IsImport}, SourceFingerPos: {SFP}", task.Id, task.IsImportTask, task.SourceFingerPosition);
+                                }
+                            }
                         }
                         catch (Exception ex)
                         {

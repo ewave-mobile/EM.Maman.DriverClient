@@ -5,13 +5,14 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:EM.Maman.DriverClient.Views"
              xmlns:vm="clr-namespace:EM.Maman.DriverClient.ViewModels"
+             xmlns:controls="clr-namespace:EM.Maman.DriverClient.Controls"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:converters="clr-namespace:EM.Maman.DriverClient.Converters"
              mc:Ignorable="d"
              d:DesignHeight="800" d:DesignWidth="800"
              FlowDirection="RightToLeft"
-             Background="White">
-
+             Background="White"
+             d:DataContext="{d:DesignInstance Type=vm:MainViewModel}">
     <UserControl.Resources>
         <ResourceDictionary>
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
@@ -111,7 +112,9 @@
             <ColumnDefinition Width="250"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-        <Grid Grid.Column="0"></Grid>
+        <Grid Grid.Column="0">
+            <controls:FilterControl DataContext="{Binding FilterVM}"/>
+        </Grid>
         <Grid Grid.Column="1">
         <Grid.RowDefinitions >
             <RowDefinition Height="Auto"/> <!-- Header Row -->
@@ -288,7 +291,7 @@
                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource ColumnHeaderStyle}" HorizontalAlignment="Center">
                     <Run Text="ממתין לאחסון"/>
                     <Run Text="|"/>
-                    <Run Text="{Binding TaskVM.StorageTasksCount, Mode=OneWay}"/>
+                    <Run Text="{Binding TaskVM.PendingStorageItemCount, Mode=OneWay}"/>
                     <Run Text="פריטים"/>
                 </TextBlock>
                  

@@ -265,6 +265,7 @@ namespace EM.Maman.DriverClient.ViewModels
         public TrolleyOperationsViewModel TrolleyOperationsVM { get; }
         public WarehouseViewModel WarehouseVM { get; }
         public TaskViewModel TaskVM { get; }
+        public FilterViewModel FilterVM { get; } // Added for the filter control
 
         #endregion
 
@@ -389,6 +390,9 @@ namespace EM.Maman.DriverClient.ViewModels
                 loggerFactory.CreateLogger<TaskViewModel>(),
                 this
             );
+
+            // Initialize FilterViewModel
+            FilterVM = new FilterViewModel(); // Assuming default constructor is sufficient for now
 
             InitializeCommands();
             RefreshServerTasksCommand = new RelayCommand(async _ => await LoadTasksFromServerAsync(), _ => !IsLoadingServerTasks);

@@ -8,7 +8,7 @@
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:PalletRetrievalTaskItem}"
-             d:DesignHeight="Auto" d:DesignWidth="330"
+             d:DesignHeight="150" d:DesignWidth="330"
              FlowDirection="RightToLeft">
 
     <UserControl.Resources>

@@ -9,7 +9,7 @@
              xmlns:local="clr-namespace:EM.Maman.DriverClient.Views"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:PalletStorageTaskItem}"
-             d:DesignHeight="Auto" d:DesignWidth="330"
+             d:DesignHeight="150" d:DesignWidth="330"
              FlowDirection="RightToLeft">
 
     <UserControl.Resources>
