@@ -8,6 +8,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Collections.Generic; // Added for List
 using System.Windows;
 
 namespace EM.Maman.DriverClient.ViewModels
@@ -16,38 +17,71 @@ namespace EM.Maman.DriverClient.ViewModels
     {
         private readonly IUnitOfWorkFactory _unitOfWorkFactory;
         private readonly ILogger<SelectHndDestinationViewModel> _logger;
+        private List<Cell> _allAvailableCells; // Master list of cells
 
-        private ObservableCollection<Finger> _availableFingers;
-        public ObservableCollection<Finger> AvailableFingers
-        {
-            get => _availableFingers;
-            set { _availableFingers = value; OnPropertyChanged(); }
-        }
+        public ObservableCollection<Finger> AvailableFingers { get; } = new ObservableCollection<Finger>();
 
         private Finger _selectedFinger;
         public Finger SelectedFinger
         {
             get => _selectedFinger;
-            set { _selectedFinger = value; OnPropertyChanged(); if (value != null) SelectedCell = null; } // Clear other if one is selected
+            set 
+            { 
+                _selectedFinger = value; 
+                OnPropertyChanged(); 
+                if (value != null) SelectedCell = null; 
+                (ConfirmCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
         }
 
-        // For simplicity, we might just list all cells or provide a more structured way to select them.
-        // Grouping by Level and then showing cells might be too complex for a simple dialog.
-        // Let's assume for now we can list all cells or filter them.
-        private ObservableCollection<Cell> _availableCells;
-        public ObservableCollection<Cell> AvailableCells
-        {
-            get => _availableCells;
-            set { _availableCells = value; OnPropertyChanged(); }
-        }
+        public ObservableCollection<Cell> AvailableCells { get; } = new ObservableCollection<Cell>();
 
         private Cell _selectedCell;
         public Cell SelectedCell
         {
             get => _selectedCell;
-            set { _selectedCell = value; OnPropertyChanged(); if (value != null) SelectedFinger = null; } // Clear other if one is selected
+            set 
+            { 
+                _selectedCell = value; 
+                OnPropertyChanged(); 
+                if (value != null) SelectedFinger = null;
+                (ConfirmCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
         }
-        
+
+        public ObservableCollection<int?> AvailableRows { get; } = new ObservableCollection<int?>();
+        public ObservableCollection<int?> AvailableLevels { get; } = new ObservableCollection<int?>();
+
+        private int? _selectedRow;
+        public int? SelectedRow
+        {
+            get => _selectedRow;
+            set
+            {
+                if (_selectedRow != value)
+                {
+                    _selectedRow = value;
+                    OnPropertyChanged();
+                    ApplyFilters();
+                }
+            }
+        }
+
+        private int? _selectedLevel;
+        public int? SelectedLevel
+        {
+            get => _selectedLevel;
+            set
+            {
+                if (_selectedLevel != value)
+                {
+                    _selectedLevel = value;
+                    OnPropertyChanged();
+                    ApplyFilters();
+                }
+            }
+        }
+
         public ICommand ConfirmCommand { get; }
         public ICommand CancelCommand { get; }
         public bool? DialogResult { get; private set; }
@@ -62,12 +96,10 @@ namespace EM.Maman.DriverClient.ViewModels
             _logger = logger;
             LoadedPallet = loadedPallet;
             SourceCell = sourceCell;
+            _allAvailableCells = new List<Cell>();
 
             ConfirmCommand = new RelayCommand(Confirm, CanConfirm);
             CancelCommand = new RelayCommand(Cancel);
-
-            AvailableFingers = new ObservableCollection<Finger>();
-            AvailableCells = new ObservableCollection<Cell>();
             
             LoadDestinationsAsync();
         }
@@ -76,6 +108,11 @@ namespace EM.Maman.DriverClient.ViewModels
         {
             try
             {
+                AvailableFingers.Clear();
+                _allAvailableCells.Clear();
+                AvailableRows.Clear();
+                AvailableLevels.Clear();
+
                 using (var uow = _unitOfWorkFactory.CreateUnitOfWork())
                 {
                     var fingers = await uow.Fingers.GetAllAsync();
@@ -84,19 +121,61 @@ namespace EM.Maman.DriverClient.ViewModels
                         AvailableFingers.Add(finger);
                     }
 
-                    // Loading all cells might be too much. Consider filtering or a different selection method.
-                    // For now, let's load all that are not the source cell.
-                    var cells = await uow.Cells.GetAllAsync();
-                    foreach (var cell in cells.Where(c => c.Id != SourceCell?.Id).OrderBy(c => c.Level).ThenBy(c => c.Position).ThenBy(c => c.Order))
+                    var allCellsFromDb = await uow.Cells.GetAllAsync();
+                    _allAvailableCells.AddRange(allCellsFromDb.Where(c => c.Id != SourceCell?.Id));
+
+                    // Populate AvailableRows
+                    AvailableRows.Add(null); // Option for "All Rows"
+                    var distinctRows = _allAvailableCells
+                                        .Select(c => c.Position)
+                                        .Where(p => p.HasValue) // Ensure we only take non-null positions
+                                        .Distinct()
+                                        .OrderBy(p => p);
+                    foreach (var rowNum in distinctRows)
                     {
-                        AvailableCells.Add(cell);
+                        AvailableRows.Add(rowNum);
+                    }
+
+                    // Populate AvailableLevels
+                    AvailableLevels.Add(null); // Option for "All Levels"
+                    var distinctLevels = _allAvailableCells
+                                        .Select(c => c.Level)
+                                        .Where(l => l.HasValue) // Ensure we only take non-null levels
+                                        .Distinct()
+                                        .OrderBy(l => l);
+                    foreach (var levelNum in distinctLevels)
+                    {
+                        AvailableLevels.Add(levelNum);
                     }
                 }
+                // Initial filter
+                ApplyFilters();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading destinations for HND retrieval.");
                 MessageBox.Show($"Error loading destinations: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ApplyFilters()
+        {
+            AvailableCells.Clear();
+            var filtered = _allAvailableCells.AsEnumerable();
+
+            if (SelectedLevel.HasValue)
+            {
+                filtered = filtered.Where(c => c.Level == SelectedLevel.Value);
+            }
+
+            if (SelectedRow.HasValue)
+            {
+                filtered = filtered.Where(c => c.Position == SelectedRow.Value);
+            }
+
+            foreach (var cell in filtered.OrderBy(c => c.Level).ThenBy(c => c.Position).ThenBy(c => c.Order))
+            {
+                AvailableCells.Add(cell);
             }
         }
 

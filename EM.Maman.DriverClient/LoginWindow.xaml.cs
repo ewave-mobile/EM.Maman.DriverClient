@@ -388,9 +388,10 @@ namespace EM.Maman.DriverClient
                     await unitOfWork.CompleteAsync(); 
 
                     _logger.LogInformation("Created new Trolley (ID: {TrolleyId}, DisplayName: {DisplayName}) for workstation.", newTrolley.Id, newTrolley.DisplayName);
-                    
+
                     // Pass this.EmployeeId (which was set from ViewModel's EmployeeCode)
-                    await AddConfigurationAsync(unitOfWork, (int)newTrolley.Id, this.EmployeeId); 
+                    int craneId = MapWorkstationTypeToCraneId(workstationType);
+                    await AddConfigurationAsync(unitOfWork, (int)newTrolley.Id, this.EmployeeId, craneId); 
                 } 
 
                 _logger.LogInformation("Initialization completed successfully.");
@@ -626,7 +627,7 @@ namespace EM.Maman.DriverClient
             }
         }
 
-        private async System.Threading.Tasks.Task AddConfigurationAsync(IUnitOfWork unitOfWork, int activeTrolleyId, string initializedByEmployeeId)
+        private async System.Threading.Tasks.Task AddConfigurationAsync(IUnitOfWork unitOfWork, int activeTrolleyId, string initializedByEmployeeId, int craneId)
         {
             try
             {
@@ -638,6 +639,7 @@ namespace EM.Maman.DriverClient
                         InitializedByEmployeeId = initializedByEmployeeId, // Passed in
                         InitializedAt = DateTime.UtcNow,
                         ActiveTrolleyId = activeTrolleyId,
+                        CraneId = craneId,
                         // CraneId will be set by LoginViewModel after successful login
                     };
                     await unitOfWork.Configurations.AddAsync(newConfiguration);
@@ -800,8 +802,8 @@ namespace EM.Maman.DriverClient
                     Description = $"Move {palletForRetrieval1.DisplayName} from Cell {sourceCellForRetrieval1.DisplayName} (Pos:{sourceCellForRetrieval1.Position}, Lvl:{sourceCellForRetrieval1.Level}) to Finger {destFingerForRetrieval1.DisplayName}",
                     DownloadDate = DateTime.UtcNow,
                     TaskTypeId = (int)EM.Maman.Models.Enums.TaskType.Retrieval,
-                    CellEndLocationId = sourceCellForRetrieval1.Id, // Source for retrieval
-                    FingerLocationId = destFingerForRetrieval1.Id,  // Destination for retrieval
+                    RetrievalSourceCellId = sourceCellForRetrieval1.Id, // Source for retrieval
+                    RetrievalDestinationFingerId = destFingerForRetrieval1.Id,  // Destination for retrieval
                     PalletId = palletForRetrieval1.Id,  // Link by UldCode or AwbCode
                     Status = (int?)EM.Maman.Models.Enums.TaskStatus.Created,
                     ActiveTaskStatus = (int?)EM.Maman.Models.Enums.ActiveTaskStatus.New // Changed to New and cast
@@ -825,8 +827,8 @@ namespace EM.Maman.DriverClient
                     Description = $"Move {palletForRetrieval2.DisplayName} from Cell {sourceCellForRetrieval2.DisplayName} (Pos:{sourceCellForRetrieval2.Position}, Lvl:{sourceCellForRetrieval2.Level}) to Finger {destFingerForRetrieval2.DisplayName}",
                     DownloadDate = DateTime.UtcNow,
                     TaskTypeId = (int)EM.Maman.Models.Enums.TaskType.Retrieval,
-                    CellEndLocationId = sourceCellForRetrieval2.Id,
-                    FingerLocationId = destFingerForRetrieval2.Id,
+                    RetrievalSourceCellId = sourceCellForRetrieval2.Id, // Source for retrieval
+                    RetrievalDestinationFingerId = destFingerForRetrieval2.Id,  // Destination for retrieval
                     PalletId = palletForRetrieval2.Id,
                     Status = (int?)EM.Maman.Models.Enums.TaskStatus.Created,
                     ActiveTaskStatus = (int?)EM.Maman.Models.Enums.ActiveTaskStatus.New // Changed to New and cast
@@ -851,8 +853,8 @@ namespace EM.Maman.DriverClient
                     Description = $"Move {palletForStorage1.DisplayName} from Finger {sourceFingerForStorage1.DisplayName} to Cell {destCellForStorage1.DisplayName} (Pos:{destCellForStorage1.Position}, Lvl:{destCellForStorage1.Level})",
                     DownloadDate = DateTime.UtcNow,
                     TaskTypeId = (int)EM.Maman.Models.Enums.TaskType.Storage,
-                    FingerLocationId = sourceFingerForStorage1.Id,  // Source for storage
-                    CellEndLocationId = destCellForStorage1.Id,    // Destination for storage
+                    StorageSourceFingerId = sourceFingerForStorage1.Id,  // Source for storage
+                    StorageDestinationCellId = destCellForStorage1.Id,    // Destination for storage
                     PalletId = palletForStorage1.Id,
                     Status = (int?)EM.Maman.Models.Enums.TaskStatus.Created,
                     ActiveTaskStatus = (int?)EM.Maman.Models.Enums.ActiveTaskStatus.New // Changed to New and cast
@@ -876,8 +878,8 @@ namespace EM.Maman.DriverClient
                     Description = $"Move {palletForStorage2.DisplayName} from Finger {sourceFingerForStorage2.DisplayName} to Cell {destCellForStorage2.DisplayName} (Pos:{destCellForStorage2.Position}, Lvl:{destCellForStorage2.Level})",
                     DownloadDate = DateTime.UtcNow,
                     TaskTypeId = (int)EM.Maman.Models.Enums.TaskType.Storage,
-                    FingerLocationId = sourceFingerForStorage2.Id,
-                    CellEndLocationId = destCellForStorage2.Id,
+                    StorageSourceFingerId = sourceFingerForStorage2.Id, // Source for storage
+                    StorageDestinationCellId = destCellForStorage2.Id,    // Destination for storage
                     PalletId = palletForStorage2.Id,
                     Status = (int?)EM.Maman.Models.Enums.TaskStatus.Created,
                     ActiveTaskStatus = (int?)EM.Maman.Models.Enums.ActiveTaskStatus.New // Changed to New and cast

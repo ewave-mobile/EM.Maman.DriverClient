@@ -19,49 +19,205 @@ namespace EM.Maman.DAL.Test
         // Mimic a Pallets table
         public static List<Pallet> Pallets { get; set; } = new List<Pallet>
         {
-            // Import ULD Pallets
+            // --- Import ULD Pallets ---
             new Pallet {
                 DisplayName = "PLT-A001-IMP-ULD", UldType = "AKE", UldCode = "AKE1234AX", UldNumber = "1234", UldAirline = "AX", IsSecure = false,
-                UpdateType = UpdateType.Import, CargoType = CargoType.ULD,
-                ImportManifest = "MANIFEST001", ImportUnit = "UNIT01", ImportAppearance = "Good"
+                UpdateType = UpdateType.Import, CargoType = CargoType.ULD, ReportType = ReportType.REQ,
+                ImportManifest = "MANIFEST001", ImportUnit = "UNIT01", ImportAppearance = "Good",
+                ReceivedDate = DateTime.UtcNow.AddDays(-2), LastModifiedDate = DateTime.UtcNow.AddDays(-1), RefrigerationType = null, HeightLevel = 1,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.REG, HeightType = HeightType.MED, CargoHeight = 150
             },
             new Pallet {
-                DisplayName = "PLT-C003-IMP-ULD", UldType = "AKE", UldCode = "AKE9012CX", UldNumber = "9012", UldAirline = "CX", IsSecure = false,
-                UpdateType = UpdateType.Import, CargoType = CargoType.ULD,
-                ImportManifest = "MANIFEST003", ImportUnit = "UNIT03", ImportAppearance = "Scratched"
+                DisplayName = "PLT-C003-IMP-ULD", UldType = "RKN", UldCode = "RKN9012CX", UldNumber = "9012", UldAirline = "CX", IsSecure = true,
+                UpdateType = UpdateType.Import, CargoType = CargoType.ULD, ReportType = ReportType.REQ,
+                ImportManifest = "MANIFEST003", ImportUnit = "UNIT03", ImportAppearance = "Scratched",
+                ReceivedDate = DateTime.UtcNow.AddDays(-3), LastModifiedDate = DateTime.UtcNow.AddDays(-2), RefrigerationType = 2, HeightLevel = 2,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.PHARMA, HeightType = HeightType.HIGH, CargoHeight = 220
             },
-            // Export ULD Pallets
+            new Pallet { // New Import ULD
+                DisplayName = "PLT-I009-IMP-ULD", UldType = "AMF", UldCode = "AMF5555IX", UldNumber = "5555", UldAirline = "IX", IsSecure = false,
+                UpdateType = UpdateType.Import, CargoType = CargoType.ULD, ReportType = ReportType.REQ,
+                ImportManifest = "MANIFEST009", ImportUnit = "UNIT09", ImportAppearance = "New Container",
+                ReceivedDate = DateTime.UtcNow.AddHours(-10), LastModifiedDate = DateTime.UtcNow.AddHours(-5), RefrigerationType = 1, HeightLevel = 3,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.FRZ, HeightType = HeightType.HIGH, CargoHeight = 280
+            },
+
+            // --- Export ULD Pallets ---
             new Pallet {
                 DisplayName = "PLT-B002-EXP-ULD", UldType = "PAG", UldCode = "PAG5678BX", UldNumber = "5678", UldAirline = "BX", IsSecure = false,
-                UpdateType = UpdateType.Export, CargoType = CargoType.ULD,
-                ExportSwbPrefix = "SWB002", ExportAwbNumber = "AWB5678", ExportAwbAppearance = "Excellent", ExportAwbStorage = "Temp Control", ExportBarcode = "BARCODE002"
+                UpdateType = UpdateType.Export, CargoType = CargoType.ULD, ReportType = ReportType.REQ,
+                ExportSwbPrefix = "SWB002", ExportAwbNumber = "AWB5678", ExportAwbAppearance = "Excellent", ExportAwbStorage = "Temp Control", ExportBarcode = "BARCODE002",
+                ReceivedDate = DateTime.UtcNow.AddDays(-1), LastModifiedDate = DateTime.UtcNow.AddHours(-2), RefrigerationType = 3, HeightLevel = 1,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.PHARMA, HeightType = HeightType.MED, CargoHeight = 155
             },
             new Pallet {
-                DisplayName = "PLT-D004-EXP-ULD", UldType = "PAJ", UldCode = "PAJ3456DX", UldNumber = "3456", UldAirline = "DX", IsSecure = false,
-                UpdateType = UpdateType.Export, CargoType = CargoType.ULD,
-                ExportSwbPrefix = "SWB004", ExportAwbNumber = "AWB3456", ExportAwbAppearance = "Fair", ExportAwbStorage = "General", ExportBarcode = "BARCODE004"
+                DisplayName = "PLT-D004-EXP-ULD", UldType = "PAJ", UldCode = "PAJ3456DX", UldNumber = "3456", UldAirline = "DX", IsSecure = true,
+                UpdateType = UpdateType.Export, CargoType = CargoType.ULD, ReportType = ReportType.REQ,
+                ExportSwbPrefix = "SWB004", ExportAwbNumber = "AWB3456", ExportAwbAppearance = "Fair", ExportAwbStorage = "General", ExportBarcode = "BARCODE004",
+                ReceivedDate = DateTime.UtcNow.AddDays(-5), LastModifiedDate = DateTime.UtcNow.AddDays(-1), RefrigerationType = null, HeightLevel = 4,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.REG, HeightType = HeightType.HIGH, CargoHeight = 230
             },
-            // Import AWB Pallets
+            new Pallet { // New Export ULD
+                DisplayName = "PLT-J010-EXP-ULD", UldType = "PMC", UldCode = "PMC7777JX", UldNumber = "7777", UldAirline = "JX", IsSecure = false,
+                UpdateType = UpdateType.Export, CargoType = CargoType.ULD, ReportType = ReportType.REQ,
+                ExportSwbPrefix = "SWB010", ExportAwbNumber = "AWB7777", ExportAwbAppearance = "Like New", ExportAwbStorage = "Ambient", ExportBarcode = "BARCODE010",
+                ReceivedDate = DateTime.UtcNow.AddHours(-20), LastModifiedDate = DateTime.UtcNow.AddHours(-3), RefrigerationType = null, HeightLevel = 2,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.REG, HeightType = HeightType.HIGH, CargoHeight = 290
+            },
+
+            // --- Import AWB Pallets ---
             new Pallet {
                 DisplayName = "PLT-E005-IMP-AWB", AwbCode = "AWB7890E", IsSecure = false,
-                UpdateType = UpdateType.Import, CargoType = CargoType.AWB,
-                ImportManifest = "MANIFEST005", ImportUnit = "UNIT05", ImportAppearance = "New"
+                UpdateType = UpdateType.Import, CargoType = CargoType.AWB, ReportType = ReportType.REQ,
+                ImportManifest = "MANIFEST005", ImportUnit = "UNIT05", ImportAppearance = "New",
+                ReceivedDate = DateTime.UtcNow.AddDays(-4), LastModifiedDate = DateTime.UtcNow.AddDays(-3), RefrigerationType = null, HeightLevel = 3,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.REG, HeightType = HeightType.LOW, CargoHeight = 90
             },
             new Pallet {
-                DisplayName = "PLT-G007-IMP-AWB", AwbCode = "AWB5678G", IsSecure = true, // Example of secure AWB
-                UpdateType = UpdateType.Import, CargoType = CargoType.AWB,
-                ImportManifest = "MANIFEST007", ImportUnit = "UNIT07", ImportAppearance = "Sealed"
+                DisplayName = "PLT-G007-IMP-AWB", AwbCode = "AWB5678G", IsSecure = true,
+                UpdateType = UpdateType.Import, CargoType = CargoType.AWB, ReportType = ReportType.REQ,
+                ImportManifest = "MANIFEST007", ImportUnit = "UNIT07", ImportAppearance = "Sealed",
+                ReceivedDate = DateTime.UtcNow.AddDays(-2), LastModifiedDate = DateTime.UtcNow.AddHours(-12), RefrigerationType = 2, HeightLevel = 1,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.PHARMA, HeightType = HeightType.MED, CargoHeight = 140
             },
-            // Export AWB Pallets
+            new Pallet { // New Import AWB
+                DisplayName = "PLT-K011-IMP-AWB", AwbCode = "AWB1122K", IsSecure = false,
+                UpdateType = UpdateType.Import, CargoType = CargoType.AWB, ReportType = ReportType.REQ,
+                ImportManifest = "MANIFEST011", ImportUnit = "UNIT11", ImportAppearance = "Boxed",
+                ReceivedDate = DateTime.UtcNow.AddHours(-8), LastModifiedDate = DateTime.UtcNow.AddHours(-1), RefrigerationType = null, HeightLevel = 2,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.REG, HeightType = HeightType.HIGH, CargoHeight = 210
+            },
+
+            // --- Export AWB Pallets ---
             new Pallet {
                 DisplayName = "PLT-F006-EXP-AWB", AwbCode = "AWB1234F", IsSecure = false,
-                UpdateType = UpdateType.Export, CargoType = CargoType.AWB,
-                ExportSwbPrefix = "SWB006", ExportAwbNumber = "AWB1234F", ExportAwbAppearance = "Used", ExportAwbStorage = "Ambient", ExportBarcode = "BARCODE006"
+                UpdateType = UpdateType.Export, CargoType = CargoType.AWB, ReportType = ReportType.REQ,
+                ExportSwbPrefix = "SWB006", ExportAwbNumber = "AWB1234F", ExportAwbAppearance = "Used", ExportAwbStorage = "Ambient", ExportBarcode = "BARCODE006",
+                ReceivedDate = DateTime.UtcNow.AddDays(-1), LastModifiedDate = DateTime.UtcNow.AddHours(-6), RefrigerationType = null, HeightLevel = 4,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.REG, HeightType = HeightType.LOW, CargoHeight = 85
             },
             new Pallet {
                 DisplayName = "PLT-H008-EXP-AWB", AwbCode = "AWB9012H", IsSecure = false,
-                UpdateType = UpdateType.Export, CargoType = CargoType.AWB,
-                ExportSwbPrefix = "SWB008", ExportAwbNumber = "AWB9012H", ExportAwbAppearance = "Good", ExportAwbStorage = "General", ExportBarcode = "BARCODE008"
+                UpdateType = UpdateType.Export, CargoType = CargoType.AWB, ReportType = ReportType.REQ,
+                ExportSwbPrefix = "SWB008", ExportAwbNumber = "AWB9012H", ExportAwbAppearance = "Good", ExportAwbStorage = "General", ExportBarcode = "BARCODE008",
+                ReceivedDate = DateTime.UtcNow.AddDays(-3), LastModifiedDate = DateTime.UtcNow.AddDays(-1), RefrigerationType = 1, HeightLevel = 3,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.PHARMA, HeightType = HeightType.MED, CargoHeight = 150
+            },
+            new Pallet { // New Export AWB
+                DisplayName = "PLT-L012-EXP-AWB", AwbCode = "AWB3344L", IsSecure = true,
+                UpdateType = UpdateType.Export, CargoType = CargoType.AWB, ReportType = ReportType.REQ,
+                ExportSwbPrefix = "SWB012", ExportAwbNumber = "AWB3344L", ExportAwbAppearance = "Securely Wrapped", ExportAwbStorage = "Valuable", ExportBarcode = "BARCODE012",
+                ReceivedDate = DateTime.UtcNow.AddHours(-15), LastModifiedDate = DateTime.UtcNow.AddHours(-4), RefrigerationType = null, HeightLevel = 1,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.REG, HeightType = HeightType.HIGH, CargoHeight = 225 // Assuming 'Secure' storage type is handled by IsSecure flag, using REG for general storage.
+            },
+            // --- Add 18 More Pallets to reach 30 total ---
+            new Pallet {
+                DisplayName = "PLT-M013-IMP-ULD", UldType = "AKE", UldCode = "AKE2233MM", UldNumber = "2233", UldAirline = "MM", IsSecure = false,
+                UpdateType = UpdateType.Import, CargoType = CargoType.ULD, ReportType = ReportType.REQ, ImportManifest = "MANIFEST013", ImportUnit = "UNIT13", ImportAppearance = "Good",
+                ReceivedDate = DateTime.UtcNow.AddDays(-1), LastModifiedDate = DateTime.UtcNow, RefrigerationType = null, HeightLevel = 1,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.REG, HeightType = HeightType.MED, CargoHeight = 160
+            },
+            new Pallet {
+                DisplayName = "PLT-N014-EXP-AWB", AwbCode = "AWB4455N", IsSecure = true,
+                UpdateType = UpdateType.Export, CargoType = CargoType.AWB, ReportType = ReportType.REQ, ExportSwbPrefix = "SWB014", ExportAwbNumber = "AWB4455N", ExportAwbAppearance = "Sealed", ExportAwbStorage = "Secure", ExportBarcode = "BARCODE014",
+                ReceivedDate = DateTime.UtcNow.AddDays(-2), LastModifiedDate = DateTime.UtcNow.AddHours(-5), RefrigerationType = 1, HeightLevel = 2,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.PHARMA, HeightType = HeightType.LOW, CargoHeight = 100
+            },
+            new Pallet {
+                DisplayName = "PLT-O015-IMP-AWB", AwbCode = "AWB6677O", IsSecure = false,
+                UpdateType = UpdateType.Import, CargoType = CargoType.AWB, ReportType = ReportType.REQ, ImportManifest = "MANIFEST015", ImportUnit = "UNIT15", ImportAppearance = "Boxed",
+                ReceivedDate = DateTime.UtcNow.AddDays(-3), LastModifiedDate = DateTime.UtcNow.AddDays(-1), RefrigerationType = null, HeightLevel = 3,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.REG, HeightType = HeightType.HIGH, CargoHeight = 200
+            },
+            new Pallet {
+                DisplayName = "PLT-P016-EXP-ULD", UldType = "PMC", UldCode = "PMC8899PP", UldNumber = "8899", UldAirline = "PP", IsSecure = true,
+                UpdateType = UpdateType.Export, CargoType = CargoType.ULD, ReportType = ReportType.REQ, ExportSwbPrefix = "SWB016", ExportAwbNumber = "AWB8899", ExportAwbAppearance = "New", ExportAwbStorage = "Temp Control", ExportBarcode = "BARCODE016",
+                ReceivedDate = DateTime.UtcNow.AddDays(-1), LastModifiedDate = DateTime.UtcNow.AddHours(-3), RefrigerationType = 3, HeightLevel = 4,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.FRZ, HeightType = HeightType.MED, CargoHeight = 170
+            },
+            new Pallet {
+                DisplayName = "PLT-Q017-IMP-ULD", UldType = "RKN", UldCode = "RKN1122QQ", UldNumber = "1122", UldAirline = "QQ", IsSecure = false,
+                UpdateType = UpdateType.Import, CargoType = CargoType.ULD, ReportType = ReportType.REQ, ImportManifest = "MANIFEST017", ImportUnit = "UNIT17", ImportAppearance = "Used",
+                ReceivedDate = DateTime.UtcNow.AddDays(-2), LastModifiedDate = DateTime.UtcNow.AddHours(-10), RefrigerationType = 2, HeightLevel = 1,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.PHARMA, HeightType = HeightType.HIGH, CargoHeight = 240
+            },
+            new Pallet {
+                DisplayName = "PLT-R018-EXP-AWB", AwbCode = "AWB3344R", IsSecure = false,
+                UpdateType = UpdateType.Export, CargoType = CargoType.AWB, ReportType = ReportType.REQ, ExportSwbPrefix = "SWB018", ExportAwbNumber = "AWB3344R", ExportAwbAppearance = "Fair", ExportAwbStorage = "General", ExportBarcode = "BARCODE018",
+                ReceivedDate = DateTime.UtcNow.AddDays(-3), LastModifiedDate = DateTime.UtcNow.AddDays(-2), RefrigerationType = null, HeightLevel = 2,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.REG, HeightType = HeightType.LOW, CargoHeight = 95
+            },
+            new Pallet {
+                DisplayName = "PLT-S019-IMP-AWB", AwbCode = "AWB5566S", IsSecure = true,
+                UpdateType = UpdateType.Import, CargoType = CargoType.AWB, ReportType = ReportType.REQ, ImportManifest = "MANIFEST019", ImportUnit = "UNIT19", ImportAppearance = "Wrapped",
+                ReceivedDate = DateTime.UtcNow.AddDays(-1), LastModifiedDate = DateTime.UtcNow.AddHours(-8), RefrigerationType = 1, HeightLevel = 3,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.PHARMA, HeightType = HeightType.MED, CargoHeight = 145
+            },
+            new Pallet {
+                DisplayName = "PLT-T020-EXP-ULD", UldType = "AMF", UldCode = "AMF7788TT", UldNumber = "7788", UldAirline = "TT", IsSecure = false,
+                UpdateType = UpdateType.Export, CargoType = CargoType.ULD, ReportType = ReportType.REQ, ExportSwbPrefix = "SWB020", ExportAwbNumber = "AWB7788", ExportAwbAppearance = "Good", ExportAwbStorage = "Ambient", ExportBarcode = "BARCODE020",
+                ReceivedDate = DateTime.UtcNow.AddDays(-2), LastModifiedDate = DateTime.UtcNow.AddHours(-12), RefrigerationType = null, HeightLevel = 4,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.REG, HeightType = HeightType.HIGH, CargoHeight = 215
+            },
+            new Pallet {
+                DisplayName = "PLT-U021-IMP-ULD", UldType = "PAG", UldCode = "PAG9900UU", UldNumber = "9900", UldAirline = "UU", IsSecure = true,
+                UpdateType = UpdateType.Import, CargoType = CargoType.ULD, ReportType = ReportType.REQ, ImportManifest = "MANIFEST021", ImportUnit = "UNIT21", ImportAppearance = "Scratched",
+                ReceivedDate = DateTime.UtcNow.AddDays(-3), LastModifiedDate = DateTime.UtcNow.AddDays(-1), RefrigerationType = 3, HeightLevel = 1,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.FRZ, HeightType = HeightType.MED, CargoHeight = 165
+            },
+            new Pallet {
+                DisplayName = "PLT-V022-EXP-AWB", AwbCode = "AWB1122V", IsSecure = false,
+                UpdateType = UpdateType.Export, CargoType = CargoType.AWB, ReportType = ReportType.REQ, ExportSwbPrefix = "SWB022", ExportAwbNumber = "AWB1122V", ExportAwbAppearance = "Excellent", ExportAwbStorage = "Valuable", ExportBarcode = "BARCODE022",
+                ReceivedDate = DateTime.UtcNow.AddDays(-1), LastModifiedDate = DateTime.UtcNow.AddHours(-6), RefrigerationType = null, HeightLevel = 2,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.REG, HeightType = HeightType.LOW, CargoHeight = 105
+            },
+            new Pallet {
+                DisplayName = "PLT-W023-IMP-AWB", AwbCode = "AWB3344W", IsSecure = true,
+                UpdateType = UpdateType.Import, CargoType = CargoType.AWB, ReportType = ReportType.REQ, ImportManifest = "MANIFEST023", ImportUnit = "UNIT23", ImportAppearance = "New",
+                ReceivedDate = DateTime.UtcNow.AddDays(-2), LastModifiedDate = DateTime.UtcNow.AddHours(-14), RefrigerationType = 2, HeightLevel = 3,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.PHARMA, HeightType = HeightType.HIGH, CargoHeight = 190
+            },
+            new Pallet {
+                DisplayName = "PLT-X024-EXP-ULD", UldType = "PAJ", UldCode = "PAJ5566XX", UldNumber = "5566", UldAirline = "XX", IsSecure = false,
+                UpdateType = UpdateType.Export, CargoType = CargoType.ULD, ReportType = ReportType.REQ, ExportSwbPrefix = "SWB024", ExportAwbNumber = "AWB5566", ExportAwbAppearance = "Used", ExportAwbStorage = "General", ExportBarcode = "BARCODE024",
+                ReceivedDate = DateTime.UtcNow.AddDays(-3), LastModifiedDate = DateTime.UtcNow.AddDays(-2), RefrigerationType = null, HeightLevel = 4,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.REG, HeightType = HeightType.MED, CargoHeight = 175
+            },
+            new Pallet {
+                DisplayName = "PLT-Y025-IMP-ULD", UldType = "AKE", UldCode = "AKE7788YY", UldNumber = "7788", UldAirline = "YY", IsSecure = true,
+                UpdateType = UpdateType.Import, CargoType = CargoType.ULD, ReportType = ReportType.REQ, ImportManifest = "MANIFEST025", ImportUnit = "UNIT25", ImportAppearance = "Good",
+                ReceivedDate = DateTime.UtcNow.AddDays(-1), LastModifiedDate = DateTime.UtcNow.AddHours(-4), RefrigerationType = 1, HeightLevel = 1,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.PHARMA, HeightType = HeightType.HIGH, CargoHeight = 250
+            },
+            new Pallet {
+                DisplayName = "PLT-Z026-EXP-AWB", AwbCode = "AWB9900Z", IsSecure = false,
+                UpdateType = UpdateType.Export, CargoType = CargoType.AWB, ReportType = ReportType.REQ, ExportSwbPrefix = "SWB026", ExportAwbNumber = "AWB9900Z", ExportAwbAppearance = "Sealed", ExportAwbStorage = "Secure", ExportBarcode = "BARCODE026",
+                ReceivedDate = DateTime.UtcNow.AddDays(-2), LastModifiedDate = DateTime.UtcNow.AddHours(-9), RefrigerationType = null, HeightLevel = 2,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.REG, HeightType = HeightType.LOW, CargoHeight = 110
+            },
+            new Pallet {
+                DisplayName = "PLT-AA027-IMP-AWB", AwbCode = "AWB1212A", IsSecure = false,
+                UpdateType = UpdateType.Import, CargoType = CargoType.AWB, ReportType = ReportType.REQ, ImportManifest = "MANIFEST027", ImportUnit = "UNIT27", ImportAppearance = "Boxed",
+                ReceivedDate = DateTime.UtcNow.AddDays(-3), LastModifiedDate = DateTime.UtcNow.AddDays(-1), RefrigerationType = 3, HeightLevel = 3,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.FRZ, HeightType = HeightType.MED, CargoHeight = 155
+            },
+            new Pallet {
+                DisplayName = "PLT-BB028-EXP-ULD", UldType = "PMC", UldCode = "PMC3434BB", UldNumber = "3434", UldAirline = "BB", IsSecure = true,
+                UpdateType = UpdateType.Export, CargoType = CargoType.ULD, ReportType = ReportType.REQ, ExportSwbPrefix = "SWB028", ExportAwbNumber = "AWB3434", ExportAwbAppearance = "New", ExportAwbStorage = "Temp Control", ExportBarcode = "BARCODE028",
+                ReceivedDate = DateTime.UtcNow.AddDays(-1), LastModifiedDate = DateTime.UtcNow.AddHours(-7), RefrigerationType = null, HeightLevel = 4,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.REG, HeightType = HeightType.HIGH, CargoHeight = 205
+            },
+            new Pallet {
+                DisplayName = "PLT-CC029-IMP-ULD", UldType = "RKN", UldCode = "RKN5656CC", UldNumber = "5656", UldAirline = "CC", IsSecure = false,
+                UpdateType = UpdateType.Import, CargoType = CargoType.ULD, ReportType = ReportType.REQ, ImportManifest = "MANIFEST029", ImportUnit = "UNIT29", ImportAppearance = "Used",
+                ReceivedDate = DateTime.UtcNow.AddDays(-2), LastModifiedDate = DateTime.UtcNow.AddHours(-11), RefrigerationType = 2, HeightLevel = 1,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.PHARMA, HeightType = HeightType.MED, CargoHeight = 180
+            },
+            new Pallet {
+                DisplayName = "PLT-DD030-EXP-AWB", AwbCode = "AWB7878D", IsSecure = true,
+                UpdateType = UpdateType.Export, CargoType = CargoType.AWB, ReportType = ReportType.REQ, ExportSwbPrefix = "SWB030", ExportAwbNumber = "AWB7878D", ExportAwbAppearance = "Fair", ExportAwbStorage = "General", ExportBarcode = "BARCODE030",
+                ReceivedDate = DateTime.UtcNow.AddDays(-3), LastModifiedDate = DateTime.UtcNow.AddDays(-2), RefrigerationType = 1, HeightLevel = 2,
+                IsCheckedOut = false, CheckedOutDate = null, StorageType = StorageTypeEnum.PHARMA, HeightType = HeightType.LOW, CargoHeight = 115
             }
         };
 
@@ -134,22 +290,69 @@ namespace EM.Maman.DAL.Test
             return cells;
         }
 
-        // Mimic cell–pallet associations. We’ll associate one cell from each level with a pallet.
-        public static List<CellWithPalletInfo> CellWithPalletInfos { get; set; } = new List<CellWithPalletInfo>
+        // Mimic cell–pallet associations.
+        public static List<CellWithPalletInfo> CellWithPalletInfos { get; private set; } = InitializeCellPalletInfos();
+
+        private static List<CellWithPalletInfo> InitializeCellPalletInfos()
         {
-            // Level 1: use cell with Id = 1000 and 1200
-            new CellWithPalletInfo { Cell = Cells.First(c => c.Id == 1000), Pallet = Pallets[0] },
-            new CellWithPalletInfo { Cell = Cells.First(c => c.Id == 1200), Pallet = Pallets[1] },
-            // Level 2: use cell with Id = 2003 and 2200
-            new CellWithPalletInfo { Cell = Cells.First(c => c.Id == 2003), Pallet = Pallets[2] },
-            new CellWithPalletInfo { Cell = Cells.First(c => c.Id == 2200), Pallet = Pallets[3] },
-            // Level 3: use cell with Id = 3008 and 3200
-            new CellWithPalletInfo { Cell = Cells.First(c => c.Id == 3008), Pallet = Pallets[4] },
-            new CellWithPalletInfo { Cell = Cells.First(c => c.Id == 3200), Pallet = Pallets[5] },
-            // Level 4: use cell with Id = 4000 and 4200
-            new CellWithPalletInfo { Cell = Cells.First(c => c.Id == 4000), Pallet = Pallets[6] },
-            new CellWithPalletInfo { Cell = Cells.First(c => c.Id == 4200), Pallet = Pallets[7] }
-        };
+            var infos = new List<CellWithPalletInfo>();
+            var random = new Random();
+
+            // Get all cell IDs as int. Assuming Cell.Id is compatible with int.
+            var allCellIds = Cells.Select(c => (int)c.Id).ToList(); // Cast to int
+            var usedCellIds = new HashSet<int>();
+
+            // Assign the first 8 pallets to specific, known cells (as before, for consistency if needed)
+            // Keys in initialAssignments are cell IDs (int)
+            var initialAssignments = new Dictionary<int, int>
+            {
+                { 1000, 0 }, { 1200, 1 }, { 2003, 2 }, { 2200, 3 },
+                { 3008, 4 }, { 3200, 5 }, { 4000, 6 }, { 4200, 7 }
+            };
+
+            foreach (var assignment in initialAssignments)
+            {
+                // Ensure comparison is int to int
+                var cell = Cells.FirstOrDefault(c => (int)c.Id == assignment.Key);
+                var pallet = Pallets[assignment.Value];
+                if (cell != null && pallet != null)
+                {
+                    infos.Add(new CellWithPalletInfo { Cell = cell, Pallet = pallet });
+                    usedCellIds.Add((int)cell.Id); // Store as int
+                }
+            }
+
+            // Get remaining available cell IDs (all lists/collections are of int)
+            var availableCellIds = allCellIds.Except(usedCellIds).ToList();
+
+            // Shuffle the available cell IDs for random assignment
+            availableCellIds = availableCellIds.OrderBy(x => random.Next()).ToList();
+
+            // Assign the remaining pallets (up to 30 total)
+            int palletsAssignedCount = infos.Count;
+            for (int i = palletsAssignedCount; i < Pallets.Count && i < 30; i++)
+            {
+                if (availableCellIds.Count == 0) break; // No more available cells
+
+                var cellIdToUse = availableCellIds[0]; // This is an int
+                availableCellIds.RemoveAt(0);
+
+                // Ensure comparison is int to int
+                var cell = Cells.FirstOrDefault(c => (int)c.Id == cellIdToUse);
+                var pallet = Pallets[i];
+
+                if (cell != null && pallet != null)
+                {
+                    infos.Add(new CellWithPalletInfo { Cell = cell, Pallet = pallet });
+                }
+                else
+                {
+                    // Log or handle if a cell/pallet isn't found, though this shouldn't happen with current setup
+                }
+            }
+            return infos;
+        }
+
 
         // Methods to mimic add/remove operations
         public static void AddPallet(Pallet pallet)

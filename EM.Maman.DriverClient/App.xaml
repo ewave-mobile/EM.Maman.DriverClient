@@ -23,6 +23,8 @@
             <!-- Add the BooleanToVisibilityConverter here -->
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
             <converters:BooleanToYesNoConverter x:Key="BooleanToYesNoConverter" />
+            <converters:ActiveTaskStatusToSidebarBrushConverter x:Key="ActiveTaskStatusToSidebarBrushConverter" />
+            <converters:ActiveTaskStatusToVisibilityConverter x:Key="ActiveTaskStatusToVisibilityConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

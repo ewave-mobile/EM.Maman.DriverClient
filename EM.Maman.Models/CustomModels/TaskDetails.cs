@@ -96,6 +96,11 @@ namespace EM.Maman.Models.CustomModels
                 {
                     _taskType = value;
                     OnPropertyChanged();
+                    // OnPropertyChanged(nameof(IsImportTask)); // No longer dependent on TaskType
+                    // OnPropertyChanged(nameof(IsExportTask)); // No longer dependent on TaskType
+                    OnPropertyChanged(nameof(DisplayDetail1));
+                    OnPropertyChanged(nameof(DisplayDetail2));
+                    OnPropertyChanged(nameof(DisplayDetail3));
                 }
             }
         }
@@ -220,6 +225,11 @@ namespace EM.Maman.Models.CustomModels
                 {
                     _pallet = value;
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsImportTask)); // Now dependent on Pallet.UpdateType
+                    OnPropertyChanged(nameof(IsExportTask)); // Now dependent on Pallet.UpdateType
+                    OnPropertyChanged(nameof(DisplayDetail1));
+                    OnPropertyChanged(nameof(DisplayDetail2));
+                    OnPropertyChanged(nameof(DisplayDetail3));
                 }
             }
         }
@@ -290,8 +300,8 @@ namespace EM.Maman.Models.CustomModels
         }
 
         // Helper properties
-        public bool IsImportTask => TaskType == Enums.TaskType.Storage;
-        public bool IsExportTask => TaskType == Enums.TaskType.Retrieval;
+        public bool IsImportTask => Pallet != null && Pallet.UpdateType == Enums.UpdateType.Import;
+        public bool IsExportTask => Pallet != null && Pallet.UpdateType == Enums.UpdateType.Export;
         public bool IsInProgress => Status == Enums.TaskStatus.InProgress;
         public bool IsCompleted => Status == Enums.TaskStatus.Completed;
         public bool CanStart => Status == Enums.TaskStatus.Created;
@@ -300,6 +310,35 @@ namespace EM.Maman.Models.CustomModels
         //public bool NeedsDestinationNavigation => (IsImportTask && DestinationCell != null) ||
         //                                        (IsExportTask && DestinationFinger != null);
         public bool NeedsDestinationNavigation => true;
+
+        // New display properties
+        public string DisplayDetail1
+        {
+            get
+            {
+                if (Pallet == null) return "-";
+                // Assuming IsExportTask uses Export fields, else Import fields
+                return IsExportTask ? Pallet.ExportBarcode : Pallet.ImportUnit;
+            }
+        }
+
+        public string DisplayDetail2
+        {
+            get
+            {
+                if (Pallet == null) return "-";
+                return IsExportTask ? Pallet.ExportAwbAppearance : Pallet.ImportAppearance;
+            }
+        }
+
+        public string DisplayDetail3
+        {
+            get
+            {
+                if (Pallet == null) return "-";
+                return IsExportTask ? Pallet.ExportSwbPrefix : Pallet.ImportManifest;
+            }
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
 

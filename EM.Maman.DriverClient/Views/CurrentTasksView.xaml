@@ -106,7 +106,7 @@
                                  Visibility="{Binding IsFingerAuthenticationViewActive, Converter={StaticResource BooleanToVisibilityConverter}}">
                              <StackPanel>
                                  <!-- Authentication Section Header -->
-                                 <Border Background="#F6F9FF" Margin="5,0,0,5" CornerRadius="5">
+                                <Border Background="#F6F9FF" Margin="5,0,0,5" CornerRadius="5">
                                      <StackPanel>
                                          <TextBlock Text="פעולה נדרשת" Padding="20,20,0,0"/>
                                          <TextBlock Text="אימות פלטים לפני שליפה" FontSize="18" FontWeight="Bold" Margin="20,5,0,10" HorizontalAlignment="Left"/>
@@ -172,6 +172,24 @@
                                          </DataTemplate>
                                      </ItemsControl.ItemTemplate>
                                  </ItemsControl>
+                             </StackPanel>
+                         </Border>
+                         
+                         <!-- Cell Authentication Section - Visible when at a cell requiring auth -->
+                         <Border BorderThickness="1" BorderBrush="#E0E0E0" CornerRadius="10" Padding="10" Background="White" Margin="0,0,0,10"
+                                 Visibility="{Binding IsCellAuthenticationViewActive, Converter={StaticResource BooleanToVisibilityConverter}}">
+                             <StackPanel Visibility="{Binding ActiveCellAuthenticationItem, Converter={StaticResource NullToVisibilityConverter}}">
+                                 <!-- Header for Cell Authentication -->
+                                <Border Background="#F6F9FF" Margin="5,0,0,5" CornerRadius="5"> 
+                                     <StackPanel>
+                                         <TextBlock Text="פעולה נדרשת בתא" Padding="20,20,0,0"/>
+                                         <TextBlock Text="אימות פלט לפני שליפה מהתא" FontSize="18" FontWeight="Bold" Margin="20,5,0,10" HorizontalAlignment="Left"/>
+                                         <TextBlock Text="{Binding DataContext.CurrentCellDisplayName, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}" Margin="20,0,0,10" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Left"
+                                                    Visibility="{Binding DataContext.CurrentCellDisplayName, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Converter={StaticResource NullToVisibilityConverter}}"/>
+                                     </StackPanel>
+                                 </Border>
+                                 <!-- PalletAuthenticationItemControl for the single pallet -->
+                                 <localControls:PalletAuthenticationItemControl DataContext="{Binding ActiveCellAuthenticationItem}" />
                              </StackPanel>
                          </Border>
 

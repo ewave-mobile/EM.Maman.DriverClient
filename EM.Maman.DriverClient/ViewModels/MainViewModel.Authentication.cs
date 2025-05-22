@@ -66,35 +66,50 @@ namespace EM.Maman.DriverClient.ViewModels
                     capturedFinger = finger;
 
                     var dbTasks = await unitOfWork.Tasks.FindAsync(
-                        predicate: t => t.FingerLocationId == capturedFingerId && (t.IsExecuted == false || t.IsExecuted == null),
-                        include: q => q.Include(t => t.CellEndLocation)
+                        predicate: t => t.StorageSourceFingerId == capturedFingerId &&
+                                        t.TaskTypeId == (int)Models.Enums.TaskType.Storage &&
+                                        (t.IsExecuted == false || t.IsExecuted == null),
+                        include: q => q.Include(t => t.StorageDestinationCell) // Include the correct destination cell for storage
+                                        // Pallet is fetched separately below, so no direct include here unless DB structure changes
                     );
 
                     foreach (var task in dbTasks)
                     {
                         Pallet pallet = null;
-                        
-                            // Try to parse task.PalletId as integer to match Pallet.Id
-                            
-                            if (task.PalletId != null)
+                        if (task.PalletId != null)
+                        {
+                            pallet = (await unitOfWork.Pallets.FindAsync(p => p.Id == task.PalletId)).FirstOrDefault();
+                            if (pallet == null)
                             {
-                                // Search by Pallet.Id instead of UldCode
-                                pallet = (await unitOfWork.Pallets.FindAsync(p => p.Id == task.PalletId)).FirstOrDefault();
-                                if (pallet == null)
+                                _logger.LogWarning("Could not find Pallet with Id {PalletId} for Storage Task {TaskId}", task.PalletId, task.Id);
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Storage Task {TaskId} has null PalletId.", task.Id);
+                        }
+                        
+                        if (pallet != null)
+                        {
+                            // Use the simpler FromDbModel that relies on included navigation properties
+                            // StorageSourceFinger is implicitly 'finger' (capturedFinger) due to the predicate
+                            // StorageDestinationCell is included above
+                            var taskDetails = TaskDetails.FromDbModel(task); // This will use task.StorageSourceFinger and task.StorageDestinationCell
+                            if (taskDetails != null)
+                            {
+                                taskDetails.Pallet = pallet; // Assign the separately fetched pallet
+                                // Ensure SourceFinger is explicitly set if FromDbModel(task) doesn't set it from context
+                                // (though it should if StorageSourceFingerId is used in predicate and StorageSourceFinger is included or implicitly linked)
+                                if (taskDetails.SourceFinger == null && capturedFinger != null)
                                 {
-                                    _logger.LogWarning("Could not find Pallet with Id {PalletId} for Task {TaskId}", task.PalletId, task.Id);
+                                     taskDetails.SourceFinger = capturedFinger; // Ensure source finger is the current finger
                                 }
+                                itemsToAdd.Add(new PalletAuthenticationItem(pallet, taskDetails)); // Default AuthContextMode is Storage
                             }
                             else
                             {
-                                _logger.LogWarning("Could not parse PalletId {PalletId} to integer for Task {TaskId}", task.PalletId, task.Id);
+                                _logger.LogWarning("TaskDetails.FromDbModel(task) returned null for Storage Task ID {TaskId}", task.Id);
                             }
-                        
-
-                        if (pallet != null)
-                        {
-                            var taskDetails = TaskDetails.FromDbModel(task, pallet, finger, null, task.CellEndLocation);
-                            itemsToAdd.Add(new PalletAuthenticationItem(pallet, taskDetails));
                         }
                         else
                         {
@@ -210,79 +225,157 @@ namespace EM.Maman.DriverClient.ViewModels
                 MessageBox.Show($"Pallet {itemToAuth.PalletDetails.DisplayName ?? itemToAuth.PalletDetails.UldCode} authenticated successfully!",
                     "Success", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                _dispatcherService.Invoke(() => 
+                _dispatcherService.Invoke(() =>
                 {
-                    PalletsToAuthenticate.Remove(itemToAuth);
-                    // If no more pallets to authenticate at this finger,
-                    // and we are still at this finger, the authentication specific view can be turned off.
-                    // The ShouldShowTasksPanel will still be true if new storage/retrieval tasks are created.
-                    if (!PalletsToAuthenticate.Any() && _currentFingerPositionValue.HasValue)
+                    PalletsToAuthenticate.Remove(itemToAuth); // Remove from finger auth list if present
+                    if (PalletsToAuthenticate.Contains(itemToAuth)) 
                     {
-                        IsFingerAuthenticationViewActive = false;
-                        _logger.LogInformation("Last pallet authenticated at current finger. Setting IsFingerAuthenticationViewActive to false.");
+                        if (!PalletsToAuthenticate.Any() && _currentFingerPositionValue.HasValue)
+                        {
+                            IsFingerAuthenticationViewActive = false;
+                            _logger.LogInformation("Last pallet authenticated at current finger. Setting IsFingerAuthenticationViewActive to false.");
+                        }
+                    }
+                    
+                    if (ActiveCellAuthenticationItem == itemToAuth) // If it was the cell auth item
+                    {
+                        ActiveCellAuthenticationItem = null;
+                        IsCellAuthenticationViewActive = false;
+                        _logger.LogInformation("Cell authentication item processed. Setting IsCellAuthenticationViewActive to false.");
                     }
                 });
 
-                var finger = itemToAuth.OriginalTask?.SourceFinger;
+                bool loaded = false; // Initialize loaded flag
                 var pallet = itemToAuth.PalletDetails;
-                if (finger != null && pallet != null && TrolleyVM != null)
-                {
-                    bool loaded = false;
-                    if (finger.Side == 0) // Assuming 0 is Left
-                    {
-                        if (!TrolleyVM.LeftCell.IsOccupied)
-                        {
-                            await TrolleyOperationsVM.AddPalletToTrolleyLeftCellAsync(pallet);
-                            _logger.LogInformation("Loaded authenticated pallet {UldCode} onto Left Trolley Cell.",
-                                pallet.UldCode);
-                            loaded = true;
-                        }
-                        else if (!TrolleyVM.RightCell.IsOccupied)
-                        {
-                            await TrolleyOperationsVM.AddPalletToTrolleyRightCellAsync(pallet);
-                            _logger.LogInformation("Left Trolley Cell occupied. Loaded authenticated pallet {UldCode} onto Right Trolley Cell.",
-                                pallet.UldCode);
-                            loaded = true;
-                        }
-                    }
-                    else // Assuming non-0 is Right
-                    {
-                        if (!TrolleyVM.RightCell.IsOccupied)
-                        {
-                            await TrolleyOperationsVM.AddPalletToTrolleyRightCellAsync(pallet);
-                            _logger.LogInformation("Loaded authenticated pallet {UldCode} onto Right Trolley Cell.",
-                                pallet.UldCode);
-                            loaded = true;
-                        }
-                        else if (!TrolleyVM.LeftCell.IsOccupied)
-                        {
-                            await TrolleyOperationsVM.AddPalletToTrolleyLeftCellAsync(pallet);
-                            _logger.LogInformation("Right Trolley Cell occupied. Loaded authenticated pallet {UldCode} onto Left Trolley Cell.",
-                                pallet.UldCode);
-                            loaded = true;
-                        }
-                    }
 
-                    if (!loaded)
+                if (pallet != null && TrolleyVM != null)
+                {
+                    // Attempt to load pallet, regardless of finger or cell context, if it's a retrieval task or storage task needing loading
+                    // For Storage (from finger): itemToAuth.OriginalTask.SourceFinger will be non-null
+                    // For Retrieval (from cell): itemToAuth.OriginalTask.SourceCell will be non-null
+                    
+                    var originalTask = itemToAuth.OriginalTask;
+
+                    if (originalTask != null && (originalTask.TaskType == Models.Enums.TaskType.Storage || originalTask.TaskType == Models.Enums.TaskType.Retrieval))
                     {
-                        _logger.LogWarning("Could not load authenticated pallet {UldCode} onto trolley - both cells occupied.",
-                            pallet.UldCode);
-                        MessageBox.Show($"Cannot load pallet {pallet.UldCode}. Trolley is full.",
-                            "Trolley Full", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        if (originalTask.TaskType == Models.Enums.TaskType.Retrieval)
+                        {
+                            // For Retrieval, prioritize Right Cell
+                            if (!TrolleyVM.RightCell.IsOccupied)
+                            {
+                                await TrolleyOperationsVM.AddPalletToTrolleyRightCellAsync(pallet);
+                                _logger.LogInformation("Loaded authenticated retrieval pallet {UldCode} onto Right Trolley Cell.", pallet.UldCode);
+                                loaded = true;
+                            }
+                            else if (!TrolleyVM.LeftCell.IsOccupied)
+                            {
+                                await TrolleyOperationsVM.AddPalletToTrolleyLeftCellAsync(pallet);
+                                _logger.LogInformation("Right Trolley Cell occupied. Loaded authenticated retrieval pallet {UldCode} onto Left Trolley Cell.", pallet.UldCode);
+                                loaded = true;
+                            }
+                        }
+                        else // For Storage (or other types if generalized further)
+                        {
+                            // Default: try left cell, then right cell.
+                            if (!TrolleyVM.LeftCell.IsOccupied)
+                            {
+                                await TrolleyOperationsVM.AddPalletToTrolleyLeftCellAsync(pallet);
+                                _logger.LogInformation("Loaded authenticated pallet {UldCode} onto Left Trolley Cell.", pallet.UldCode);
+                                loaded = true;
+                            }
+                            else if (!TrolleyVM.RightCell.IsOccupied)
+                            {
+                                await TrolleyOperationsVM.AddPalletToTrolleyRightCellAsync(pallet);
+                                _logger.LogInformation("Left Trolley Cell occupied. Loaded authenticated pallet {UldCode} onto Right Trolley Cell.", pallet.UldCode);
+                                loaded = true;
+                            }
+                        }
+
+                        if (!loaded)
+                        {
+                            _logger.LogWarning("Could not load authenticated pallet {UldCode} onto trolley - both cells occupied.", pallet.UldCode);
+                            MessageBox.Show($"Cannot load pallet {pallet.UldCode}. Trolley is full.", "Trolley Full", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        }
+
+                        // If pallet was loaded successfully, update task status and DB records
+                        if (loaded)
+                        {
+                            if (originalTask.TaskType == Models.Enums.TaskType.Retrieval)
+                            {
+                                // Remove from PalletInCell if retrieved from a cell
+                                if (originalTask.SourceCell != null)
+                                {
+                                    using (var uow = _unitOfWorkFactory.CreateUnitOfWork())
+                                    {
+                                        var palletInSourceCell = await uow.PalletInCells.GetByPalletAndCellAsync(pallet.Id, originalTask.SourceCell.Id);
+                                        if (palletInSourceCell != null)
+                                        {
+                                            uow.PalletInCells.Remove(palletInSourceCell);
+                                            await uow.CompleteAsync();
+                                            _logger.LogInformation("Pallet {PalletId} removed from source cell {SourceCellId} record after loading to trolley.", pallet.Id, originalTask.SourceCell.Id);
+                                        }
+                                        else
+                                        {
+                                            _logger.LogWarning("Could not find PalletInCell record for Pallet {PalletId} in SourceCell {SourceCellId} to remove.", pallet.Id, originalTask.SourceCell.Id);
+                                        }
+                                    }
+                                }
+
+                                originalTask.Status = Models.Enums.TaskStatus.InProgress;
+                                originalTask.ActiveTaskStatus = Models.Enums.ActiveTaskStatus.transit; // To destination
+                                await TaskVM.SaveTaskToDatabase(originalTask);
+                                _logger.LogInformation("Retrieval Task {TaskId} status updated to InProgress/Transit after pallet load.", originalTask.Id);
+                                TaskVM.InitializeTaskWorkflow(); // Initialize workflow for delivery steps
+                            }
+                            else if (originalTask.TaskType == Models.Enums.TaskType.Storage)
+                            {
+                                _logger.LogInformation("Storage pallet {UldCode} loaded for Task {TaskId}.", pallet.UldCode, originalTask.Id);
+                            }
+                        }
                     }
                 }
+
 
                 // Decide how to proceed based on the authentication context / task type
                 if (itemToAuth.AuthContextMode == AuthenticationContextMode.Storage || 
                     (itemToAuth.OriginalTask != null && itemToAuth.OriginalTask.TaskType == Models.Enums.TaskType.Storage))
                 {
-                    await CreateStorageTaskFromAuthenticationAsync(itemToAuth);
+                    if (loaded) // Ensure pallet is loaded before creating storage task
+                    {
+                        await this.CreateStorageTaskFromAuthenticationAsync(itemToAuth);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Storage authentication for Task {TaskId} successful, but pallet was not loaded. Cannot create storage task.", 
+                            itemToAuth.OriginalTask?.Id.ToString() ?? "N/A");
+                        // Potentially re-activate finger auth view if it was cleared prematurely
+                        if (itemToAuth.OriginalTask?.SourceFinger != null && !IsFingerAuthenticationViewActive)
+                        {
+                            // IsFingerAuthenticationViewActive = true; // This might be complex to re-trigger correctly
+                        }
+                    }
                 }
                 else if (itemToAuth.AuthContextMode == AuthenticationContextMode.Retrieval ||
                          (itemToAuth.OriginalTask != null && itemToAuth.OriginalTask.TaskType == Models.Enums.TaskType.Retrieval))
                 {
-                    // This method will be created in MainViewModel.TaskOperations.cs
-                    await ProcessAuthenticatedRetrievalAsync(itemToAuth); 
+                    if (loaded) // Pallet must be loaded to proceed with retrieval delivery
+                    {
+                        await this.ProcessAuthenticatedRetrievalAsync(itemToAuth);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Retrieval authentication for Task {TaskId} successful, but pallet was not loaded. Cannot proceed to delivery.", 
+                            itemToAuth.OriginalTask?.Id.ToString() ?? "N/A");
+                        // If ActiveCellAuthenticationItem was itemToAuth and was cleared, we might need to re-set it or handle this state.
+                        // For now, IsCellAuthenticationViewActive might have been set to false.
+                        // Consider re-showing auth if pallet loading failed.
+                        if (ActiveCellAuthenticationItem == null && IsCellAuthenticationViewActive == false && itemToAuth == itemToAuth) // Re-check if it was the cell item
+                        {
+                           // ActiveCellAuthenticationItem = itemToAuth; // This would require itemToAuth to persist
+                           // IsCellAuthenticationViewActive = true;
+                           // _logger.LogInformation("Re-activating cell authentication view for Task {TaskId} due to loading failure.", itemToAuth.OriginalTask.Id);
+                        }
+                    }
                 }
                 else
                 {
@@ -337,13 +430,18 @@ namespace EM.Maman.DriverClient.ViewModels
                                      retrievalItem.RetrievalTask.ActiveTaskStatus == Models.Enums.ActiveTaskStatus.pending; // Or whatever status indicates it's at source cell awaiting auth
 
             // This needs a robust check that the trolley is actually at retrievalItem.RetrievalTask.SourceCell
-            // For now, we assume if this command is available on UI, the trolley is at the correct cell.
-            // A more precise check:
-            // bool trolleyAtSourceCell = _currentCellLevel == retrievalItem.RetrievalTask.SourceCell?.Level &&
-            //                            _currentCellPosition == retrievalItem.RetrievalTask.SourceCell?.Position &&
-            //                            !_currentFingerPositionValue.HasValue; // Ensure not at a finger
-
-            return isRetrievalTask && isAtSourceCellPhase; // && trolleyAtSourceCell; (add when trolley position is reliably checked)
+            bool trolleyAtSourceCell = false;
+            if (retrievalItem.RetrievalTask.SourceCell != null && 
+                retrievalItem.RetrievalTask.SourceCell.Level.HasValue && 
+                retrievalItem.RetrievalTask.SourceCell.Position.HasValue)
+            {
+                // _currentCellLevel and _currentCellPosition are updated by OnPositionChanged
+                trolleyAtSourceCell = _currentCellLevel == retrievalItem.RetrievalTask.SourceCell.Level.Value &&
+                                      _currentCellPosition == retrievalItem.RetrievalTask.SourceCell.Position.Value &&
+                                      !_currentFingerPositionValue.HasValue; // Ensure not at a finger
+            }
+            
+            return isRetrievalTask && isAtSourceCellPhase && trolleyAtSourceCell;
         }
 
         #endregion

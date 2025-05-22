@@ -214,6 +214,13 @@ namespace EM.Maman.DriverClient.ViewModels
                     configuration.CraneId = SelectedCraneId;
                     configuration.InitializedByEmployeeId = EmployeeCode; // Or serverData.EmployeeCode
                     configuration.InitializedAt = DateTime.UtcNow; // Or serverData.LoginTime if available
+
+                    // Store the WorkstationType string
+                    //var selectedCraneOption = CraneOptions.FirstOrDefault(co => co.Id == SelectedCraneId);
+                    //if (selectedCraneOption != null)
+                    //{
+                    //    configuration.WorkstationType = selectedCraneOption.Name;
+                    //}
                     
                     await _unitOfWork.CompleteAsync(); // Save configuration
 

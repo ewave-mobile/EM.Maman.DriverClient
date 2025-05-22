@@ -16,6 +16,7 @@ namespace EM.Maman.Models.Enums
         pending = 5,
         pending_authentication = 6,
         authentication = 7,
-        arrived_at_destination = 8
+        arrived_at_destination = 8,
+        navigating_to_source = 9 // Added for retrieval task navigating to source cell
     }
 }

@@ -458,6 +458,7 @@ namespace EM.Maman.DriverClient
             services.AddTransient<TaskViewModel>();
             services.AddTransient<ImportTaskViewModel>();
             services.AddTransient<ExportTaskViewModel>();
+            services.AddTransient<SelectHndDestinationViewModel>(); // Added this line
 
             services.AddTransient<ManualTaskViewModel>(provider =>
             {
@@ -474,6 +475,7 @@ namespace EM.Maman.DriverClient
             services.AddTransient<MainWindow>();
             services.AddTransient<LoginWindow>();
             services.AddTransient<ManualTaskDialog>();
+            services.AddTransient<SelectHndDestinationDialog>(); // Added this line
         }
 
         // Updated initialization method to use factory

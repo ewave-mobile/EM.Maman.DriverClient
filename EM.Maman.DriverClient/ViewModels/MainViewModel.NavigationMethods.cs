@@ -121,22 +121,43 @@ namespace EM.Maman.DriverClient.ViewModels
                     // If we've arrived at the source position
                     if (positionValue == expectedPositionValue)
                     {
-                        _logger.LogInformation("Arrived at source for Task ID: {TaskId}, updating status to 'retrieving'.",
+                        _logger.LogInformation("Arrived at source for Task ID: {TaskId}, updating status to 'retrieval'.",
                             item.RetrievalTask.Id);
 
-                        // Update the task status to retrieving (arrived at source, ready to load)
-                        item.RetrievalTask.ActiveTaskStatus = ActiveTaskStatus.storing; // Reusing 'storing' status for now
-                        OnPropertyChanged(nameof(PalletsForRetrieval));
+                        // Update the task status to retrieval (arrived at source, ready for authentication/load)
+                        item.RetrievalTask.ActiveTaskStatus = ActiveTaskStatus.retrieval;
+                        OnPropertyChanged(nameof(PalletsForRetrieval)); // Notify UI about status change
 
-                        // Show a notification to the user
-                        _dispatcherService.Invoke(() =>
+                        _logger.LogInformation("Arrived at source cell {SourceCellName} for Task ID {TaskId}. Preparing for cell authentication.",
+                                             sourceCell.DisplayName, item.RetrievalTask.Id);
+
+                        CurrentCellDisplayName = sourceCell.DisplayName; // Update current cell display name
+
+                        // Create PalletAuthenticationItem for the UI
+                        var authItemForCell = new PalletAuthenticationItem(
+                            item.PalletDetails,
+                            item.RetrievalTask,
+                            AuthenticationContextMode.Retrieval // Explicitly set mode
+                        );
+                        // Wire up the command that PalletAuthenticationItemControl will use
+                        authItemForCell.AuthenticateCommand = this.ShowAuthenticationDialogCommand;
+
+                        ActiveCellAuthenticationItem = authItemForCell;
+                        IsCellAuthenticationViewActive = true; // Activate the new UI section
+
+                        // Ensure finger auth is not active if we just arrived at a cell
+                        if (IsFingerAuthenticationViewActive)
                         {
-                            MessageBox.Show($"Arrived at source cell {sourceCell.DisplayName} for pallet {item.PalletDetails.UldCode}. " +
-                                           "Ready to load the pallet.",
-                                           "Arrived at Source",
-                                           MessageBoxButton.OK,
-                                           MessageBoxImage.Information);
-                        });
+                            IsFingerAuthenticationViewActive = false;
+                        }
+                        if (PalletsToAuthenticate.Any())
+                        {
+                            _dispatcherService.Invoke(() => PalletsToAuthenticate.Clear());
+                        }
+                        
+                        // Notify that task panel visibility might change due to IsCellAuthenticationViewActive
+                        OnPropertyChanged(nameof(ShouldShowTasksPanel));
+                        OnPropertyChanged(nameof(ShouldShowDefaultPhoto));
                     }
                 }
             }

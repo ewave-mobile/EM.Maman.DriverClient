@@ -21,6 +21,131 @@ namespace EM.Maman.DriverClient.ViewModels
 
         #region Task Operations
 
+        public async System.Threading.Tasks.Task BeginRetrievalTaskAtSourceCellAsync(TaskDetails retrievalTaskDetails)
+        {
+            if (retrievalTaskDetails == null || retrievalTaskDetails.SourceCell == null)
+            {
+                _logger.LogWarning("BeginRetrievalTaskAtSourceCellAsync called with null task or source cell.");
+                MessageBox.Show("Cannot begin retrieval: Task or source cell details are missing.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return; 
+            }
+
+            _logger.LogInformation("Beginning retrieval task {TaskId} at source cell {CellName}", retrievalTaskDetails.Id, retrievalTaskDetails.SourceCell.DisplayName);
+
+            retrievalTaskDetails.ActiveTaskStatus = ActiveTaskStatus.navigating_to_source;
+            await TaskVM.SaveTaskToDatabase(retrievalTaskDetails); 
+            _logger.LogInformation("Task {TaskId} status updated to navigating_to_source.", retrievalTaskDetails.Id);
+
+            try
+            {
+                await NavigateToCellAsync(retrievalTaskDetails.SourceCell);
+                _logger.LogInformation("Navigation to source cell {CellName} for task {TaskId} deemed complete.", retrievalTaskDetails.SourceCell.DisplayName, retrievalTaskDetails.Id);
+            }
+            catch (Exception navEx)
+            {
+                _logger.LogError(navEx, "Navigation to source cell failed for Task {TaskId}.", retrievalTaskDetails.Id);
+                retrievalTaskDetails.ActiveTaskStatus = ActiveTaskStatus.pending; 
+                await TaskVM.SaveTaskToDatabase(retrievalTaskDetails);
+                MessageBox.Show($"Navigation failed for task {retrievalTaskDetails.Name}: {navEx.Message}", "Navigation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return; 
+            }
+
+            _logger.LogInformation("Task {TaskId} successfully navigated to source cell {CellName}. Updating status to Retrieval for authentication.", retrievalTaskDetails.Id, retrievalTaskDetails.SourceCell.DisplayName);
+            retrievalTaskDetails.ActiveTaskStatus = ActiveTaskStatus.retrieval; // Changed from transit
+            await TaskVM.SaveTaskToDatabase(retrievalTaskDetails); 
+
+            // CheckForArrivalAtDestination is implicitly called by OnPositionChanged when _currentCellLevel/_currentCellPosition are updated
+            // However, explicitly calling it here ensures the logic runs immediately after navigation completes.
+            // The OnPositionChanged handler will also update IsAtCellWithRetrievalTask which might be used by UI.
+            CheckForArrivalAtDestination((short)((_currentCellLevel * 100) + _currentCellPosition)); // Ensure correct type
+            _logger.LogInformation("Explicitly called CheckForArrivalAtDestination with L{Level} P{Position} for Task {TaskId}", _currentCellLevel, _currentCellPosition, retrievalTaskDetails.Id);
+
+            // Setup for cell authentication
+            if (retrievalTaskDetails.Pallet != null)
+            {
+                var authItemForCell = new PalletAuthenticationItem(
+                    retrievalTaskDetails.Pallet,
+                    retrievalTaskDetails,
+                    AuthenticationContextMode.Retrieval
+                );
+                ActiveCellAuthenticationItem = authItemForCell;
+                IsCellAuthenticationViewActive = true;
+                _logger.LogInformation("Task {TaskId} at source cell {CellName}. Cell authentication view activated.", retrievalTaskDetails.Id, retrievalTaskDetails.SourceCell.DisplayName);
+            }
+            else
+            {
+                _logger.LogWarning("Task {TaskId} at source cell {CellName} but PalletDetails are null. Cannot set up cell authentication.", retrievalTaskDetails.Id, retrievalTaskDetails.SourceCell.DisplayName);
+                // Optionally, set IsCellAuthenticationViewActive = false or handle error
+            }
+        }
+
+        private async System.Threading.Tasks.Task NavigateToCellAsync(Cell targetCell)
+        {
+            if (targetCell == null)
+            {
+                _logger.LogWarning("NavigateToCellAsync called with null targetCell.");
+                MessageBox.Show("Cannot navigate: Target cell is not specified.", "Navigation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return; 
+            }
+
+            if (!targetCell.Level.HasValue || !targetCell.Position.HasValue)
+            {
+                 _logger.LogWarning("NavigateToCellAsync: Target cell {CellName} (ID: {CellId}) has null Level or Position.", targetCell.DisplayName, targetCell.Id);
+                 MessageBox.Show($"Cannot navigate: Target cell '{targetCell.DisplayName}' has incomplete location details.", "Navigation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                 return; 
+            }
+
+            _logger.LogInformation("Navigating to Cell: {CellName} (L{Level}-P{Position})", targetCell.DisplayName, targetCell.Level, targetCell.Position);
+            
+            short targetPositionValue = (short)((targetCell.Level.Value * 100) + targetCell.Position.Value);
+            short commandCode = 1; 
+
+            try
+            {
+                await _opcService.WriteRegisterAsync(OpcNodes.PositionRequest, targetPositionValue);
+                await _opcService.WriteRegisterAsync(OpcNodes.Control, commandCode);
+                _logger.LogInformation("OPC command sent to navigate to cell L{Level}-P{Position} (Value: {Value})", targetCell.Level, targetCell.Position, targetPositionValue);
+
+                _activeNavigationTargetPosition = targetPositionValue;
+                _activeNavigationTcs = new System.Threading.Tasks.TaskCompletionSource<bool>(System.Threading.Tasks.TaskCreationOptions.RunContinuationsAsynchronously);
+                
+                using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(30))) 
+                {
+                    cts.Token.Register(() => _activeNavigationTcs?.TrySetCanceled(), useSynchronizationContext: false);
+
+                    _logger.LogInformation("Waiting for arrival at L{Level}-P{Position} (Value: {Value}) and status '{Status}'...",
+                                         targetCell.Level, targetCell.Position, targetPositionValue, _activeNavigationTargetStatus);
+                    try
+                    {
+                        await _activeNavigationTcs.Task; 
+                        _logger.LogInformation("Confirmed arrival at Cell: {CellName} (L{Level}-P{Position})", targetCell.DisplayName, targetCell.Level, targetCell.Position);
+                    }
+                    catch (System.Threading.Tasks.TaskCanceledException)
+                    {
+                        _logger.LogWarning("Navigation to L{Level}-P{Position} timed out.", targetCell.Level, targetCell.Position);
+                        MessageBox.Show($"Navigation to {targetCell.DisplayName} timed out.", "Navigation Timeout", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        throw; 
+                    }
+                    finally
+                    {
+                        _activeNavigationTcs = null;
+                        _activeNavigationTargetPosition = null;
+                    }
+                }
+                
+                _currentCellLevel = targetCell.Level.Value;
+                _currentCellPosition = targetCell.Position.Value;
+                _currentFingerPositionValue = null; 
+                OnPropertyChanged(nameof(CurrentFingerDisplayName)); 
+                OnPropertyChanged(nameof(IsAtCellWithRetrievalTask)); 
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error navigating to cell L{Level}-P{Position}", targetCell.Level, targetCell.Position);
+                MessageBox.Show($"Error navigating to cell: {ex.Message}", "Navigation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private async System.Threading.Tasks.Task ProcessAuthenticatedRetrievalAsync(PalletAuthenticationItem authenticatedItem)
         {
             if (authenticatedItem?.PalletDetails == null || authenticatedItem.OriginalTask == null)
@@ -42,46 +167,29 @@ namespace EM.Maman.DriverClient.ViewModels
 
                 var retrievalTaskDetails = authenticatedItem.OriginalTask;
 
-                // Update task status
-                retrievalTaskDetails.Status = Models.Enums.TaskStatus.InProgress;
-                retrievalTaskDetails.ActiveTaskStatus = Models.Enums.ActiveTaskStatus.transit; // Now in transit to destination finger/cell
+                _logger.LogInformation("Processing authenticated retrieval for Task ID: {TaskId}. Pallet is on trolley, task status should be InProgress/Transit.",
+                    retrievalTaskDetails.Id);
 
-                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                var selectCellCmd = new RelayCommand(async (item) =>
                 {
-                    var dbTask = retrievalTaskDetails.ToDbModel();
-                    unitOfWork.Tasks.Update(dbTask);
-                    await unitOfWork.CompleteAsync();
-                    _logger.LogInformation("Successfully updated retrieval task status (ID: {TaskId}) to InProgress/Transit.", retrievalTaskDetails.Id);
-                }
+                    if (item is PalletRetrievalTaskItem taskItem)
+                    {
+                        await ShowSelectCellDialogForRetrievalItemAsync(taskItem);
+                    }
+                });
 
-                // Create a retrieval task item for the UI (pallets on trolley, ready for delivery)
-                // This item will have commands to go to destination finger/cell and unload.
-                var retrievalDeliveryItem = new PalletRetrievalTaskItem(authenticatedItem.PalletDetails, retrievalTaskDetails)
-                {
-                    GoToRetrievalCommand = this.GoToRetrievalDestinationCommand, // Renaming for clarity in PalletRetrievalTaskItem if it's reused
-                    // Or, if PalletRetrievalTaskItem has specific GoToDestinationFinger/Cell commands:
-                    // GoToDestinationFingerCommand = this.GoToRetrievalDestinationCommand, // if destination is finger
-                    // GoToDestinationCellCommand = this.GoToRetrievalDestinationCommand, // if destination is cell
-                    // UnloadCommand = this.UnloadAtDestinationCommand // Assuming a generic UnloadCommand on the item
-                };
-                // For PalletRetrievalTaskItem, it already has GoToRetrievalCommand.
-                // We need to ensure it's clear this command now points to GoToRetrievalDestination.
-                // Let's assume PalletRetrievalTaskItem will be used for items on the trolley ready for delivery.
-                // It might be better to have distinct item view models or more explicit command properties on PalletRetrievalTaskItem.
-                // For now, re-purposing GoToRetrievalCommand to mean "Go To Next Destination for this Retrieval Item"
-                // and adding a new command for unload.
-                // A cleaner approach might be to add specific command properties to PalletRetrievalTaskItem:
-                // e.g., NavigateToDestinationCommand, PerformUnloadCommand.
-
-                // Assigning the new commands:
-                retrievalDeliveryItem.GoToRetrievalCommand = this.GoToRetrievalDestinationCommand; // This command on item will now navigate to its dest.
-                // We need an Unload command on PalletRetrievalTaskItem. 
-                retrievalDeliveryItem.UnloadCommand = this.UnloadAtDestinationCommand;
-
+                var retrievalDeliveryItem = new PalletRetrievalTaskItem(
+                    authenticatedItem.PalletDetails,
+                    retrievalTaskDetails,
+                    this.AvailableFingers,
+                    this.GoToRetrievalDestinationCommand,
+                    this.ChangeSourceCommand, // Assuming ChangeSourceCommand is a valid command in MainViewModel
+                    this.UnloadAtDestinationCommand,
+                    selectCellCmd
+                );
+                
                 _dispatcherService.Invoke(() =>
                 {
-                    // Remove from any list that showed it as "pending at source cell" if applicable
-                    // For example, if PalletsForRetrieval held items before authentication at source cell:
                     var itemToRemove = PalletsForRetrieval.FirstOrDefault(p => p.RetrievalTask.Id == retrievalTaskDetails.Id);
                     if (itemToRemove != null)
                     {
@@ -90,8 +198,11 @@ namespace EM.Maman.DriverClient.ViewModels
                     }
 
                     PalletsReadyForDelivery.Add(retrievalDeliveryItem);
-                    // Notify relevant UI elements if needed, e.g., OnPropertyChanged(nameof(HasPalletsReadyForDelivery));
                     _logger.LogInformation("Added PalletRetrievalTaskItem for Task ID {TaskId} to PalletsReadyForDelivery.", retrievalTaskDetails.Id);
+                    OnPropertyChanged(nameof(HasPalletsReadyForDelivery)); // Notify UI to update visibility
+                    OnPropertyChanged(nameof(ShouldShowTasksPanel));      // Also update panel visibility
+                    OnPropertyChanged(nameof(ShouldShowDefaultPhoto));
+                    OnPropertyChanged(nameof(IsDefaultTaskViewActive));
                 });
             }
             catch (Exception ex)
@@ -116,10 +227,8 @@ namespace EM.Maman.DriverClient.ViewModels
                 _logger.LogInformation("Updating task status for authenticated Pallet ULD: {UldCode}",
                     authenticatedItem.PalletDetails.UldCode);
 
-                // Get the original task
                 var originalTask = authenticatedItem.OriginalTask;
                 
-                // Check if destination cell is available
                 long? destinationCellId = originalTask.DestinationCell?.Id;
 
                 if (!destinationCellId.HasValue)
@@ -131,7 +240,6 @@ namespace EM.Maman.DriverClient.ViewModels
                     return;
                 }
 
-                // Create a new UnitOfWork instance for this operation
                 using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
                 {
                     Cell destinationCell = null;
@@ -144,19 +252,15 @@ namespace EM.Maman.DriverClient.ViewModels
                         }
                     }
 
-                    // Update the original task status
                     originalTask.Status = Models.Enums.TaskStatus.InProgress;
                     originalTask.ActiveTaskStatus = Models.Enums.ActiveTaskStatus.transit;
                     
-                    // Convert to DB model and update in database
                     var dbTask = originalTask.ToDbModel();
                     
-                    // Update the task in the database
                     unitOfWork.Tasks.Update(dbTask);
                     await unitOfWork.CompleteAsync();
                     _logger.LogInformation("Successfully updated task status (ID: {TaskId}).", originalTask.Id);
 
-                    // Get the source finger
                     Finger sourceFinger = null;
                     if (originalTask.SourceFinger?.Id != null)
                     {
@@ -164,7 +268,6 @@ namespace EM.Maman.DriverClient.ViewModels
                     }
                 }
 
-                // Create a storage task item for the UI
                 var storageTaskDetails = originalTask;
 
                 var storageItem = new PalletStorageTaskItem(authenticatedItem.PalletDetails, storageTaskDetails)
@@ -307,10 +410,30 @@ namespace EM.Maman.DriverClient.ViewModels
 
         public bool CanExecuteGoToRetrievalLocation(object parameter)
         {
-            if (parameter is not PalletRetrievalTaskItem item) return false;
-            return item.RetrievalTask?.SourceCell != null &&
-                   item.RetrievalTask.SourceCell.Level.HasValue &&
-                   item.RetrievalTask.SourceCell.Position.HasValue;
+            if (parameter is not PalletRetrievalTaskItem item || item.RetrievalTask == null || item.PalletDetails == null) return false;
+
+            bool isCorrectStatus = item.RetrievalTask.ActiveTaskStatus == ActiveTaskStatus.pending ||
+                                   item.RetrievalTask.ActiveTaskStatus == ActiveTaskStatus.navigating_to_source ||
+                                   item.RetrievalTask.ActiveTaskStatus == ActiveTaskStatus.retrieval;
+
+            bool hasValidSource = item.RetrievalTask.SourceCell != null &&
+                                  item.RetrievalTask.SourceCell.Level.HasValue &&
+                                  item.RetrievalTask.SourceCell.Position.HasValue;
+
+            bool palletNotOnTrolley = true; 
+            if (TrolleyVM != null && item.PalletDetails != null)
+            {
+                if ((TrolleyVM.LeftCell.IsOccupied && TrolleyVM.LeftCell.Pallet?.Id == item.PalletDetails.Id) ||
+                    (TrolleyVM.RightCell.IsOccupied && TrolleyVM.RightCell.Pallet?.Id == item.PalletDetails.Id))
+                {
+                    palletNotOnTrolley = false; 
+                }
+            }
+            
+            // Trolley is not moving if there's no active navigation task completion source
+            bool trolleyNotMoving = _activeNavigationTcs == null; 
+
+            return isCorrectStatus && hasValidSource && palletNotOnTrolley && trolleyNotMoving;
         }
 
         public void ExecuteChangeSource(object parameter)
@@ -332,7 +455,6 @@ namespace EM.Maman.DriverClient.ViewModels
 
             try
             {
-                // Get the current finger ID
                 int currentFingerId = 0;
                 
                 if (_currentFingerPositionValue.HasValue)
@@ -381,6 +503,7 @@ namespace EM.Maman.DriverClient.ViewModels
                         {
                             _logger.LogInformation("Manual task (ID: {TaskId}) created and saved.", newTaskDetails.Id);
                             TaskVM.Tasks.Add(newTaskDetails);
+                            await TaskVM.LoadAvailableStorageFingersAsync();
 
                             if (newTaskDetails.IsImportTask &&
                                 newTaskDetails.SourceFinger?.Id != null &&
@@ -439,7 +562,6 @@ namespace EM.Maman.DriverClient.ViewModels
 
             if (retrievalTask.DestinationFinger != null && retrievalTask.DestinationFinger.Position.HasValue)
             {
-                // Destination is a Finger
                 targetPositionValue = (short)retrievalTask.DestinationFinger.Position.Value;
                 isValidDestination = true;
                 _logger.LogInformation("Retrieval destination is Finger: {FingerName} (Position: {Position})", 
@@ -447,7 +569,6 @@ namespace EM.Maman.DriverClient.ViewModels
             }
             else if (retrievalTask.DestinationCell != null && retrievalTask.DestinationCell.Level.HasValue && retrievalTask.DestinationCell.Position.HasValue)
             {
-                // Destination is a Cell (for HND retrieval cell-to-cell)
                 targetPositionValue = (short)((retrievalTask.DestinationCell.Level.Value * 100) + retrievalTask.DestinationCell.Position.Value);
                 isValidDestination = true;
                  _logger.LogInformation("Retrieval destination is Cell: {CellName} (Level: {Level}, Position: {Position})", 
@@ -461,7 +582,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 return;
             }
 
-            short commandCode = 1; // Assuming 1 is the standard "go to position" command
+            short commandCode = 1; 
             string positionSpNodeId = OpcNodes.PositionRequest;
             string commandNodeId = OpcNodes.Control;
 
@@ -476,7 +597,7 @@ namespace EM.Maman.DriverClient.ViewModels
                 _logger.LogInformation("Navigation command sent for retrieval Task ID {TaskId} to position {TargetPosition}.", 
                     retrievalTask.Id, targetPositionValue);
                 retrievalTask.ActiveTaskStatus = Models.Enums.ActiveTaskStatus.transit;
-                OnPropertyChanged(nameof(PalletsReadyForDelivery)); // Assuming this collection holds these items
+                OnPropertyChanged(nameof(PalletsReadyForDelivery)); 
             }
             catch (Exception ex)
             {
@@ -487,14 +608,27 @@ namespace EM.Maman.DriverClient.ViewModels
 
         public bool CanExecuteGoToRetrievalDestination(object parameter)
         {
-            if (parameter is not PalletRetrievalTaskItem item || item.RetrievalTask == null) return false;
+            if (parameter is not PalletRetrievalTaskItem item || item.RetrievalTask == null || item.PalletDetails == null) return false;
+
+            bool isCorrectStatus = item.RetrievalTask.ActiveTaskStatus == ActiveTaskStatus.transit ||
+                                   item.RetrievalTask.ActiveTaskStatus == ActiveTaskStatus.arrived_at_destination; 
+
+            bool hasValidDestination = (item.RetrievalTask.DestinationFinger != null && item.RetrievalTask.DestinationFinger.Position.HasValue) ||
+                                       (item.RetrievalTask.DestinationCell != null && item.RetrievalTask.DestinationCell.Level.HasValue && item.RetrievalTask.DestinationCell.Position.HasValue);
+
+            bool palletOnTrolley = false;
+            if (TrolleyVM != null && item.PalletDetails != null)
+            {
+                if ((TrolleyVM.LeftCell.IsOccupied && TrolleyVM.LeftCell.Pallet?.Id == item.PalletDetails.Id) ||
+                    (TrolleyVM.RightCell.IsOccupied && TrolleyVM.RightCell.Pallet?.Id == item.PalletDetails.Id))
+                {
+                    palletOnTrolley = true;
+                }
+            }
             
-            bool hasFingerDest = item.RetrievalTask.DestinationFinger != null && item.RetrievalTask.DestinationFinger.Position.HasValue;
-            bool hasCellDest = item.RetrievalTask.DestinationCell != null && 
-                               item.RetrievalTask.DestinationCell.Level.HasValue && 
-                               item.RetrievalTask.DestinationCell.Position.HasValue;
-            
-            return hasFingerDest || hasCellDest;
+            bool trolleyNotMoving = true;
+
+            return isCorrectStatus && hasValidDestination && palletOnTrolley && trolleyNotMoving;
         }
 
         public async void ExecuteUnloadAtDestination(object parameter)
@@ -509,11 +643,10 @@ namespace EM.Maman.DriverClient.ViewModels
             var retrievalTask = item.RetrievalTask;
             var palletToUnload = item.PalletDetails;
             bool isDestinationFinger = retrievalTask.DestinationFinger != null;
-            bool isDestinationCell = retrievalTask.DestinationCell != null && !isDestinationFinger; // If finger is primary, cell is secondary for HND
+            bool isDestinationCell = retrievalTask.DestinationCell != null && !isDestinationFinger; 
 
             _logger.LogInformation("Executing UnloadAtDestination for Task ID: {TaskId}, Pallet: {PalletUld}", retrievalTask.Id, palletToUnload.UldCode);
 
-            // Determine which side of the trolley the pallet is on
             EM.Maman.Models.DisplayModels.TrolleyCell trolleyCellWithPallet = null;
             if (TrolleyVM.LeftCell.IsOccupied && TrolleyVM.LeftCell.Pallet?.Id == palletToUnload.Id)
             {
@@ -533,92 +666,97 @@ namespace EM.Maman.DriverClient.ViewModels
             
             try
             {
-                // TODO: Adapt actual unload OPC commands / logic from TrolleyOperationsViewModel
-                // For now, simulating unload and using existing TrolleyOperationsVM methods.
-                // This will need to be replaced with actual OPC calls for unloading to finger/cell.
+                bool unloadSuccessful = false;
                 if (trolleyCellWithPallet == TrolleyVM.LeftCell)
                 {
-                    await TrolleyOperationsVM.UnloadPalletFromLeftCellAsync(); // This method needs to exist and handle OPC
+                    unloadSuccessful = await TrolleyOperationsVM.UnloadPalletFromLeftCellAsync();
                 }
                 else
                 {
-                    await TrolleyOperationsVM.UnloadPalletFromRightCellAsync(); // This method needs to exist and handle OPC
+                    unloadSuccessful = await TrolleyOperationsVM.UnloadPalletFromRightCellAsync();
                 }
-                _logger.LogInformation("Unload command simulated for pallet {PalletUld} from Task ID {TaskId}.", palletToUnload.UldCode, retrievalTask.Id);
 
-                retrievalTask.Status = Models.Enums.TaskStatus.Completed;
-                retrievalTask.ActiveTaskStatus = Models.Enums.ActiveTaskStatus.finished; // Or a specific "unloading" then "completed"
-                retrievalTask.ExecutedDateTime = DateTime.Now;
-
-                using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
+                if (unloadSuccessful)
                 {
-                    var dbTask = retrievalTask.ToDbModel();
-                    unitOfWork.Tasks.Update(dbTask);
-                    
-                    // If unloaded to a cell, update PalletInCell
-                    if (isDestinationCell && retrievalTask.DestinationCell != null)
+                    _logger.LogInformation("Unload operation successful for pallet {PalletUld} from Task ID {TaskId}.", palletToUnload.UldCode, retrievalTask.Id);
+
+                    retrievalTask.Status = Models.Enums.TaskStatus.Completed;
+                    retrievalTask.ActiveTaskStatus = Models.Enums.ActiveTaskStatus.finished;
+                    retrievalTask.ExecutedDateTime = DateTime.Now;
+
+                    using (var unitOfWork = _unitOfWorkFactory.CreateUnitOfWork())
                     {
-                        var palletInCell = new PalletInCell
+                        var dbTask = retrievalTask.ToDbModel();
+                        unitOfWork.Tasks.Update(dbTask);
+
+                        if (isDestinationCell && retrievalTask.DestinationCell != null)
                         {
-                            PalletId = palletToUnload.Id,
-                            CellId = retrievalTask.DestinationCell.Id,
-                            StorageDate = DateTime.Now,
-                            // Notes, etc.
-                        };
-                        await unitOfWork.PalletInCells.AddAsync(palletInCell);
-                        _logger.LogInformation("Pallet {PalletUld} recorded in Cell {CellId} after retrieval task.", palletToUnload.Id, retrievalTask.DestinationCell.Id);
-                    }
-                    // If it was previously in a cell (RetrievalSourceCell), mark it as removed from there.
-                    if (retrievalTask.SourceCell != null)
-                    {
-                        var existingPic = await unitOfWork.PalletInCells.GetByPalletAndCellAsync(palletToUnload.Id, retrievalTask.SourceCell.Id);
-                        if (existingPic != null)
-                        {
-                            unitOfWork.PalletInCells.Remove(existingPic);
-                             _logger.LogInformation("Pallet {PalletUld} removed from SourceCell {CellId} tracking.", palletToUnload.Id, retrievalTask.SourceCell.Id);
+                            var palletInCell = new PalletInCell
+                            {
+                                PalletId = palletToUnload.Id,
+                                CellId = retrievalTask.DestinationCell.Id,
+                                StorageDate = DateTime.Now,
+                            };
+                            await unitOfWork.PalletInCells.AddAsync(palletInCell);
+                            _logger.LogInformation("Pallet {PalletUld} recorded in Cell {CellId} after retrieval task.", palletToUnload.Id, retrievalTask.DestinationCell.Id);
                         }
+                        if (retrievalTask.SourceCell != null)
+                        {
+                            var existingPic = await unitOfWork.PalletInCells.GetByPalletAndCellAsync(palletToUnload.Id, retrievalTask.SourceCell.Id);
+                            if (existingPic != null)
+                            {
+                                unitOfWork.PalletInCells.Remove(existingPic);
+                                _logger.LogInformation("Pallet {PalletUld} removed from SourceCell {CellId} tracking.", palletToUnload.Id, retrievalTask.SourceCell.Id);
+                            }
+                        }
+                        await unitOfWork.CompleteAsync();
                     }
 
-                    await unitOfWork.CompleteAsync();
+                    _logger.LogInformation("Retrieval Task ID {TaskId} successfully completed and database updated.", retrievalTask.Id);
+                    TaskVM?.RefreshTaskStatus(retrievalTask);
+
+                    _logger.LogInformation("Retrieval Task ID {TaskId} completed. It will be removed from active display in 5 seconds.", retrievalTask.Id);
+                    System.Threading.Tasks.Task.Run(async () =>
+                    {
+                        await System.Threading.Tasks.Task.Delay(5000);
+                        _dispatcherService.Invoke(() =>
+                        {
+                            if (PalletsReadyForDelivery.Contains(item))
+                            {
+                                PalletsReadyForDelivery.Remove(item);
+                                _logger.LogInformation("Delayed removal of completed Retrieval Task ID {TaskId} from PalletsReadyForDelivery.", retrievalTask.Id);
+                                OnPropertyChanged(nameof(HasPalletsReadyForDelivery));
+                                OnPropertyChanged(nameof(ShouldShowTasksPanel));
+                                OnPropertyChanged(nameof(ShouldShowDefaultPhoto));
+                                OnPropertyChanged(nameof(IsDefaultTaskViewActive));
+                            }
+                        });
+                    });
                 }
-
-                _logger.LogInformation("Retrieval Task ID {TaskId} successfully completed and unloaded.", retrievalTask.Id);
-                
-                _dispatcherService.Invoke(() =>
+                else
                 {
-                    PalletsReadyForDelivery.Remove(item);
-                    // Notify relevant UI if needed
-                });
-
-                // Start 5-second timer (as per requirement "five minutess toimer to remove it" - assuming 5 seconds for now)
-                // This timer's action (e.g., clearing finger status) needs to be defined.
-                System.Diagnostics.Debug.WriteLine($"Timer started for Task {retrievalTask.Id} completion (5s). Action TBD.");
-                await System.Threading.Tasks.Task.Delay(5000); 
-                System.Diagnostics.Debug.WriteLine($"Timer elapsed for Task {retrievalTask.Id}.");
-                // TODO: Implement actual action after timer (e.g., clear finger display, etc.)
-
+                    _logger.LogError("Unload operation failed for Task ID {TaskId}, Pallet: {PalletUld}. Task status not set to Completed.", retrievalTask.Id, palletToUnload.UldCode);
+                    // Optionally, set task status to Failed or revert to InProgress
+                    // retrievalTask.Status = Models.Enums.TaskStatus.Failed;
+                    // await TaskVM.SaveTaskToDatabase(retrievalTask); // Save updated status
+                    // TaskVM?.RefreshTaskStatus(retrievalTask);
+                    MessageBox.Show($"Unload operation failed for pallet {palletToUnload.UldCode}. Task not marked as completed.", "Unload Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error executing UnloadAtDestination for Task ID {TaskId}.", retrievalTask.Id);
-                MessageBox.Show($"Error unloading pallet: {ex.Message}", "Unload Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                // Potentially revert task status if unload failed critically
+                _logger.LogError(ex, "Error in ExecuteUnloadAtDestination for Task ID {TaskId}.", retrievalTask.Id);
+                MessageBox.Show($"An error occurred while finalizing unload for task {retrievalTask.Name}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                // Consider additional error handling, like setting task status to Failed.
             }
         }
 
         public bool CanExecuteUnloadAtDestination(object parameter)
         {
              if (parameter is not PalletRetrievalTaskItem item || item.RetrievalTask == null || item.PalletDetails == null) return false;
-            // Condition: Trolley should be at the destination (finger or cell)
-            // This requires OPC feedback for current trolley position matching task's destination.
-            // For now, let's assume if the task is in 'PalletsReadyForDelivery' and not 'transit', it might be at destination.
-            // This needs robust checking with actual trolley position.
-            // Also, the pallet must be on the trolley.
             bool palletOnTrolley = (TrolleyVM.LeftCell.IsOccupied && TrolleyVM.LeftCell.Pallet?.Id == item.PalletDetails.Id) ||
                                    (TrolleyVM.RightCell.IsOccupied && TrolleyVM.RightCell.Pallet?.Id == item.PalletDetails.Id);
 
-            // Simplified: if it's in the list and not in transit, and pallet is on trolley.
-            // A more accurate check would involve comparing CurrentTrolleyPosition with task destination.
             return item.RetrievalTask.ActiveTaskStatus != Models.Enums.ActiveTaskStatus.transit && palletOnTrolley;
         }
 
@@ -638,12 +776,6 @@ namespace EM.Maman.DriverClient.ViewModels
             _logger.LogInformation("Initiating HND retrieval task creation for pallet {PalletId} from source cell {SourceCellId}", loadedPallet.Id, sourceCell.Id);
 
             var dialogVM = _serviceProvider.GetRequiredService<SelectHndDestinationViewModel>();
-            // Re-initialize or pass parameters to existing dialogVM instance if it's not transient
-            // For a transient dialog VM, new instance is fine. If it's scoped/singleton, need to reset its state.
-            // Assuming SelectHndDestinationViewModel can be newed up or its state reset:
-            // For this example, let's assume it's newed up or its constructor handles resetting.
-            // The constructor of SelectHndDestinationViewModel takes (IUnitOfWorkFactory, ILogger, Pallet, Cell)
-            // We need to get IUnitOfWorkFactory and ILogger from _serviceProvider or pass them from MainViewModel.
             
             var hndDialogVM = new SelectHndDestinationViewModel(_unitOfWorkFactory, _loggerFactory.CreateLogger<SelectHndDestinationViewModel>(), loadedPallet, sourceCell);
             var dialog = new SelectHndDestinationDialog
@@ -669,17 +801,15 @@ namespace EM.Maman.DriverClient.ViewModels
                     Name = $"HND Retrieval - {loadedPallet.DisplayName}",
                     Description = $"Manual HND retrieval of pallet {loadedPallet.UldCode} from cell {sourceCell.DisplayName}",
                     TaskType = Models.Enums.TaskType.Retrieval,
-                    Status = Models.Enums.TaskStatus.InProgress, // Already on trolley
-                    ActiveTaskStatus = Models.Enums.ActiveTaskStatus.transit, // Ready to move to destination
+                    Status = Models.Enums.TaskStatus.InProgress, 
+                    ActiveTaskStatus = Models.Enums.ActiveTaskStatus.transit, 
                     CreatedDateTime = DateTime.Now,
                     Pallet = loadedPallet,
                     SourceCell = sourceCell,
                     DestinationFinger = selectedFinger,
-                    DestinationCell = selectedCell, // This will be null if finger was selected, and vice-versa
-                    // UserId = _currentUserContext.CurrentUser.Id // Assuming CurrentUser is available and has Id
+                    DestinationCell = selectedCell, 
                 };
                 
-                // TODO: Ensure UserId is set if required by DB or TaskDetails logic.
                 if (_currentUserContext.CurrentUser != null) newTaskDetails.UserId = _currentUserContext.CurrentUser.Id;
 
 
@@ -687,18 +817,30 @@ namespace EM.Maman.DriverClient.ViewModels
                 if (saved)
                 {
                     _logger.LogInformation("HND Retrieval Task (ID: {TaskId}) created and saved for pallet {PalletId}.", newTaskDetails.Id, loadedPallet.Id);
-                    
-                    // Add to PalletsReadyForDelivery
-                    var retrievalDeliveryItem = new PalletRetrievalTaskItem(loadedPallet, newTaskDetails)
+
+                    var selectCellCmdForHnd = new RelayCommand(async (item) =>
                     {
-                        GoToRetrievalCommand = this.GoToRetrievalDestinationCommand,
-                        UnloadCommand = this.UnloadAtDestinationCommand
-                    };
+                        if (item is PalletRetrievalTaskItem taskItem)
+                        {
+                            await ShowSelectCellDialogForRetrievalItemAsync(taskItem);
+                        }
+                    });
+                    
+                    var retrievalDeliveryItem = new PalletRetrievalTaskItem(
+                        loadedPallet, 
+                        newTaskDetails,
+                        this.AvailableFingers,
+                        this.GoToRetrievalDestinationCommand,
+                        this.ChangeSourceCommand, // Assuming ChangeSourceCommand is a valid command in MainViewModel
+                        this.UnloadAtDestinationCommand,
+                        selectCellCmdForHnd
+                        );
+
                     _dispatcherService.Invoke(() =>
                     {
                         PalletsReadyForDelivery.Add(retrievalDeliveryItem);
-                        OnPropertyChanged(nameof(HasPalletsReadyForDelivery)); // Notify UI
-                        OnPropertyChanged(nameof(ShouldShowTasksPanel)); // Update dependent properties
+                        OnPropertyChanged(nameof(HasPalletsReadyForDelivery)); 
+                        OnPropertyChanged(nameof(ShouldShowTasksPanel)); 
                         OnPropertyChanged(nameof(ShouldShowDefaultPhoto));
                         OnPropertyChanged(nameof(IsDefaultTaskViewActive));
                     });

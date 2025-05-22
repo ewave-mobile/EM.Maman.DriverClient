@@ -1,4 +1,4 @@
-﻿﻿﻿using EM.Maman.Models.CustomModels;
+﻿﻿﻿﻿using EM.Maman.Models.CustomModels;
 using EM.Maman.Models.Interfaces.Services;
 using EM.Maman.Models.Interfaces;
 using EM.Maman.Models.LocalDbModels;
@@ -88,6 +88,7 @@ namespace EM.Maman.DriverClient.ViewModels
         private ObservableCollection<TaskDetails> _storageTasks; // Keep for now, might be used elsewhere
         private ObservableCollection<TaskDetails> _retrievalTasks;
         private ObservableCollection<FingerStorageInfo> _availableStorageFingers; // Added for the new view
+        private ObservableCollection<int> _recentlyCompletedTaskIds = new ObservableCollection<int>(); // For delayed removal from pending list
         private TaskDetails _selectedTask;
         private TaskDetails _activeTask;
         private bool _isTaskActive = false ;
@@ -330,7 +331,7 @@ namespace EM.Maman.DriverClient.ViewModels
         public ICommand CreateImportTaskCommand => _createImportTaskCommand ??= new RelayCommand(_ => CreateStorageTask(), _ => true);
         public ICommand CreateExportTaskCommand => _createExportTaskCommand ??= new RelayCommand(_ => CreateRetrievalTask(), _ => true);
         public ICommand CreateManualTaskCommand => _createManualTaskCommand ??= new RelayCommand(_ => CreateManualTask(), _ => true);
-        public ICommand StartTaskCommand => _startTaskCommand ??= new RelayCommand(param => StartTask(param), param => true);
+        public ICommand StartTaskCommand => _startTaskCommand ??= new RelayCommand(param => StartTask(param), CanStartTaskFromGeneralList);
         public ICommand CompleteTaskCommand => _completeTaskCommand ??= new RelayCommand(_ => CompleteTask(), _ => CanCompleteTask());
         public ICommand NavigateToSourceCommand => _navigateToSourceCommand ??= new RelayCommand(_ => NavigateToSource(), _ => CanNavigateToSource());
         public ICommand NavigateToDestinationCommand => _navigateToDestinationCommand ??= new RelayCommand(_ => NavigateToDestination(), _ => CanNavigateToDestination());
@@ -386,6 +387,62 @@ namespace EM.Maman.DriverClient.ViewModels
             await LoadTasksAsync();
             await LoadAvailableStorageFingersAsync(); // Also load finger info on init
             // Any other async init needed for this VM
+        }
+
+        public void RefreshTaskStatus(TaskDetails updatedTaskDetails)
+        {
+            if (updatedTaskDetails == null) return;
+
+            var taskInCollection = Tasks.FirstOrDefault(t => t.Id == updatedTaskDetails.Id);
+            if (taskInCollection != null)
+            {
+                // Update properties from the provided details
+                // This ensures that the instance in the Tasks collection reflects the latest state
+                taskInCollection.Status = updatedTaskDetails.Status;
+                taskInCollection.ActiveTaskStatus = updatedTaskDetails.ActiveTaskStatus;
+                taskInCollection.ExecutedDateTime = updatedTaskDetails.ExecutedDateTime;
+                // Update any other relevant properties if needed
+
+                _logger.LogInformation("TaskViewModel: Refreshed status for Task ID {TaskId} to {Status}, ActiveStatus {ActiveStatus}", 
+                    updatedTaskDetails.Id, updatedTaskDetails.Status, updatedTaskDetails.ActiveTaskStatus);
+
+                if (updatedTaskDetails.Status == Models.Enums.TaskStatus.Completed &&
+                    !_recentlyCompletedTaskIds.Contains(updatedTaskDetails.Id) &&
+                    (updatedTaskDetails.TaskType == Models.Enums.TaskType.Retrieval || updatedTaskDetails.TaskType == Models.Enums.TaskType.Storage)) // Apply delay for both types as per "like storage item"
+                {
+                    _logger.LogInformation("Task ID {TaskId} is completed. Adding to recently completed for 5s display.", updatedTaskDetails.Id);
+                    _recentlyCompletedTaskIds.Add(updatedTaskDetails.Id);
+                    UpdateFilteredLists(); // Show with green bar
+
+                    System.Threading.Tasks.Task.Run(async () =>
+                    {
+                        await System.Threading.Tasks.Task.Delay(5000);
+                        _dispatcherService.Invoke(() =>
+                        {
+                            if (_recentlyCompletedTaskIds.Contains(updatedTaskDetails.Id))
+                            {
+                                _recentlyCompletedTaskIds.Remove(updatedTaskDetails.Id);
+                                _logger.LogInformation("5s elapsed for Task ID {TaskId}. Removing from recently completed and re-filtering.", updatedTaskDetails.Id);
+                                UpdateFilteredLists(); // Re-filter to move it out of pending
+                            }
+                        });
+                    });
+                }
+                else if (!_recentlyCompletedTaskIds.Contains(updatedTaskDetails.Id))
+                {
+                    // If not recently completed or already processed by timer, update lists normally
+                    UpdateFilteredLists();
+                }
+                // If it IS in _recentlyCompletedTaskIds, UpdateFilteredLists() was already called when it was added.
+                // It will be called again when removed by the timer.
+            }
+            else
+            {
+                _logger.LogWarning("TaskViewModel: Attempted to refresh status for Task ID {TaskId}, but it was not found in the main Tasks collection.", updatedTaskDetails.Id);
+                // Optionally, if the task is new and completed elsewhere, consider adding it directly to CompletedTasks
+                // or reloading all tasks if this scenario implies a missing task.
+                // For now, we assume it should have been in Tasks if it was being actively worked on.
+            }
         }
 
         private void OpcService_RegisterChanged(object sender, Models.PlcModels.RegisterChangedEventArgs e)
@@ -471,9 +528,12 @@ namespace EM.Maman.DriverClient.ViewModels
                             ? (t.IsExecuted == false || t.IsExecuted == null) 
                             : (t.Status == (int)Models.Enums.TaskStatus.Created || t.Status == (int)Models.Enums.TaskStatus.InProgress),
                         include: query => query
-                            // Cannot include Pallet directly due to key mismatch
-                            .Include(t => t.FingerLocation) // Include Finger based on FingerLocationId
-                            .Include(t => t.CellEndLocation),  // Include Cell based on CellEndLocationId
+                            // Include new specific navigation properties
+                            .Include(t => t.RetrievalSourceCell)
+                            .Include(t => t.RetrievalDestinationFinger)
+                            .Include(t => t.RetrievalDestinationCell) // For HND
+                            .Include(t => t.StorageSourceFinger)
+                            .Include(t => t.StorageDestinationCell),
                         orderBy: query => query.OrderByDescending(t => t.DownloadDate) // Example ordering
                     );
 
@@ -492,8 +552,18 @@ namespace EM.Maman.DriverClient.ViewModels
                             }
                         }
 
-                        // Create TaskDetails using the included Finger/Cell and the separately fetched Pallet
-                        var taskDetails = TaskDetails.FromDbModel(task, pallet, task.FingerLocation, null, task.CellEndLocation);
+                        // Create TaskDetails using the simpler FromDbModel, then assign pallet
+                        // This relies on TaskDetails.FromDbModel(dbTask) to use the included navigation properties
+                        var taskDetails = TaskDetails.FromDbModel(task);
+                        if (taskDetails != null)
+                        {
+                            taskDetails.Pallet = pallet;
+                        }
+                        else
+                        {
+                            _logger.LogWarning("TaskDetails.FromDbModel(task) returned null for Task ID {TaskId}", task.Id);
+                            continue; // Skip this task if basic details can't be formed
+                        }
 
                         // Check if this is an ongoing task (InProgress status)
                         if (taskDetails.Status == Models.Enums.TaskStatus.InProgress)
@@ -609,11 +679,30 @@ namespace EM.Maman.DriverClient.ViewModels
                                 else // TaskType.Retrieval
                                 {
                                     // Create a PalletRetrievalTaskItem and add it to the retrieval collection
-                                    var retrievalItem = new PalletRetrievalTaskItem(pallet, task)
+                                    // Ensure _mainVM and its properties are not null
+                                    if (_mainVM == null)
                                     {
-                                        GoToRetrievalCommand = _mainVM.GoToRetrievalLocationCommand, // Use the correct command
-                                        ChangeSourceCommand = _mainVM.ChangeSourceCommand // Use the correct command
-                                    };
+                                        _logger.LogError("MainViewModel is null in LoadOngoingTasksToMainViewModel. Cannot create PalletRetrievalTaskItem.");
+                                        continue; // Skip this item
+                                    }
+
+                                    var selectCellCmd = new RelayCommand(async (item) =>
+                                    {
+                                        if (item is PalletRetrievalTaskItem taskItem)
+                                        {
+                                            await _mainVM.ShowSelectCellDialogForRetrievalItemAsync(taskItem);
+                                        }
+                                    });
+
+                                    var retrievalItem = new PalletRetrievalTaskItem(
+                                        pallet,
+                                        task,
+                                        _mainVM.AvailableFingers, // Pass the list of available fingers
+                                        _mainVM.GoToRetrievalDestinationCommand, // Command to go to destination
+                                        _mainVM.ChangeSourceCommand, // Command to change source (if applicable)
+                                        _mainVM.UnloadAtDestinationCommand, // Command to unload
+                                        selectCellCmd // Command to select cell
+                                    );
 
                                     _dispatcherService.Invoke(() =>
                                     {
@@ -642,27 +731,35 @@ namespace EM.Maman.DriverClient.ViewModels
 
         private void UpdateFilteredLists()
         {
+            // Tasks that are genuinely pending (Created or InProgress) OR are recently completed (green bar phase)
             PendingTasks = new ObservableCollection<TaskDetails>(
-                Tasks.Where(t => t.Status == Models.Enums.TaskStatus.Created || t.Status == Models.Enums.TaskStatus.InProgress)
+                Tasks.Where(t =>
+                        (_recentlyCompletedTaskIds.Contains(t.Id) && t.Status == Models.Enums.TaskStatus.Completed) || // Recently completed, show with green bar
+                        (t.Status == Models.Enums.TaskStatus.Created || t.Status == Models.Enums.TaskStatus.InProgress) && !_recentlyCompletedTaskIds.Contains(t.Id) // Genuinely pending
+                     )
                      .OrderByDescending(t => t.IsPriority)
                      .ThenBy(t => t.CreatedDateTime));
 
+            // Tasks that are truly completed and not in the 5s green bar phase
             CompletedTasks = new ObservableCollection<TaskDetails>(
-                Tasks.Where(t => t.Status == Models.Enums.TaskStatus.Completed ||
+                Tasks.Where(t => (t.Status == Models.Enums.TaskStatus.Completed && !_recentlyCompletedTaskIds.Contains(t.Id)) ||
                               t.Status == Models.Enums.TaskStatus.Failed ||
                               t.Status == Models.Enums.TaskStatus.Cancelled)
                      .OrderByDescending(t => t.ExecutedDateTime));
 
-            // Update the storage and retrieval task lists
+            // Update the storage and retrieval task lists based on the (potentially augmented) PendingTasks
             StorageTasks = new ObservableCollection<TaskDetails>(
-                PendingTasks.Where(t => t.IsImportTask)
+                PendingTasks.Where(t => t.IsImportTask) // IsImportTask is true for Storage TaskType
                      .OrderByDescending(t => t.IsPriority)
                      .ThenBy(t => t.CreatedDateTime));
 
             RetrievalTasks = new ObservableCollection<TaskDetails>(
-                PendingTasks.Where(t => !t.IsImportTask)
+                PendingTasks.Where(t => t.TaskType == Models.Enums.TaskType.Retrieval) // Explicitly check TaskType for retrieval
                      .OrderByDescending(t => t.IsPriority)
                      .ThenBy(t => t.CreatedDateTime));
+            
+            OnPropertyChanged(nameof(RetrievalTasksCount));
+            OnPropertyChanged(nameof(StorageTasksCount)); // Though this is now finger count, re-evaluating pending tasks might affect it if logic changes
         }
 
         private async void ExecuteNextNavigation()
@@ -765,10 +862,13 @@ namespace EM.Maman.DriverClient.ViewModels
             if (dialog.ShowDialog() == true && viewModel.TaskDetails != null)
             {
                 // Save first, then add to collection if successful
-                await SaveTaskToDatabase(viewModel.TaskDetails); // Make async
-                Tasks.Add(viewModel.TaskDetails); // Add after saving (ID might be updated)
-                // UpdateFilteredLists(); // UpdateFilteredLists is called when Tasks collection is set
-                StatusMessage = "Storage task created.";
+                bool saved = await SaveTaskToDatabase(viewModel.TaskDetails); // Make async
+                if (saved)
+                {
+                    Tasks.Add(viewModel.TaskDetails); // Add after saving (ID might be updated)
+                    await LoadAvailableStorageFingersAsync(); // Refresh finger counts
+                    StatusMessage = "Storage task created.";
+                }
             }
         }
 
@@ -782,10 +882,13 @@ namespace EM.Maman.DriverClient.ViewModels
             if (dialog.ShowDialog() == true && viewModel.TaskDetails != null)
             {
                 // Save first, then add to collection if successful
-                await SaveTaskToDatabase(viewModel.TaskDetails); // Make async
-                Tasks.Add(viewModel.TaskDetails); // Add after saving (ID might be updated)
-                // UpdateFilteredLists(); // UpdateFilteredLists is called when Tasks collection is set
-                StatusMessage = "Retrieval task created.";
+                bool saved = await SaveTaskToDatabase(viewModel.TaskDetails); // Make async
+                if (saved)
+                {
+                    Tasks.Add(viewModel.TaskDetails); // Add after saving (ID might be updated)
+                    await LoadAvailableStorageFingersAsync(); // Refresh finger counts (might be relevant if retrieval can be from finger)
+                    StatusMessage = "Retrieval task created.";
+                }
             }
         }
 
@@ -797,10 +900,13 @@ namespace EM.Maman.DriverClient.ViewModels
             if (dialog.ShowDialog() == true && dialog.TaskDetails != null)
             {
                 // Save first, then add to collection if successful
-                await SaveTaskToDatabase(dialog.TaskDetails); // Make async
-                Tasks.Add(dialog.TaskDetails); // Add after saving (ID might be updated)
-                // UpdateFilteredLists(); // UpdateFilteredLists is called when Tasks collection is set
-                StatusMessage = dialog.TaskDetails.IsImportTask ? "Storage task created." : "Retrieval task created.";
+                bool saved = await SaveTaskToDatabase(dialog.TaskDetails); // Make async
+                if (saved)
+                {
+                    Tasks.Add(dialog.TaskDetails); // Add after saving (ID might be updated)
+                    await LoadAvailableStorageFingersAsync(); // Refresh finger counts
+                    StatusMessage = dialog.TaskDetails.IsImportTask ? "Storage task created." : "Retrieval task created.";
+                }
             }
         }
 
@@ -920,25 +1026,34 @@ namespace EM.Maman.DriverClient.ViewModels
 
             if (saved)
             {
-                // Manually trigger property change for Status if needed, although binding should handle it
-                // ActiveTask.OnPropertyChanged(nameof(ActiveTask.Status)); // If TaskDetails has such a method
+                UpdateFilteredLists(); // Update lists to reflect InProgress status
 
-                // Update filtered lists if the status change affects its list placement
-                UpdateFilteredLists();
-
-                // Initialize the task workflow (set up steps, etc.)
-                InitializeTaskWorkflow();
+                if (ActiveTask.TaskType == Models.Enums.TaskType.Retrieval)
+                {
+                    // For retrieval tasks, hand off to MainViewModel to navigate and then authenticate
+                    _logger.LogInformation("Retrieval task {TaskId} started. Handing off to MainViewModel for navigation and authentication.", ActiveTask.Id);
+                    await _mainVM.BeginRetrievalTaskAtSourceCellAsync(ActiveTask);
+                    // InitializeTaskWorkflow will be called by MainViewModel after successful authentication for retrieval tasks
+                }
+                else // For Storage tasks or other types
+                {
+                    InitializeTaskWorkflow(); // Original workflow initialization
+                }
             }
             else
             {
                 // Revert status if save failed? Or handle error appropriately
+                _logger.LogError("Failed to save status for starting task {TaskId}. Reverting.", SelectedTask.Id);
                 ActiveTask.Status = Models.Enums.TaskStatus.Created; // Example revert
-                ActiveTask = null; // Deactivate task
+                // ActiveTask = null; // Do not nullify ActiveTask here, allow UI to reflect failed start
+                // UpdateFilteredLists(); // Re-filter if status reverted
+                MessageBox.Show("Failed to save task start status. Please try again.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-            InitializeTaskWorkflow();
+            // Removed duplicate InitializeTaskWorkflow();
         }
 
-        private void InitializeTaskWorkflow()
+        // Made public to be callable from MainViewModel after authentication
+        public void InitializeTaskWorkflow()
         {
             if (ActiveTask == null)
                 return;
@@ -1202,7 +1317,7 @@ namespace EM.Maman.DriverClient.ViewModels
         /// <summary>
         /// Loads the list of available storage fingers and their pallet counts.
         /// </summary>
-        private async System.Threading.Tasks.Task LoadAvailableStorageFingersAsync() // Fully qualify Task
+        public async System.Threading.Tasks.Task LoadAvailableStorageFingersAsync() // Fully qualify Task
         {
             try
             {
@@ -1260,7 +1375,59 @@ namespace EM.Maman.DriverClient.ViewModels
 
 
         // Command availability logic
-        private bool CanStartTask() => true;
+        private bool CanStartTaskFromGeneralList(object parameter)
+        {
+            if (parameter is not TaskDetails taskToStart) return false;
+
+            // Define startable/resumable states
+            bool isGenerallyStartable = taskToStart.Status == Models.Enums.TaskStatus.Created ||
+                                        taskToStart.ActiveTaskStatus == Models.Enums.ActiveTaskStatus.pending ||
+                                        taskToStart.ActiveTaskStatus == Models.Enums.ActiveTaskStatus.New;
+
+            bool isRetrievalResumable = taskToStart.TaskType == Models.Enums.TaskType.Retrieval &&
+                                        (taskToStart.ActiveTaskStatus == Models.Enums.ActiveTaskStatus.navigating_to_source ||
+                                         taskToStart.ActiveTaskStatus == Models.Enums.ActiveTaskStatus.retrieval); // 'retrieval' means at cell for auth
+
+            bool isStartableState = isGenerallyStartable || isRetrievalResumable;
+
+            if (!isStartableState)
+            {
+                _logger.LogTrace("CanStartTaskFromGeneralList: Task {TaskId} is not in a startable/resumable state (Status: {Status}, ActiveStatus: {ActiveStatus})", 
+                    taskToStart.Id, taskToStart.Status, taskToStart.ActiveTaskStatus);
+                return false;
+            }
+
+            if (_mainVM != null)
+            {
+                // Prevent starting if pallet is already loaded and ready for delivery (meaning past source cell pickup)
+                bool palletIsLoadedForDelivery = _mainVM.PalletsReadyForDelivery.Any(p => p.RetrievalTask?.Id == taskToStart.Id);
+                if (palletIsLoadedForDelivery)
+                {
+                    _logger.LogTrace("CanStartTaskFromGeneralList: Task {TaskId} cannot be started, pallet is already in PalletsReadyForDelivery.", taskToStart.Id);
+                    return false;
+                }
+
+                // If it's a retrieval task that is resumable (navigating_to_source or retrieval)
+                // it's okay if it's in PalletsForRetrieval or is the ActiveCellAuthenticationItem, as re-pressing "Go" should re-initiate.
+                // However, if it's a storage task, being in PalletsReadyForStorage means it's past the initial "start" from the general list.
+                if (taskToStart.TaskType == Models.Enums.TaskType.Storage)
+                {
+                    bool isActiveStorageInMainVM = _mainVM.PalletsReadyForStorage.Any(p => p.StorageTask?.Id == taskToStart.Id);
+                    if (isActiveStorageInMainVM)
+                    {
+                         _logger.LogTrace("CanStartTaskFromGeneralList: Storage Task {TaskId} is already in PalletsReadyForStorage.", taskToStart.Id);
+                        return false;
+                    }
+                }
+                
+                // Consider if trolley is busy with another critical operation from MainViewModel
+                // For now, we assume MainViewModel's BeginRetrievalTaskAtSourceCellAsync can handle re-entrant calls if trolley is busy or target is same.
+                // A more robust check could be: if (_mainVM._activeNavigationTcs != null && _mainVM._activeNavigationTargetPosition != targetForThisTask) return false;
+            }
+            
+            _logger.LogTrace("CanStartTaskFromGeneralList: Task {TaskId} can be started.", taskToStart.Id);
+            return true;
+        }
         private bool CanCompleteTask() => true;
         private bool CanNavigateToSource() => true;
         private bool CanNavigateToDestination() => true;

@@ -164,6 +164,11 @@ namespace EM.Maman.DriverClient.ViewModels
         /// </summary>
         public event EventHandler<int> PositionChanged;
 
+        /// <summary>
+        /// Event raised when the trolley status changes
+        /// </summary>
+        public event EventHandler<string> CurrentStatusChanged;
+
         #endregion
 
         #region Constructor
@@ -319,6 +324,13 @@ namespace EM.Maman.DriverClient.ViewModels
                                 }
                             }
                             // Add handling for other specific registers if needed
+                            // Special handling for Status register
+                            if (updatedRegister.NodeId.Contains(OpcNodes.Status)) // Use OpcNodes.Status for precise matching
+                            {
+                                CurrentStatus = updatedRegister.Value?.ToString() ?? string.Empty;
+                                CurrentStatusChanged?.Invoke(this, CurrentStatus); // Raise event
+                                _logger.LogInformation($"OPC Status updated to: {CurrentStatus}");
+                            }
                         });
                     });
                     Status = $"Subscribed to {register.Name}";

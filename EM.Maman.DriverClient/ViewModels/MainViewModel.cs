@@ -11,6 +11,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection; // Added for IServiceProvider
 using System.Linq; // Added for FirstOrDefault
 using EM.Maman.Models.Dtos; // Added for TaskItemDto
+using System.Threading.Tasks; // Added for Task
+using EM.Maman.DriverClient.Views; // Added for SelectHndDestinationDialog
+using System.Windows; // Added for MessageBox
+using EM.Maman.Models.Enums; // Added for ActiveTaskStatus
 
 namespace EM.Maman.DriverClient.ViewModels
 {
@@ -30,6 +34,11 @@ namespace EM.Maman.DriverClient.ViewModels
         private readonly ICurrentUserContext _currentUserContext; // Added
         private readonly IMamanHttpService _mamanHttpService; // Added
 
+        // Navigation tracking fields
+        private System.Threading.Tasks.TaskCompletionSource<bool> _activeNavigationTcs;
+        private short? _activeNavigationTargetPosition;
+        private string _activeNavigationTargetStatus = "Idle"; // Assuming "Idle" means stopped/completed
+
         // private User _currentUser; // Removed, state now in _currentUserContext
         private bool _isLogoutDrawerOpen; // Added
 
@@ -40,8 +49,30 @@ namespace EM.Maman.DriverClient.ViewModels
         private int _currentCellLevel; // Added to store current cell level
         private int _currentCellPosition; // Added to store current cell position
         private string _currentFingerDisplayName;
+        private string _currentCellDisplayName; // Added for cell auth UI
         private ObservableCollection<Finger> _availableFingers = new ObservableCollection<Finger>();
         private Trolley _currentTrolley;
+
+        private PalletAuthenticationItem _activeCellAuthenticationItem;
+        public PalletAuthenticationItem ActiveCellAuthenticationItem
+        {
+            get => _activeCellAuthenticationItem;
+            set => SetProperty(ref _activeCellAuthenticationItem, value);
+        }
+
+        private bool _isCellAuthenticationViewActive;
+        public bool IsCellAuthenticationViewActive
+        {
+            get => _isCellAuthenticationViewActive;
+            set
+            {
+                if (SetProperty(ref _isCellAuthenticationViewActive, value))
+                {
+                    OnPropertyChanged(nameof(ShouldShowTasksPanel)); 
+                    OnPropertyChanged(nameof(ShouldShowDefaultPhoto));
+                }
+            }
+        }
 
         #endregion
 
@@ -105,12 +136,15 @@ namespace EM.Maman.DriverClient.ViewModels
                 // 2. Has active storage tasks
                 // 3. Has active retrieval tasks
                 // 4. At a cell with retrieval task
-                return IsFingerAuthenticationViewActive || 
-                       HasPalletsReadyForStorage || 
-                       HasPalletsForRetrieval || 
-                       IsAtCellWithRetrievalTask;
-            }
-        }
+                // 5. Cell authentication view is active
+                return IsFingerAuthenticationViewActive ||
+                       IsCellAuthenticationViewActive || // Added
+               HasPalletsReadyForStorage || 
+               HasPalletsForRetrieval || 
+               IsAtCellWithRetrievalTask ||
+               HasPalletsReadyForDelivery; // Added this condition
+    }
+}
 
         /// <summary>
         /// Determines whether to show the default photo in the current task view.
@@ -192,6 +226,12 @@ namespace EM.Maman.DriverClient.ViewModels
                     OnPropertyChanged(nameof(CurrentFingerDisplayName));
                 }
             }
+        }
+        
+        public string CurrentCellDisplayName
+        {
+            get => _currentCellDisplayName;
+            set => SetProperty(ref _currentCellDisplayName, value);
         }
 
         public ObservableCollection<Finger> AvailableFingers
@@ -327,6 +367,7 @@ namespace EM.Maman.DriverClient.ViewModels
 
             // Subscribe to position changes from OPC
             OpcVM.PositionChanged += OnPositionChanged;
+            OpcVM.CurrentStatusChanged += OnTrolleyStatusChanged; // Subscribe to new status event
 
             // Initialize TrolleyOperationsViewModel with a temporary trolley instance.
             // This will be updated with the DB-loaded trolley in InitializeApplicationAsync.
@@ -356,6 +397,106 @@ namespace EM.Maman.DriverClient.ViewModels
         }
 
         #endregion
+
+        public async System.Threading.Tasks.Task ShowSelectCellDialogForRetrievalItemAsync(PalletRetrievalTaskItem item)
+        {
+            if (item == null || item.RetrievalTask == null)
+            {
+                _logger.LogWarning("ShowSelectCellDialogForRetrievalItemAsync called with null item or item.RetrievalTask.");
+                return;
+            }
+
+            try
+            {
+                var dialog = _serviceProvider.GetRequiredService<SelectHndDestinationDialog>(); // Keep this for the dialog view
+
+                // Manually create the ViewModel, passing the required Pallet and Cell
+                var loadedPallet = item.PalletDetails;
+                var sourceCell = item.RetrievalTask?.SourceCell; // Null check for safety
+
+                // Ensure we have the pallet before proceeding
+                if (loadedPallet == null)
+                {
+                    _logger.LogError("PalletDetails is null for Task ID: {TaskId}. Cannot show SelectHndDestinationDialog.", item.RetrievalTask?.Id);
+                    MessageBox.Show("Cannot change destination: Pallet details are missing.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                // sourceCell can be null if it's a new task or not yet defined; the SelectHndDestinationViewModel's constructor
+                // and LoadDestinationsAsync method appear to handle a null sourceCell gracefully.
+
+                var dialogViewModel = new SelectHndDestinationViewModel(
+                    _unitOfWorkFactory, // Already available in MainViewModel
+                    _loggerFactory.CreateLogger<SelectHndDestinationViewModel>(), // Create logger using existing _loggerFactory
+                    loadedPallet,
+                    sourceCell 
+                );
+                
+                dialog.DataContext = dialogViewModel;
+
+                _logger.LogInformation("Showing SelectHndDestinationDialog for Task ID: {TaskId}", item.RetrievalTask.Id);
+                if (dialog.ShowDialog() == true)
+                {
+                    if (dialogViewModel.SelectedCell != null)
+                    {
+                        _logger.LogInformation("Cell selected from dialog: {CellDisplayName} for Task ID: {TaskId}", dialogViewModel.SelectedCell.DisplayName, item.RetrievalTask.Id);
+                        // Update the task item
+                        item.RetrievalTask.DestinationCell = dialogViewModel.SelectedCell;
+                        item.RetrievalTask.DestinationFinger = null; // Clear finger destination
+                        item.SelectedFinger = null; // Clear selected finger in the item's ViewModel, this will trigger its OnPropertyChanged for DestinationDisplay
+
+                        // Save the updated task
+                        bool saved = await TaskVM.SaveTaskToDatabase(item.RetrievalTask); // Saves the new destination
+                        if (saved)
+                        {
+                            _logger.LogInformation("Successfully updated and saved destination for Task ID: {TaskId} to Cell: {CellId}", item.RetrievalTask.Id, dialogViewModel.SelectedCell.Id);
+                            
+                            // Set status to transit BEFORE reloading, so DB has it.
+                            item.RetrievalTask.ActiveTaskStatus = ActiveTaskStatus.transit;
+                            bool statusSaved = await TaskVM.SaveTaskToDatabase(item.RetrievalTask); // Save again with new status
+
+                            if (!statusSaved) {
+                                _logger.LogError("Failed to save updated ActiveTaskStatus to transit for Task ID: {TaskId}", item.RetrievalTask.Id);
+                                // Proceed with caution, status might be inconsistent
+                            }
+
+                            await TaskVM.LoadTasksAsync(); // Reload all tasks
+
+                            var updatedTaskDetailsFromLoad = TaskVM.Tasks.FirstOrDefault(t => t.Id == item.RetrievalTask.Id);
+                            if (updatedTaskDetailsFromLoad != null)
+                            {
+                                item.RetrievalTask = updatedTaskDetailsFromLoad; // Ensure item in collection uses the reloaded TaskDetails
+                                // Now item.RetrievalTask.ActiveTaskStatus should be 'transit' from the DB.
+                                _logger.LogInformation("Refreshed RetrievalTask for item in UI for Task ID: {TaskId}. Current ActiveStatus: {Status}", item.RetrievalTask.Id, item.RetrievalTask.ActiveTaskStatus);
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Could not find reloaded TaskDetails for Task ID: {TaskId} after LoadTasksAsync. UI might not reflect latest destination.", item.RetrievalTask.Id);
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogError("Failed to save updated destination for Task ID: {TaskId}", item.RetrievalTask.Id);
+                            MessageBox.Show("Failed to save the new destination. Please try again.", "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                            // Potentially revert changes in item.RetrievalTask if save fails and it's critical
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogInformation("SelectHndDestinationDialog closed with OK but no cell selected for Task ID: {TaskId}", item.RetrievalTask.Id);
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("SelectHndDestinationDialog cancelled for Task ID: {TaskId}", item.RetrievalTask.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in ShowSelectCellDialogForRetrievalItemAsync for Task ID: {TaskId}", item.RetrievalTask?.Id);
+                MessageBox.Show($"An error occurred while trying to change the destination: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
 
         public async System.Threading.Tasks.Task SetCurrentUserAsync(int userId)
         {

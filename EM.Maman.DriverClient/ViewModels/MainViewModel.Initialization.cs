@@ -109,6 +109,17 @@ namespace EM.Maman.DriverClient.ViewModels
 
                 await LoadPersistedTrolleyStateAsync(); // Load persisted trolley state (relies on CurrentTrolley being set)
 
+                // After TrolleyVM is initialized and its state loaded, refresh TrolleyOperationsVM command states
+                if (TrolleyOperationsVM != null)
+                {
+                    _logger.LogInformation("Requesting TrolleyOperationsVM to refresh unload command states post TrolleyVM load.");
+                    TrolleyOperationsVM.RefreshCommandStates();
+                }
+                else
+                {
+                    _logger.LogWarning("TrolleyOperationsVM is null after TrolleyVM initialization. Cannot refresh command states.");
+                }
+
                 _logger.LogInformation("Initializing WarehouseVM...");
                 await WarehouseVM.InitializeAsync();
                 _logger.LogInformation("WarehouseVM initialized.");

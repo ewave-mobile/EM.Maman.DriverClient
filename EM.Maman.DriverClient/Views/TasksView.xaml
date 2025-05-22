@@ -14,15 +14,21 @@
 
     <UserControl.Resources>
         <ResourceDictionary>
-            <!-- Removed local merging of Material Design defaults. Assume it's handled in App.xaml -->
-            <!-- <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Defaults.xaml" />
-            </ResourceDictionary.MergedDictionaries> -->
-
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
-            <converters:TaskStatusToBrushConverter x:Key="TaskStatusToBrushConverter" />
+            <!-- Old Converters - TaskStatusToBrushConverter might be replaced by ActiveTaskStatusToSidebarBrushConverter for the sidebar -->
+            <converters:TaskStatusToBrushConverter x:Key="TaskStatusToBrushConverter" /> 
             <converters:TaskStatusToTextConverter x:Key="TaskStatusToTextConverter" />
-            <converters:TaskTypeToColorConverter x:Key="TaskTypeToColorConverter" /> <!-- Assuming this returns appropriate sidebar colors -->
+            <!-- <converters:TaskTypeToColorConverter x:Key="TaskTypeToColorConverter" /> --> <!-- Replaced by ActiveTaskStatusToSidebarBrushConverter for retrieval task sidebar -->
+
+            <!-- New Converters -->
+            <converters:ActiveTaskStatusToSidebarBrushConverter x:Key="ActiveTaskStatusToSidebarBrushConverter" />
+            <converters:UldTypeToStringConverter x:Key="UldTypeToStringConverter" />
+            <converters:HeightLevelToStringConverter x:Key="HeightLevelToStringConverter" />
+
+            <converters:StorageTypeToHebrewConverter x:Key="StorageTypeToHebrewConverter"/>
+            <converters:StorageTypeToBorderBrushConverter x:Key="StorageTypeToBorderBrushConverter"/>
+            <converters:StorageTypeToBackgroundBrushConverter x:Key="StorageTypeToBackgroundBrushConverter"/>
+            <converters:StorageTypeToTextBrushConverter x:Key="StorageTypeToTextBrushConverter"/>
 
             <!-- Style for the main task card Border -->
             <Style x:Key="TaskCardBaseStyle" TargetType="Border">
@@ -46,10 +52,8 @@
 
             <!-- Style for Retrieval Task Card -->
             <Style x:Key="RetrievalTaskCardStyle" TargetType="Border" BasedOn="{StaticResource TaskCardBaseStyle}">
-                <!-- Add colored sidebar -->
-                <Setter Property="BorderThickness" Value="5,1,1,1"/>
-                <!-- Binding BorderBrush to TaskType or Status via converter -->
-                <Setter Property="BorderBrush" Value="{Binding Converter={StaticResource TaskTypeToColorConverter}}"/>
+                <Setter Property="BorderThickness" Value="5,1,1,1"/> <!-- RTL: Thick border on the visual right -->
+                <!-- <Setter Property="BorderBrush" Value="{Binding ActiveTaskStatus, Converter={StaticResource ActiveTaskStatusToSidebarBrushConverter}}"/> -->
             </Style>
 
             <!-- Style for Header Text -->
@@ -74,10 +78,11 @@
             </Style>
 
             <!-- Style for GO Button -->
-             <Style x:Key="GoButtonStyle" TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
-                <Setter Property="Background" Value="#E0E0E0"/>
-                <Setter Property="Foreground" Value="#424242"/>
-                <Setter Property="BorderThickness" Value="0"/>
+             <Style x:Key="GoButtonStyle" TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
+                <Setter Property="Background" Value="#FFFFFF"/>
+                <Setter Property="Foreground" Value="#35363D"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="BorderBrush" Value="#CDCDCD"/>
                 <Setter Property="Padding" Value="10,5"/>
                  <Setter Property="MinWidth" Value="50"/>
                  <Setter Property="Content">
@@ -145,89 +150,129 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding TaskVM.RetrievalTasks}">
                         <ItemsControl.ItemTemplate>
+                            <!-- New DataTemplate for Retrieval Tasks based on Mockup -->
                             <DataTemplate>
-                                <Border Style="{StaticResource RetrievalTaskCardStyle}">
+                                <Border Width="550" Style="{StaticResource RetrievalTaskCardStyle}">
+                                    <!-- ViewModel for each item should expose:
+                                         - Status (for sidebar, e.g., an enum like ActiveTaskStatus)
+                                         - DestinationFinger (object for ComboBox SelectedItem)
+                                         - SourceCell.Level, SourceCell.Position
+                                         - Pallet.UldType, Pallet.HeightType (or HeightLevel)
+                                         - CreatedDateTime
+                                         - DisplayDetail1 (for "פרט")
+                                         - DisplayDetail2 (for "מופע")
+                                         - DisplayDetail3 (for "מצהר")
+                                         - The underlying Task object for CommandParameter if needed
+                                    -->
                                     <Grid>
                                         <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/> <!-- Top Row: Source, Dest Finger, Button -->
-                                            <RowDefinition Height="Auto"/> <!-- Bottom Row: Pallet Details -->
+                                            <RowDefinition Height="Auto"/> <!-- Top: GO, Finger, Location, Arrow -->
+                                            <RowDefinition Height="Auto"/> <!-- Separator Line -->
+                                            <RowDefinition Height="Auto"/> <!-- Bottom: Pallet Details -->
                                         </Grid.RowDefinitions>
 
-                                        <!-- Top Row -->
+                                        <!-- Top Section (Grid.Row="0") -->
                                         <Grid Grid.Row="0">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>     <!-- GO Button -->
+                                                <ColumnDefinition Width="auto"/>        <!-- Finger and Location Info -->
+                                                <ColumnDefinition Width="Auto"/>     <!-- Arrow Button -->
                                             </Grid.ColumnDefinitions>
 
-                                            <!-- Apply GoButtonStyle correctly and set Content explicitly -->
-                                            <Button Grid.Column="0" Style="{StaticResource GoButtonStyle}" Content="GO" VerticalAlignment="Center" Margin="0,0,10,0"
-                                                    Command="{Binding DataContext.TaskVM.StartTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                    CommandParameter="{Binding}" />
-                                            
-                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                <TextBlock Style="{StaticResource DetailTextStyle}" Text="פריקה בפינגר"/>
-                                                <!-- Destination Finger ComboBox - Updated ItemsSource Binding -->
-                                                <ComboBox ItemsSource="{Binding DataContext.AvailableFingers, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                          SelectedItem="{Binding DestinationFinger, Mode=TwoWay}"
-                                                          DisplayMemberPath="DisplayName"
-                                                          MinWidth="100" MaxWidth="150"
-                                                          Style="{StaticResource MaterialDesignComboBox}"
-                                                          materialDesign:HintAssist.Hint="בחר פינגר"/>
-                                            </StackPanel>
-
-                                            <Button Grid.Column="2" Style="{StaticResource ArrowButtonStyle}" VerticalAlignment="Center"
+                                            <Button Grid.Column="2" Style="{StaticResource GoButtonStyle}" Content="GO" VerticalAlignment="Center" Margin="100,0,10,0"
                                                     Command="{Binding DataContext.TaskVM.StartTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"/>
-                                        </Grid>
 
-                                        <!-- Bottom Row: Pallet Details -->
-                                        <Grid Grid.Row="1" Margin="0,10,0,0">
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,5,0,0">
+                                                        <!-- Floor (קומה) -->
+                                                        <StackPanel Orientation="Vertical" Margin="10,0,5,0">
+                                                            <TextBlock Text="קומה" Style="{StaticResource DetailTextStyle}" HorizontalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding SourceCell.Level, TargetNullValue='-'}" Style="{StaticResource ValueTextStyle}" HorizontalAlignment="Center"/>
+                                                        </StackPanel>
+
+                                                      
+                                                        <!-- Row (שורה) -->
+                                                        <StackPanel Orientation="Vertical" Margin="20,0,5,0">
+                                                            <TextBlock Text="שורה" Style="{StaticResource DetailTextStyle}" HorizontalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding SourceCell.Position, TargetNullValue='-'}" Style="{StaticResource ValueTextStyle}" HorizontalAlignment="Center"/>
+                                                        </StackPanel>
+
+                                                       
+                                                        <!-- Location (מיקום) -->
+                                                        <StackPanel Orientation="Vertical" Margin="20,0,2,0">
+                                                            <TextBlock Text="מיקום" Style="{StaticResource DetailTextStyle}" HorizontalAlignment="Center"/>
+                                                            <!-- Location indicators -->
+                                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                                <Border Width="10" Height="10" Background="LightGray" Margin="1,0" BorderBrush="Gray" BorderThickness="1"/>
+                                                                <Border Width="10" Height="10" Background="DarkGray" Margin="1,0" BorderBrush="Gray" BorderThickness="1"/>
+                                                                <Border Width="10" Height="10" Background="LightGray" Margin="1,0" BorderBrush="Gray" BorderThickness="1"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                        <materialDesign:PackIcon  Kind="ArrowLeft" Margin="30,0,5,0" Height="28" Width="28" Foreground="#E1E1E1"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <TextBlock Text="פריקה בפינגר" Style="{StaticResource DetailTextStyle}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                    <ComboBox ItemsSource="{Binding DataContext.AvailableFingers, RelativeSource={RelativeSource AncestorType=UserControl}}"
+               SelectedItem="{Binding DestinationFinger, Mode=TwoWay}" 
+               DisplayMemberPath="DisplayName" MinWidth="80" MaxWidth="100" VerticalAlignment="Center"
+               Style="{StaticResource MaterialDesignComboBox}"/>
+                                                </StackPanel>
+
+                                            </Grid>
+
+                                        <!-- Separator Line (Grid.Row="1") -->
+                                        <Border Grid.Row="1" Height="1" Background="#E0E0E0" Margin="0,8,0,8" SnapsToDevicePixels="True"/>
+
+                                        <!-- Bottom Section (Grid.Row="2") -->
+                                        <Grid Grid.Row="2" Margin="0,5,0,0">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/> <!-- Time -->
-                                                <ColumnDefinition Width="Auto"/> <!-- Height -->
-                                                <ColumnDefinition Width="Auto"/> <!-- ULD Type -->
-                                                <ColumnDefinition Width="Auto"/> <!-- ULD Code -->
-                                                <ColumnDefinition Width="Auto"/> <!-- ULD Number -->
-                                                <ColumnDefinition Width="*"/>    <!-- Priority/Status -->
+                                                <ColumnDefinition Width="*"/> <!-- פרט -->
+                                                <ColumnDefinition Width="*"/> <!-- מופע -->
+                                                <ColumnDefinition Width="*"/> <!-- מצהר -->
+                                                <ColumnDefinition Width="*"/> <!-- סוג פלט -->
+                                                <ColumnDefinition Width="*"/> <!-- גובה -->
+                                                <ColumnDefinition Width="*"/> <!-- שעה -->
                                             </Grid.ColumnDefinitions>
-
-                                            <!-- Time -->
-                                            <StackPanel Grid.Column="0" Margin="0,0,10,0">
-                                                <TextBlock Style="{StaticResource DetailTextStyle}" Text="שעה"/>
-                                                <TextBlock Style="{StaticResource ValueTextStyle}" Text="{Binding CreatedDateTime, StringFormat='HH:mm', TargetNullValue='--:--'}"/>
-                                            </StackPanel>
-
-                                            <!-- Height -->
-                                             <StackPanel Grid.Column="1" Margin="0,0,10,0">
-                                                <TextBlock Style="{StaticResource DetailTextStyle}" Text="גובה"/>
-                                                <TextBlock Style="{StaticResource ValueTextStyle}" Text="{Binding SourceCell.HeightLevel, TargetNullValue='-'}"/>
-                                            </StackPanel>
-
-                                            <!-- ULD Type -->
-                                             <StackPanel Grid.Column="2" Margin="0,0,10,0">
-                                                <TextBlock Style="{StaticResource DetailTextStyle}" Text="סוג פלט"/>
-                                                <TextBlock Style="{StaticResource ValueTextStyle}" Text="{Binding Pallet.UldType, TargetNullValue='---'}"/>
-                                            </StackPanel>
-
-                                            <!-- ULD Code -->
-                                             <StackPanel Grid.Column="3" Margin="0,0,10,0">
-                                                <TextBlock Style="{StaticResource DetailTextStyle}" Text="מזהה"/>
-                                                <TextBlock Style="{StaticResource ValueTextStyle}" Text="{Binding Pallet.UldCode, TargetNullValue='----'}"/>
-                                            </StackPanel>
-
-                                            <!-- ULD Number -->
-                                             <StackPanel Grid.Column="4" Margin="0,0,10,0">
-                                                <TextBlock Style="{StaticResource DetailTextStyle}" Text="מספר"/>
-                                                <TextBlock Style="{StaticResource ValueTextStyle}" Text="{Binding Pallet.UldNumber, TargetNullValue='----'}"/>
-                                            </StackPanel>
-
-                                            <!-- Status Text -->
-                                            <Border Grid.Column="5" Background="{Binding Status, Converter={StaticResource TaskStatusToBrushConverter}}"
-                                                    Padding="5,2" CornerRadius="2" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                                <TextBlock Text="{Binding Status, Converter={StaticResource TaskStatusToTextConverter}, TargetNullValue='---'}" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                            
+                                            <!-- Wrap the StackPanel for "פרט" in a Border to apply the background -->
+                                            <Border Grid.Column="0" Background="#F6F7FB" Padding="5" CornerRadius="3" HorizontalAlignment="Stretch">
+                                                <StackPanel HorizontalAlignment="Center">
+                                                    <TextBlock Text="פרט" Style="{StaticResource DetailTextStyle}" HorizontalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding DisplayDetail1, TargetNullValue='-'}" 
+                                                               Style="{StaticResource ValueTextStyle}" 
+                                                               Foreground="#329DFF" HorizontalAlignment="Center"/>
+                                                </StackPanel>
                                             </Border>
+                                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                                <TextBlock Text="מופע" Style="{StaticResource DetailTextStyle}"/>
+                                                <TextBlock Text="{Binding DisplayDetail2, TargetNullValue='-'}" Style="{StaticResource ValueTextStyle}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                                <TextBlock Text="מצהר" Style="{StaticResource DetailTextStyle}"/>
+                                                <TextBlock Text="{Binding DisplayDetail3, TargetNullValue='-'}" Style="{StaticResource ValueTextStyle}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                                                <TextBlock Text="סוג פלט" Style="{StaticResource DetailTextStyle}"/>
+                                                <Border BorderThickness="1" CornerRadius="3" Padding="5,2" Margin="0,2,0,0"
+                                                        BorderBrush="{Binding Pallet.StorageType, Converter={StaticResource StorageTypeToBorderBrushConverter}}"
+                                                        Background="{Binding Pallet.StorageType, Converter={StaticResource StorageTypeToBackgroundBrushConverter}}">
+                                                    <TextBlock Text="{Binding Pallet.StorageType, Converter={StaticResource StorageTypeToHebrewConverter}, TargetNullValue='-'}"
+                                                               Style="{StaticResource ValueTextStyle}"
+                                                               Foreground="{Binding Pallet.StorageType, Converter={StaticResource StorageTypeToTextBrushConverter}}"
+                                                               HorizontalAlignment="Center"/>
+                                                </Border>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="4" HorizontalAlignment="Center">
+                                                <TextBlock Text="גובה" Style="{StaticResource DetailTextStyle}"/>
+                                                <TextBlock Text="{Binding Pallet.HeightType, Converter={StaticResource HeightLevelToStringConverter}, TargetNullValue='-'}" Style="{StaticResource ValueTextStyle}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="5" HorizontalAlignment="Center">
+                                                <TextBlock Text="שעה" Style="{StaticResource DetailTextStyle}"/>
+                                                <TextBlock Text="{Binding CreatedDateTime, StringFormat='HH:mm', TargetNullValue='--:--'}" Style="{StaticResource ValueTextStyle}"/>
+                                            </StackPanel>
                                         </Grid>
                                     </Grid>
                                 </Border>

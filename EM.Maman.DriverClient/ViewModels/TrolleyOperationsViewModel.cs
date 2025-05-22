@@ -96,6 +96,8 @@ namespace EM.Maman.DriverClient.ViewModels
             {
                 // Update UI
                 TrolleyVM.LoadPalletIntoLeftCell(pallet);
+                _testUnloadLeftCellCommand?.RaiseCanExecuteChanged();
+                _testUnloadRightCellCommand?.RaiseCanExecuteChanged();
                 
                 // Persist to database
                 try
@@ -125,6 +127,8 @@ namespace EM.Maman.DriverClient.ViewModels
             {
                 // Update UI
                 TrolleyVM.LoadPalletIntoRightCell(pallet);
+                _testUnloadLeftCellCommand?.RaiseCanExecuteChanged();
+                _testUnloadRightCellCommand?.RaiseCanExecuteChanged();
                 
                 // Persist to database
                 try
@@ -157,6 +161,8 @@ namespace EM.Maman.DriverClient.ViewModels
                 
                 // Update UI
                 TrolleyVM.RemovePalletFromLeftCell();
+                _testUnloadLeftCellCommand?.RaiseCanExecuteChanged();
+                _testUnloadRightCellCommand?.RaiseCanExecuteChanged();
                 
                 // Persist to database
                 if (pallet != null)
@@ -194,6 +200,8 @@ namespace EM.Maman.DriverClient.ViewModels
                 
                 // Update UI
                 TrolleyVM.RemovePalletFromRightCell();
+                _testUnloadLeftCellCommand?.RaiseCanExecuteChanged();
+                _testUnloadRightCellCommand?.RaiseCanExecuteChanged();
                 
                 // Persist to database
                 if (pallet != null)
@@ -334,13 +342,9 @@ namespace EM.Maman.DriverClient.ViewModels
                 }
             }
 
-            // Notify the UI that the row has changed (needed since we're modifying a property of a property)
-            var rowIndex = TrolleyVM.Rows.IndexOf(row);
-            if (rowIndex >= 0)
-            {
-                TrolleyVM.Rows.RemoveAt(rowIndex);
-                TrolleyVM.Rows.Insert(rowIndex, row);
-            }
+            // Since CompositeRow now implements INotifyPropertyChanged,
+            // direct property assignments above should trigger UI updates.
+            // The RemoveAt/InsertAt trick is no longer necessary.
         }
 
         // Modified TestLoadLeftCell method with improved visual updates and level handling
@@ -370,9 +374,12 @@ namespace EM.Maman.DriverClient.ViewModels
                 Pallet palletToMove = await RemovePalletFromTrolleyLeftCellAsync();
                 if (palletToMove != null)
                 {
-                    await AddPalletToTrolleyRightCellAsync(palletToMove);
+                    await AddPalletToTrolleyRightCellAsync(palletToMove); // This already calls RaiseCanExecuteChanged
                     _logger.LogInformation($"Moved pallet {palletToMove.DisplayName} from trolley left cell to right cell to make space for loading.");
                     MessageBox.Show($"Moved pallet {palletToMove.DisplayName} from trolley left to right cell.");
+                    // Explicitly refresh again after the sequence if AddPalletToTrolleyRightCellAsync's own refresh isn't sufficient
+                    // _testUnloadLeftCellCommand?.RaiseCanExecuteChanged();
+                    // _testUnloadRightCellCommand?.RaiseCanExecuteChanged();
                 }
             }
 
@@ -483,9 +490,12 @@ namespace EM.Maman.DriverClient.ViewModels
                 Pallet palletToMove = await RemovePalletFromTrolleyRightCellAsync();
                 if (palletToMove != null)
                 {
-                    await AddPalletToTrolleyLeftCellAsync(palletToMove);
+                    await AddPalletToTrolleyLeftCellAsync(palletToMove); // This already calls RaiseCanExecuteChanged
                     _logger.LogInformation($"Moved pallet {palletToMove.DisplayName} from trolley right cell to left cell to make space for loading.");
                     MessageBox.Show($"Moved pallet {palletToMove.DisplayName} from trolley right to left cell.");
+                    // Explicitly refresh again after the sequence if AddPalletToTrolleyLeftCellAsync's own refresh isn't sufficient
+                    // _testUnloadLeftCellCommand?.RaiseCanExecuteChanged();
+                    // _testUnloadRightCellCommand?.RaiseCanExecuteChanged();
                 }
             }
             
@@ -667,6 +677,9 @@ namespace EM.Maman.DriverClient.ViewModels
                     }
                     await uow.CompleteAsync();
                     _logger.LogInformation($"Successfully shifted pallets forward for Pos {currentRow.Position}, Lvl {TrolleyVM.CurrentLevelNumber}, Side {sideNumeric}.");
+                    
+                    // Refresh the UI for the affected row
+                    await RefreshWarehouseRowDisplayAsync(currentRow, isLeft);
                 }
             }
             catch (Exception ex)
@@ -699,90 +712,107 @@ namespace EM.Maman.DriverClient.ViewModels
         }
 
         // Helper method to shift pallets deeper in a warehouse cell location when one is added to Order 0.
-        private async System.Threading.Tasks.Task ShiftPalletsDeeperInWarehouseCellAsync(Pallet newPalletToStore, CompositeRow currentRow, bool isLeft)
+        // Returns true if successful, false otherwise.
+        private async Task<bool> ShiftPalletsDeeperInWarehouseCellAsync(Pallet newPalletToStore, CompositeRow currentRow, bool isLeft)
         {
-            if (currentRow == null || newPalletToStore == null) return;
-            _logger.LogInformation($"Shifting pallets deeper in warehouse cell: Pos {currentRow.Position}, Lvl {TrolleyVM.CurrentLevelNumber}, Side {(isLeft ? "Left" : "Right")} to accommodate new pallet {newPalletToStore.DisplayName}.");
+            if (currentRow == null || newPalletToStore == null) return false;
+            _logger.LogInformation($"Initiating ShiftPalletsDeeperInWarehouseCellAsync for pallet {newPalletToStore.DisplayName} into Pos {currentRow.Position}, Lvl {TrolleyVM.CurrentLevelNumber}, Side {(isLeft ? "Left" : "Right")}.");
 
             int sideNumeric = isLeft ? 2 : 1;
-            int maxOrder = await GetMaxOrderForWarehouseCellAsync(currentRow, isLeft);
-            if (maxOrder < 0)
-            {
-                _logger.LogWarning($"Could not determine max order for cell Pos {currentRow.Position}, Lvl {TrolleyVM.CurrentLevelNumber}, Side {sideNumeric}. Aborting shift.");
-                // Potentially, this means the cell location isn't defined. If Order 0 is the only one, no shift is needed.
-                // For a single-depth cell, maxOrder might be 0.
-            }
 
             try
             {
                 using (var uow = _unitOfWorkFactory.CreateUnitOfWork())
                 {
-                    var cellsInPhysicalLocation = (await uow.Cells.FindAsync(c =>
+                    var allDefinedCellsInLocation = (await uow.Cells.FindAsync(c =>
                                                     c.Position == currentRow.Position &&
                                                     c.Level == TrolleyVM.CurrentLevelNumber &&
                                                     c.Side == sideNumeric))
-                                                 .OrderByDescending(c => c.Order) // Process from deepest to shallowest
+                                                 .OrderBy(c => c.Order) // Order from shallowest (0) to deepest
                                                  .ToList();
 
-                    if (!cellsInPhysicalLocation.Any()) return;
-
-                    // Shift existing pallets to make space at Order 0
-                    // Iterate from the second to deepest (maxOrder -1, if maxOrder is 0-based for deepest slot) down to Order 0
-                    // Example: MaxOrder = 2 (slots 0,1,2). Iterate Order 1, then Order 0.
-                    // Pallet at Order 1 moves to Order 2. Pallet at Order 0 moves to Order 1.
-                    for (int currentOrder = maxOrder; currentOrder >= 0; currentOrder--)
+                    if (!allDefinedCellsInLocation.Any())
                     {
-                        var cellToShiftFrom = cellsInPhysicalLocation.FirstOrDefault(c => c.Order == currentOrder);
-                        var cellToShiftTo = cellsInPhysicalLocation.FirstOrDefault(c => c.Order == currentOrder + 1);
+                        _logger.LogError($"No cells defined for physical location Pos {currentRow.Position}, Lvl {TrolleyVM.CurrentLevelNumber}, Side {sideNumeric}. Cannot store pallet.");
+                        MessageBox.Show("Error: Warehouse cell location not defined.", "Configuration Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return false;
+                    }
 
-                        if (cellToShiftFrom != null) // We are looking at a pallet in cell 'currentOrder'
+                    // Revised Fullness Check: Count current pallets vs. capacity
+                    var cellIdsInLocation = allDefinedCellsInLocation.Select(c => c.Id).ToList();
+                    var palletsInLocation = await uow.PalletInCells.FindAsync(pic => cellIdsInLocation.Contains(pic.CellId ?? 0));
+                    int currentPalletCount = palletsInLocation.Count();
+                    int laneCapacity = allDefinedCellsInLocation.Count();
+
+                    if (currentPalletCount >= laneCapacity)
+                    {
+                        _logger.LogWarning($"Warehouse location Pos {currentRow.Position}, Lvl {TrolleyVM.CurrentLevelNumber}, Side {sideNumeric} is full. Pallet count ({currentPalletCount}) >= capacity ({laneCapacity}). Cannot store new pallet {newPalletToStore.DisplayName}.");
+                        MessageBox.Show($"Warehouse location is full. Cannot store pallet {newPalletToStore.DisplayName}.", "Warehouse Full", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return false;
+                    }
+
+                    // If we reach here, there is at least one empty slot in the lane.
+                    // Proceed to shift pallets to make Order 0 available.
+                    // Iterate from the second-to-last defined order down to the first (Order 0).
+                    // Pallet at order 'i' needs to move to order 'i+1'.
+                    // The list allDefinedCellsInLocation is ordered by Order ASC.
+                    // So, iterate from the pallet closest to the back that needs to move.
+                    int maxDefinedOrder = allDefinedCellsInLocation.Max(c => c.Order ?? -1);
+
+                    for (int currentOrderToShiftFrom = maxDefinedOrder - 1; currentOrderToShiftFrom >= 0; currentOrderToShiftFrom--)
+                    {
+                        var cellToShiftFrom = allDefinedCellsInLocation.FirstOrDefault(c => c.Order == currentOrderToShiftFrom);
+                        var cellToShiftTo = allDefinedCellsInLocation.FirstOrDefault(c => c.Order == currentOrderToShiftFrom + 1); // Target for the shift
+
+                        if (cellToShiftFrom == null || cellToShiftTo == null)
                         {
-                             var palletInCellEntry = (await uow.PalletInCells.FindAsync(pic => pic.CellId == cellToShiftFrom.Id)).FirstOrDefault();
-                             if (palletInCellEntry != null) // If there's a pallet in cell 'currentOrder'
-                             {
-                                 if (cellToShiftTo != null) // And there is a deeper cell slot 'currentOrder + 1'
-                                 {
-                                     // Check if the deeper cell 'cellToShiftTo' is already occupied.
-                                     var deeperCellOccupant = (await uow.PalletInCells.FindAsync(pic => pic.CellId == cellToShiftTo.Id)).FirstOrDefault();
-                                     if (deeperCellOccupant != null)
-                                     {
-                                         _logger.LogError($"Critical error: Cell {cellToShiftTo.DisplayName} (Order {cellToShiftTo.Order}) is already occupied by pallet {deeperCellOccupant.PalletId} but trying to shift pallet {palletInCellEntry.PalletId} into it. Aborting shift for this pallet.");
-                                         // This indicates a problem, perhaps maxOrder is wrong or data is inconsistent.
-                                         // Depending on rules, might throw an exception or stop.
-                                         continue; // Skip this pallet, or handle error more robustly
-                                     }
+                            // This implies an issue with cell definitions (e.g., non-contiguous orders)
+                            // or maxDefinedOrder was 0 (single-depth cell, no shift needed for pallets behind).
+                            if (maxDefinedOrder == 0 && currentOrderToShiftFrom == -1) { /* Single depth, loop doesn't run, this is fine */ }
+                            else {
+                                _logger.LogError($"Error in shift logic: Could not find cell to shift from (Order {currentOrderToShiftFrom}) or to (Order {currentOrderToShiftFrom + 1}). MaxOrder: {maxDefinedOrder}.");
+                                MessageBox.Show("Error: Problem with warehouse cell definition during shift.", "Configuration Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                                return false;
+                            }
+                            continue;
+                        }
+                        
+                        var palletToMove = palletsInLocation.FirstOrDefault(p => p.CellId == cellToShiftFrom.Id);
+                        if (palletToMove != null) // If there's a pallet in the cell we're shifting from
+                        {
+                            // Check if the target cell (cellToShiftTo) is already occupied by another pallet (it shouldn't be if logic is correct and compacting towards back)
+                            var occupantInTargetCell = palletsInLocation.FirstOrDefault(p => p.CellId == cellToShiftTo.Id && p.Id != palletToMove.Id);
+                            if (occupantInTargetCell != null)
+                            {
+                                 _logger.LogError($"Critical error during shift: Target cell {cellToShiftTo.DisplayName} (Order {cellToShiftTo.Order}) is unexpectedly occupied by pallet {occupantInTargetCell.PalletId} when trying to shift pallet {palletToMove.PalletId}. Aborting.");
+                                 MessageBox.Show("Error: Inconsistent state during pallet shift. Operation aborted.", "DB Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                                 return false; // Abort on inconsistent state
+                            }
 
-                                     _logger.LogInformation($"Shifting pallet {palletInCellEntry.PalletId} from cell {cellToShiftFrom.Id} (Order {cellToShiftFrom.Order}) to cell {cellToShiftTo.Id} (Order {cellToShiftTo.Order}).");
-                                     palletInCellEntry.CellId = cellToShiftTo.Id;
-                                     uow.PalletInCells.Update(palletInCellEntry);
-                                 }
-                                 else
-                                 {
-                                     // This pallet is at the maxOrder and no deeper cell exists.
-                                     // This situation implies the warehouse cell is full and this pallet would be "pushed out" or operation fails.
-                                     // For now, we assume this means an error or the cell is truly full.
-                                     _logger.LogWarning($"Pallet {palletInCellEntry.PalletId} at max order {currentOrder} in cell {cellToShiftFrom.DisplayName}. No deeper cell to shift to. This might mean the cell is full.");
-                                     // Potentially remove this pallet or flag an error if it cannot be shifted.
-                                     // For this implementation, we'll assume an error if a pallet needs to shift beyond maxOrder.
-                                     // This case should ideally be caught before starting the shift by checking capacity.
-                                 }
-                             }
+                                _logger.LogInformation($"Shifting pallet {palletToMove.PalletId} from cell {cellToShiftFrom.DisplayName} (Order {currentOrderToShiftFrom}) to cell {cellToShiftTo.DisplayName} (Order {cellToShiftTo.Order}).");
+                                palletToMove.CellId = cellToShiftTo.Id; // Assuming cellToShiftTo.Id is long? here and PalletInCell.CellId is long
+                                uow.PalletInCells.Update(palletToMove);
+                            // Removed: palletsInLocation = await uow.PalletInCells.FindAsync(pic => cellIdsInLocation.Contains(pic.CellId ?? 0));
                         }
                     }
                     
                     // After shifting, place the new pallet into Order 0
-                    var cellForNewPallet = cellsInPhysicalLocation.FirstOrDefault(c => c.Order == 0);
+                    var cellForNewPallet = allDefinedCellsInLocation.FirstOrDefault(c => c.Order == 0);
                     if (cellForNewPallet != null)
                     {
-                        // Ensure Order 0 is actually free now
-                        var orderZeroOccupant = (await uow.PalletInCells.FindAsync(pic => pic.CellId == cellForNewPallet.Id)).FirstOrDefault();
+                        // Ensure Order 0 is actually free now (it should be after the in-memory shifts)
+                        var orderZeroOccupant = palletsInLocation.FirstOrDefault(p => p.CellId == cellForNewPallet.Id && p.PalletId.HasValue);
                         if (orderZeroOccupant != null)
                         {
-                             _logger.LogError($"Critical error: Cell {cellForNewPallet.DisplayName} (Order 0) is still occupied by pallet {orderZeroOccupant.PalletId} after shift. Cannot place new pallet {newPalletToStore.DisplayName}.");
-                             MessageBox.Show("Error: Could not free up Order 0 cell for the new pallet.", "DB Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                             _logger.LogError($"Critical error: Cell {cellForNewPallet.DisplayName} (Order 0) is still occupied by pallet {orderZeroOccupant.PalletId} after in-memory shift. Cannot place new pallet {newPalletToStore.DisplayName}.");
+                             MessageBox.Show("Error: Could not free up Order 0 cell for the new pallet (in-memory state).", "DB Logic Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                             return false; // Indicate failure
                         }
                         else
                         {
+                            // Assuming Pallet.Id is int (no .Value needed)
+                            // Assuming Cell.Id is long (no .Value needed)
+                            // Assuming PalletInCell.PalletId is int, PalletInCell.CellId is long
                             await uow.PalletInCells.AddAsync(new PalletInCell { PalletId = newPalletToStore.Id, CellId = cellForNewPallet.Id, StorageDate = DateTime.Now });
                             _logger.LogInformation($"Placed new pallet {newPalletToStore.DisplayName} into cell {cellForNewPallet.DisplayName} (Order 0).");
                         }
@@ -791,19 +821,24 @@ namespace EM.Maman.DriverClient.ViewModels
                     {
                         _logger.LogError($"Critical error: No cell found for Order 0 at Pos {currentRow.Position}, Lvl {TrolleyVM.CurrentLevelNumber}, Side {sideNumeric}. Cannot place new pallet.");
                         MessageBox.Show("Error: No cell definition for Order 0.", "DB Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return false; // Indicate failure: Order 0 cell itself doesn't exist
                     }
 
                     await uow.CompleteAsync();
                     _logger.LogInformation($"Successfully shifted pallets deeper and placed new pallet for Pos {currentRow.Position}, Lvl {TrolleyVM.CurrentLevelNumber}, Side {sideNumeric}.");
+
+                    // Refresh the UI for the affected row
+                    await RefreshWarehouseRowDisplayAsync(currentRow, isLeft);
+                    return true; // Indicate success
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error shifting pallets deeper for Pos {currentRow.Position}, Lvl {TrolleyVM.CurrentLevelNumber}, Side {sideNumeric}.");
                 MessageBox.Show($"Database error shifting pallets deeper: {ex.Message}", "DB Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false; // Indicate failure
             }
         }
-
 
         // Helper method to Add or Remove PalletInCell record
         private async System.Threading.Tasks.Task UpdatePalletInCellDbAsync(Pallet pallet, CompositeRow currentRow, bool isLeft, int order, bool isAdding) // Changed depthIndex to order
@@ -847,8 +882,11 @@ namespace EM.Maman.DriverClient.ViewModels
                         }
                         var palletInCell = new PalletInCell
                         {
+                            // Assuming Pallet.Id is int (no .Value needed)
+                            // Assuming Cell.Id is long (no .Value needed)
+                            // Assuming PalletInCell.PalletId is int, PalletInCell.CellId is long
                             PalletId = pallet.Id,
-                            CellId = dbCell.Id,
+                            CellId = dbCell.Id, 
                             StorageDate = DateTime.Now
                         };
                         await uow.PalletInCells.AddAsync(palletInCell);
@@ -884,9 +922,125 @@ namespace EM.Maman.DriverClient.ViewModels
 
 
         // Method to check if left cell can be unloaded
-       // private bool CanUnloadLeftCell() => TrolleyVM?.LeftCell?.IsOccupied == true;
+        private bool CanUnloadLeftCell() => TrolleyVM?.LeftCell?.IsOccupied == true;
 
-        private bool CanUnloadLeftCell() => true;
+        private async System.Threading.Tasks.Task RefreshWarehouseRowDisplayAsync(CompositeRow rowToRefresh, bool isLeftToRefresh)
+        {
+            if (rowToRefresh == null || TrolleyVM == null) return;
+
+            _logger.LogInformation($"Refreshing UI for row {rowToRefresh.Position}, Level {TrolleyVM.CurrentLevelNumber}, Side {(isLeftToRefresh ? "Left" : "Right")}.");
+
+            try
+            {
+                using (var uow = _unitOfWorkFactory.CreateUnitOfWork())
+                {
+                    int sideNumeric = isLeftToRefresh ? 2 : 1;
+                    var cellsInPhysicalLocation = (await uow.Cells.FindAsync(c =>
+                                                    c.Position == rowToRefresh.Position &&
+                                                    c.Level == TrolleyVM.CurrentLevelNumber &&
+                                                    c.Side == sideNumeric))
+                                                 .OrderBy(c => c.Order)
+                                                 .ToList();
+
+                    if (!cellsInPhysicalLocation.Any())
+                    {
+                        _logger.LogWarning($"No cells defined for location: Pos {rowToRefresh.Position}, Lvl {TrolleyVM.CurrentLevelNumber}, Side {sideNumeric}. Cannot refresh UI accurately.");
+                        // Clear existing pallets for this side in the UI row if no cells are defined
+                        if (isLeftToRefresh)
+                        {
+                            rowToRefresh.LeftCell1Pallet = null;
+                            rowToRefresh.LeftCell2Pallet = null;
+                            rowToRefresh.LeftCell3Pallet = null;
+                            rowToRefresh.LeftCell4Pallet = null;
+                        }
+                        else
+                        {
+                            rowToRefresh.RightCell1Pallet = null;
+                            rowToRefresh.RightCell2Pallet = null;
+                            rowToRefresh.RightCell3Pallet = null;
+                            rowToRefresh.RightCell4Pallet = null;
+                        }
+                        return;
+                    }
+
+                    var cellIdsInLocation = cellsInPhysicalLocation.Select(c => c.Id).ToList();
+                    var palletsInCellEntries = await uow.PalletInCells.FindAsync(pic => cellIdsInLocation.Contains(pic.CellId ?? 0) && pic.PalletId.HasValue);
+                    
+                    var palletCache = new Dictionary<int, Pallet>();
+                    foreach (var picEntry in palletsInCellEntries)
+                    {
+                        if (picEntry.PalletId.HasValue && !palletCache.ContainsKey((int)picEntry.PalletId.Value)) // Cast key for dictionary
+                        {
+                            // Pallet.Id is int, PalletInCell.PalletId is long?. Cast to int for GetByIdAsync.
+                            var pallet = await uow.Pallets.GetByIdAsync((int)picEntry.PalletId.Value);
+                            if (pallet != null)
+                            {
+                                palletCache[(int)picEntry.PalletId.Value] = pallet; // Cast key for dictionary
+                            }
+                        }
+                    }
+
+                    // Temporarily set all pallet properties for the refreshed side to null
+                    if (isLeftToRefresh)
+                    {
+                        rowToRefresh.LeftCell1Pallet = null;
+                        rowToRefresh.LeftCell2Pallet = null;
+                        rowToRefresh.LeftCell3Pallet = null;
+                        rowToRefresh.LeftCell4Pallet = null;
+                    }
+                    else
+                    {
+                        rowToRefresh.RightCell1Pallet = null;
+                        rowToRefresh.RightCell2Pallet = null;
+                        rowToRefresh.RightCell3Pallet = null;
+                        rowToRefresh.RightCell4Pallet = null;
+                    }
+
+                    // Update the CompositeRow with pallets based on their order in DB
+                    foreach (var dbCell in cellsInPhysicalLocation)
+                    {
+                        var palletInCell = palletsInCellEntries.FirstOrDefault(pic => pic.CellId == dbCell.Id);
+                        Pallet palletToShow = null;
+                        if (palletInCell != null && palletInCell.PalletId.HasValue)
+                        {
+                            // Ensure key used for TryGetValue matches the key type used for palletCache (int)
+                            palletCache.TryGetValue((int)palletInCell.PalletId.Value, out palletToShow);
+                        }
+
+                        if (dbCell.Order.HasValue)
+                        {
+                            int uiCellIndex = dbCell.Order.Value + 1; // DB Order is 0-based, UI cellIndex is 1-based
+                            if (isLeftToRefresh)
+                            {
+                                switch (uiCellIndex)
+                                {
+                                    case 1: rowToRefresh.LeftCell1Pallet = palletToShow; break;
+                                    case 2: rowToRefresh.LeftCell2Pallet = palletToShow; break;
+                                    case 3: rowToRefresh.LeftCell3Pallet = palletToShow; break;
+                                    case 4: rowToRefresh.LeftCell4Pallet = palletToShow; break;
+                                }
+                            }
+                            else // Right side
+                            {
+                                switch (uiCellIndex)
+                                {
+                                    case 1: rowToRefresh.RightCell1Pallet = palletToShow; break;
+                                    case 2: rowToRefresh.RightCell2Pallet = palletToShow; break;
+                                    case 3: rowToRefresh.RightCell3Pallet = palletToShow; break;
+                                    case 4: rowToRefresh.RightCell4Pallet = palletToShow; break;
+                                }
+                            }
+                        }
+                    }
+                     _logger.LogInformation($"UI refresh complete for row {rowToRefresh.Position}, Level {TrolleyVM.CurrentLevelNumber}, Side {(isLeftToRefresh ? "Left" : "Right")}.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error refreshing warehouse row display for Pos {rowToRefresh.Position}, Lvl {TrolleyVM.CurrentLevelNumber}, Side {(isLeftToRefresh ? "Left" : "Right")}.");
+                MessageBox.Show($"Error refreshing warehouse display: {ex.Message}", "UI Refresh Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
         // Navigation methods
         public void ExecuteGoToStorageLocation(object parameter)
@@ -948,5 +1102,17 @@ namespace EM.Maman.DriverClient.ViewModels
         
         // Method to unload the right cell - calls implementation in UnloadMethods.cs
         private async System.Threading.Tasks.Task TestUnloadRightCellAsync() => await UnloadPalletFromRightCellAsync();
+
+        /// <summary>
+        /// Public method to explicitly refresh the CanExecute state of unload commands.
+        /// This is useful when the underlying data (e.g., TrolleyVM.LeftCell.IsOccupied)
+        /// is changed by an external process (like initial data load).
+        /// </summary>
+        public void RefreshCommandStates()
+        {
+            _testUnloadLeftCellCommand?.RaiseCanExecuteChanged();
+            _testUnloadRightCellCommand?.RaiseCanExecuteChanged();
+            _logger.LogInformation("Unload command states refreshed via RefreshCommandStates().");
+        }
     }
 }
