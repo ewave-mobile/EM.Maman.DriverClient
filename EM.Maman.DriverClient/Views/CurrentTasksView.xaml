@@ -230,7 +230,7 @@
                          <Border BorderThickness="1" BorderBrush="#E0E0E0" CornerRadius="10" Padding="10" Background="White" Margin="0,0,0,10"
                                  Visibility="{Binding HasPalletsReadyForDelivery, Converter={StaticResource BooleanToVisibilityConverter}}">
                              <StackPanel>
-                                 <TextBlock Text="משלוחים מוכנים (על העגלה)" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center"/>
+                                 <TextBlock Text="שליפות" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center"/>
                                  <ItemsControl ItemsSource="{Binding PalletsReadyForDelivery}">
                                      <ItemsControl.ItemTemplate>
                                          <DataTemplate>

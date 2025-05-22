@@ -257,57 +257,89 @@ namespace EM.Maman.DriverClient.ViewModels
             }
         }
 
-        // This method is primarily for storage tasks. Retrieval task completion is now fully handled by MainViewModel
-        // based on the boolean result of UnloadPalletFromLeft/RightCellAsync.
+        // This method is called after a pallet unload to update the status of any associated task (storage or retrieval).
         private async void UpdateTaskStatus(int? palletId)
         {
-            if (_mainViewModel == null || palletId == null ) return;
+            if (_mainViewModel == null || palletId == null) return;
 
-            var taskItem = _mainViewModel.PalletsReadyForStorage.FirstOrDefault(
+            // Try to find a storage task associated with the pallet
+            var storageTaskItem = _mainViewModel.PalletsReadyForStorage.FirstOrDefault(
                 item => item.PalletDetails?.Id == palletId);
-            
-            // Also check PalletsReadyForDelivery for retrieval tasks
-            PalletRetrievalTaskItem retrievalTaskItem = null;
-            if (taskItem == null)
-            {
-                retrievalTaskItem = _mainViewModel.PalletsReadyForDelivery.FirstOrDefault(
-                    item => item.PalletDetails?.Id == palletId);
-            }
 
-            if (taskItem != null && taskItem.StorageTask != null) // It's a storage task
+            if (storageTaskItem != null && storageTaskItem.StorageTask != null) // It's a storage task
             {
-                taskItem.StorageTask.ActiveTaskStatus = ActiveTaskStatus.finished;
-                taskItem.StorageTask.Status = Models.Enums.TaskStatus.Completed; 
-                taskItem.StorageTask.ExecutedDateTime = DateTime.Now; 
+                storageTaskItem.StorageTask.ActiveTaskStatus = ActiveTaskStatus.finished;
+                storageTaskItem.StorageTask.Status = Models.Enums.TaskStatus.Completed;
+                storageTaskItem.StorageTask.ExecutedDateTime = DateTime.Now;
                 _mainViewModel.OnPropertyChanged(nameof(_mainViewModel.PalletsReadyForStorage));
 
                 if (_mainViewModel.TaskVM != null)
                 {
-                    await _mainViewModel.TaskVM.SaveTaskToDatabase(taskItem.StorageTask);
+                    await _mainViewModel.TaskVM.SaveTaskToDatabase(storageTaskItem.StorageTask);
                 }
+                _logger.LogInformation("Storage task for pallet {PalletId} has been completed via UpdateTaskStatus.", palletId);
                 MessageBox.Show($"Storage task for pallet {palletId} has been completed.",
                                "Task Completed", MessageBoxButton.OK, MessageBoxImage.Information);
-                var timer = new System.Timers.Timer(5000); 
+                var timer = new System.Timers.Timer(5000);
                 timer.Elapsed += (sender, e) =>
                 {
                     timer.Stop();
                     _mainViewModel._dispatcherService.Invoke(() =>
                     {
-                        _mainViewModel.PalletsReadyForStorage.Remove(taskItem);
+                        _mainViewModel.PalletsReadyForStorage.Remove(storageTaskItem);
                         _mainViewModel.NotifyStorageItemsChanged();
                     });
                 };
-                timer.AutoReset = false; 
+                timer.AutoReset = false;
                 timer.Start();
             }
-            else if (retrievalTaskItem != null && retrievalTaskItem.RetrievalTask != null) // It's a retrieval task
+            else // If not a storage task, check if it's a retrieval task
             {
-                // Note: The status update to Completed/finished for retrieval tasks
-                // is already handled in MainViewModel.ExecuteUnloadAtDestination.
-                // This UpdateTaskStatus method was originally for storage.
-                // If specific post-unload actions for retrieval are needed here, they can be added.
-                // For now, the main completion logic for retrieval is in ExecuteUnloadAtDestination.
-                 _logger.LogInformation("Retrieval task for pallet {PalletId} already marked completed by ExecuteUnloadAtDestination.", palletId);
+                var retrievalTaskItem = _mainViewModel.PalletsReadyForDelivery.FirstOrDefault(
+                    item => item.PalletDetails?.Id == palletId && item.RetrievalTask != null);
+
+                if (retrievalTaskItem != null) // It's a retrieval task
+                {
+                    _logger.LogInformation("Completing retrieval task for pallet {PalletId} via UpdateTaskStatus in TrolleyOperationsVM.", palletId);
+                    retrievalTaskItem.RetrievalTask.ActiveTaskStatus = ActiveTaskStatus.finished;
+                    retrievalTaskItem.RetrievalTask.Status = Models.Enums.TaskStatus.Completed;
+                    retrievalTaskItem.RetrievalTask.ExecutedDateTime = DateTime.Now;
+                    
+                    if (_mainViewModel.TaskVM != null)
+                    {
+                        await _mainViewModel.TaskVM.SaveTaskToDatabase(retrievalTaskItem.RetrievalTask);
+                        // Ensure MainViewModel's view of tasks is updated.
+                        // RefreshTaskStatus might involve more than just UI, could reload or re-evaluate task lists.
+                        _mainViewModel.TaskVM.RefreshTaskStatus(retrievalTaskItem.RetrievalTask); 
+                    }
+                    
+                    MessageBox.Show($"Retrieval task for pallet {palletId} has been completed.",
+                                   "Task Completed", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    var retrievalTimer = new System.Timers.Timer(5000);
+                    retrievalTimer.Elapsed += (sender, e) =>
+                    {
+                        retrievalTimer.Stop();
+                        _mainViewModel._dispatcherService.Invoke(() =>
+                        {
+                            if (_mainViewModel.PalletsReadyForDelivery.Contains(retrievalTaskItem))
+                            {
+                                _mainViewModel.PalletsReadyForDelivery.Remove(retrievalTaskItem);
+                                _logger.LogInformation("Delayed removal of completed Retrieval Task ID {TaskId} from PalletsReadyForDelivery via UpdateTaskStatus.", retrievalTaskItem.RetrievalTask.Id);
+                                _mainViewModel.OnPropertyChanged(nameof(_mainViewModel.HasPalletsReadyForDelivery));
+                                _mainViewModel.OnPropertyChanged(nameof(_mainViewModel.ShouldShowTasksPanel));
+                                _mainViewModel.OnPropertyChanged(nameof(_mainViewModel.ShouldShowDefaultPhoto));
+                                _mainViewModel.OnPropertyChanged(nameof(_mainViewModel.IsDefaultTaskViewActive));
+                            }
+                        });
+                    };
+                    retrievalTimer.AutoReset = false;
+                    retrievalTimer.Start();
+                }
+                else
+                {
+                    _logger.LogInformation("UpdateTaskStatus called for pallet {PalletId}, but no associated active storage or retrieval task found.", palletId);
+                }
             }
         }
     }
